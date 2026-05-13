@@ -78,6 +78,14 @@ Integrationstester (`FactoryGame.Api.Tests`) startar Postgres via Testcontainers
 
 Repot innehåller workflow [`.github/workflows/azure-webapp-api.yml`](.github/workflows/azure-webapp-api.yml) som bygger `FactoryGame.Api` och laddar upp **`dotnet publish`**-utdata till Azure App Service via **FTPS** till `site/wwwroot` (.NET 10).
 
+**Lokal zip-deploy (Azure CLI):** med `az login` och rätt prenumeration:
+
+```powershell
+.\scripts\Deploy-ApiToAzureZip.ps1 -ResourceGroup "<din-rg>" -WebAppName "<app-namn>"
+```
+
+Valfritt: `-Subscription "<namn eller id>"` om Web App ligger i annan prenumeration än standard. Skriptet kör `dotnet publish`, zippar och `az webapp deploy --type zip` (Kudu zipdeploy — vanlig ersättare för Web Deploy mot Linux App Service).
+
 **GitHub → Settings → Secrets and variables → Actions** (repository secrets):
 
 | Secret | Innehåll |
