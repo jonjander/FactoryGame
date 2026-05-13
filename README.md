@@ -87,6 +87,8 @@ Repot innehåller workflow [`.github/workflows/azure-webapp-api.yml`](.github/wo
 
 Om variabeln `AZURE_WEBAPP_NAME` saknas hoppar workflow över deploy-steget (bygget körs ändå).
 
+**Tom Log stream i Azure efter Sync:** (1) Öppna **GitHub → Actions** och senaste körningen av *Deploy API to Azure Web App* — bygget/deploy loggas där. Om steget **Deploy** är grått/hoppat saknas `AZURE_WEBAPP_NAME` eller så matchar inte publish profile. (2) Web App-namnet i variabeln ska vara **exakt** resursnamnet (hostname utan `.azurewebsites.net`, t.ex. `factorygame-h5hmbzgncnazcmgu`). (3) **Log stream** visar främst **körningsloggar** från din app — slå på **Monitoring → App Service logs → Application logging (Filesystem)** och sätt t.ex. `Logging__LogLevel__Default` = `Information` i Configuration, annars kan stream vara tom även när appen levererar trafik.
+
 **Azure Portal → Web App → Configuration → Application settings** (minsta för riktig drift):
 
 - `ConnectionStrings__DefaultConnection` – Npgsql-sträng till Azure Database for PostgreSQL (eller annan Postgres). Utan denna kör appen SQLite in-memory (data försvinner vid omstart).

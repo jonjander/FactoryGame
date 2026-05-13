@@ -34,6 +34,19 @@ jobs:
       - name: Publish API
         run: dotnet publish src/FactoryGame.Api/FactoryGame.Api.csproj -c Release --no-self-contained -o "${{ env.PUBLISH_DIR }}"
 
+      # Azure Log stream shows *runtime* app logs — not GitHub build output. Build/deploy logs live under repo → Actions → this workflow.
+      - name: Check Azure deploy configuration
+        env:
+          WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+        run: |
+          if [ -z "$WEBAPP_NAME" ]; then
+            echo "::warning::Repository variable AZURE_WEBAPP_NAME is empty — the Deploy step is SKIPPED. No new bits are sent to Azure."
+            echo "Fix: GitHub repo → Settings → Secrets and variables → Actions → Variables → add AZURE_WEBAPP_NAME (exact App Service name from Portal, e.g. the name before .azurewebsites.net)."
+            echo "Also add secret AZURE_WEBAPP_PUBLISH_PROFILE or deploy will fail when enabled."
+          else
+            echo "Deploy target Web App name: $WEBAPP_NAME"
+          fi
+
       - name: Deploy to Azure Web App
         if: ${{ vars.AZURE_WEBAPP_NAME != '' }}
         uses: azure/webapps-deploy@v3
