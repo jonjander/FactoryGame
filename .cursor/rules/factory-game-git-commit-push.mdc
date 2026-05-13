@@ -9,9 +9,9 @@ När en **större ändring** är klar (t.ex. ny funktion, beteendeförändring, 
 
 1. **Verifiera** att bygg/test som hör till ändringen är grönt om det är rimligt i sammanhanget.
 2. **Stage** relevanta filer (`git add`); undvik oavsiktliga filer (t.ex. hemligheter, genererad skräp).
-3. **Commit** med ett kort, beskrivande meddelande på engelska eller svenska i samma stil som övriga commits i repot (hel mening, vad och varför kort).
+3. **Commit**: om leveransen **höjer appversion** (`Directory.Build.props`), ska meddelandet vara **exakt** den nya semver (t.ex. `0.1.2`); annars ett kort beskrivande meddelande på engelska eller svenska i samma stil som övriga commits.
 4. **Push** till `origin` på aktuell branch (`git push`), såvida användaren uttryckligen bett om att *inte* pusha eller arbetskopian saknar remote/behörighet — då rapportera status och lämna commit lokalt.
-5. Om leveransen innebär ny **appversion**: följ regeln **factory-game-version-and-tags** (bump av `Version` i `Directory.Build.props`, tag `v{Version}`, push av tagg, skriv levererad version i chatten).
+5. Om leveransen innebär ny **appversion**: följ regeln **factory-game-version-and-tags** (bump av `Version` i `Directory.Build.props`, uppdatering av **`releases.md`**, commit-meddelande = enbart semver, tag `v{Version}`, push av tagg, skriv levererad version i chatten).
 
 **Räknas inte** som "större": stavfix i en kommentar, en rad formatering, eller ren utforskning utan bestående kodändring — då räcker det ofta att vänta eller batcha.
 
