@@ -83,7 +83,7 @@ Repot innehåller workflow [`.github/workflows/azure-webapp-api.yml`](.github/wo
 | Secret | Innehåll |
 |--------|----------|
 | `AZURE_FTP_SERVER` | Endast värdnamn, t.ex. `waws-prod-sec-031.ftp.azurewebsites.windows.net` (från **FTPS-endpoint** i portalen — utan `ftps://` och utan `/site/wwwroot`). |
-| `AZURE_FTP_USERNAME` | Exakt som i Azure, t.ex. `FactoryGame\FactoryGame` (backslash som i **Deployment credentials**). |
+| `AZURE_FTP_USERNAME` | **Exakt** som i Azure (Deployment / FTPS credentials). För *application scope* är formatet ofta `` `AppName\$AppName` `` (dollar är **literal**). Kopiera från portalen. |
 | `AZURE_FTP_PASSWORD` | FTP-/deployment-lösenord. **Byt lösenord i Azure** om det någonsin läckt i klartext. |
 
 Om någon av dessa saknas **misslyckas** deploy-steget i Actions tills secrets är satta.
