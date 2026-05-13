@@ -95,6 +95,8 @@ Deploy sker genom att **pusha till GitHub**; Azure **Deployment Center** (Extern
 
 **CI i GitHub:** workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) kör build + tester på push/PR till `main`/`master` — den deployar **inte** till Azure.
 
+För **Azure dev-URL, smoke, auth mot molnet:** se skill [`factory-game-azure-test`](.cursor/skills/factory-game-azure-test/SKILL.md) (`@factory-game-azure-test`).
+
 Eventuella **gamla GitHub-secrets** för FTPS/publish profile används inte längre av detta repo; du kan ta bort dem i repo-inställningar om du vill städa.
 
 ## Säkerhet (MVP)

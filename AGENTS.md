@@ -99,5 +99,6 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 | Server-sim | `.cursor/skills/factory-game-server-sim/` |
 | Börs & seaport | `.cursor/skills/factory-game-bors-seaport/` |
 | Webklient | `.cursor/skills/factory-game-web-klient/` |
+| Azure test-API | `.cursor/skills/factory-game-azure-test/` |
 
 Aktivera en skill explicit i chatten (t.ex. `@factory-game-server-sim`) eller nämna den i delegeringsprompten.
