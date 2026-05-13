@@ -134,6 +134,13 @@ body {
     flex: 1;
 }
 
+.app-footer {
+    padding: 0.45rem 1.25rem 0.65rem;
+    text-align: center;
+    border-top: 1px solid #30363d;
+    font-size: 0.8rem;
+}
+
 .panel {
     background: #161b22;
     border: 1px solid #30363d;

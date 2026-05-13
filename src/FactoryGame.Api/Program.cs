@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Threading.RateLimiting;
 using FactoryGame.Api.Auth;
 using FactoryGame.Api.Endpoints;
@@ -22,7 +23,10 @@ if (!builder.Environment.IsDevelopment())
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "FactoryGame API", Version = "v1" });
+    var apiVersion = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(Program).Assembly.GetName().Version?.ToString()
+        ?? "0.0.0";
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "FactoryGame API", Version = apiVersion });
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Session token from POST /v1/auth/guest",

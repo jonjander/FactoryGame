@@ -1,0 +1,23 @@
+---
+description: Appversion (Directory.Build.props), UI/Swagger, git-tag v+semver, meddela levererad version i chatten.
+alwaysApply: true
+---
+
+# Appversion, UI och git-taggar
+
+## Källa
+
+- **Enda manuella sanningskällan** för löpnummer: `Directory.Build.props` → egenskapen **`Version`** (semver, t.ex. `0.1.0`).
+- Bygg sätter `AssemblyInformationalVersion` så att **webklienten** (`AppReleaseVersion` / sidfot) och **API Swagger** (`OpenApiInfo.Version`) visar samma värde utan duplicerad konstant i kod.
+
+## Vid leverans av en större ändring
+
+1. **Öka `Version`** i `Directory.Build.props` (patch/minor/major enligt omfattning).
+2. **Commit** (meddelande ska nämna versionen, t.ex. `Release 0.1.1` eller `Bump version to 0.1.1`).
+3. **Push** commit till `origin`.
+4. **Tag** annoterad tag som matchar props, med `v`-prefix: `git tag -a v0.1.1 -m "v0.1.1"` på samma commit (eller omedelbart efter), sedan `git push origin v0.1.1` (eller `git push origin --tags` om flera taggar ska upp samtidigt — undvik oavsiktiga extra-taggar).
+5. **I chattsvaret** till användaren: skriv uttryckligen vilken version som levererats, t.ex. *Levererat: **v0.1.1** (Version 0.1.1 i UI).*
+
+## Konsekvens
+
+- Git-tag `v{Version}` ska peka på samma kod som användaren ser när UI visar **Version {Version}**.
