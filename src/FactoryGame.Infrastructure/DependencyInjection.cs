@@ -1,7 +1,7 @@
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Hosting;
-using FactoryGame.Infrastructure.Services;
 using FactoryGame.Infrastructure.Options;
+using FactoryGame.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,8 +15,21 @@ public static class DependencyInjection
         services.Configure<GameEconomyOptions>(configuration.GetSection(GameEconomyOptions.SectionName));
         services.Configure<AdminOptions>(configuration.GetSection(AdminOptions.SectionName));
 
+        var dbResolution = DbConnectionResolver.Resolve(configuration.GetConnectionString("DefaultConnection"));
+        services.AddSingleton(dbResolution);
+
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        {
+            if (dbResolution.IsSqlite)
+                options.UseSqlite(dbResolution.ConnectionString);
+            else
+                options.UseNpgsql(dbResolution.ConnectionString);
+        });
+
+        services.AddSingleton<IDatabaseSchemaInitializer>(_ =>
+            dbResolution.UseEnsureCreatedInsteadOfMigrate
+                ? new SqliteEnsureCreatedDatabaseSchemaInitializer()
+                : new NpgsqlMigrateDatabaseSchemaInitializer());
 
         services.AddScoped<GuestAuthService>();
         services.AddScoped<ExchangeService>();

@@ -235,6 +235,10 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 - Spelaren ska kunna dra kopplingar visuellt mellan portar (t.ex. dra ror fran maskin `x` till `y`).
 - Bygglage ska visa tydlig validering av tillatna/otillatna kopplingar i realtid.
 - Klienten ska ha snabbkommandon for vanliga byggoperationer (placera, connect, disconnect, rotate, save).
+- **Mobilanpassning:** layout och interaktion ska vara **responsiva** och anvandbara pa **mobil webblasare** (viewport-meta, rimliga touchmal, scroll och enkolumn dar utrymmet kraver det; dra-koppling far ha mobilalternativ, t.ex. valj-kalla-valj-mal, utan att ge bort servervalidering).
+- **100% klient-paritet:** samma **funktionalitet** som pa stor skarm — ingen avkapad spel-logik i webben; allt som gar att gora i officiell klient ska ga att na via samma **publika API** och motsvarande UI-floden (olika **presentation** ar tillaten).
+- **Visuell prioritering pa sma skarmar:** **mindre** dekorativ grafik och tunga visuella effekter; **tydligare** hierarki med **beskrivande** menyer och submenyer (rubriker, korta forklaringar dar det hjalper) sa att funktionerna ar **latta att hitta** utan att spelaren tappar orientering.
+- **UX-mal:** enkelt grundupplagg, intuitiv navigation mellan huvudomraden (fabrik, ekonomi/bors, inventarie, wiki, CLI enligt MVP-scope), utan att duplicera eller dolja kritisk information.
 
 ### F20 - Inbyggt CLI i webklienten
 - Webklienten ska erbjuda ett inbyggt kommandolage/terminal for avancerade spelare.
@@ -348,7 +352,9 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ### Rekommenderad stack
 - Backend: ASP.NET Core (senaste LTS).
 - Frontend: Blazor Web App eller separat SPA (t.ex. React) med .NET API.
-- Databas: PostgreSQL eller SQL Server.
+- Persistens: **Entity Framework Core** mot en **relations-SQL**-provider (samma domänmodell och migrationer oavsett provider i idealfall).
+- Drift / CI / paritetstester: PostgreSQL eller SQL Server (konkret provider valjs per miljo; se befintlig repo-konfiguration).
+- **Utvecklingsfas:** lokal relations-DB som ar SQL-kompatibel i EF-perspektiv, typiskt **SQLite** (fil eller `:memory:`). Under utveckling ska det ga att **seedea eller aterstalla** tillstand genom att **ladda upp och ladda ner en fil** direkt fran webbappen (t.ex. SQLite-databasfil eller versionerad snapshot som API:t kan importera), utan att behova delad Postgres-instans for varje utvecklingssession.
 - Cache (valfritt i MVP): Redis.
 
 ### Arkitekturprinciper
@@ -393,7 +399,7 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ## 11. Oppna fragor (att besluta)
 - Ska MVP vara single-player eller enkel asynkron multiplayer?
 - Ska frontend byggas i Blazor eller separat JS-ramverk?
-- Vilken databas ska vi standardisera pa?
+- Vilken **SQL-provider** ska vara primar i produktion (Postgres vs SQL Server), givet att EF Core ar gemensamt lager?
 - Vilken molnplattform ska anvandas for hosting?
 - Transport for keyframes: polling, SSE eller WebSockets/SignalR?
 - Ska marknadspriser vara rena orderbokspriser eller finns referens-/styrpris fran server?

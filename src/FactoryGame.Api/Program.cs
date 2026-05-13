@@ -3,10 +3,21 @@ using FactoryGame.Api.Auth;
 using FactoryGame.Api.Endpoints;
 using FactoryGame.Infrastructure;
 using FactoryGame.Infrastructure.Data;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -87,10 +98,14 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+    app.UseForwardedHeaders();
+
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    var schema = scope.ServiceProvider.GetRequiredService<IDatabaseSchemaInitializer>();
+    await schema.EnsureSchemaAsync(db);
 }
 
 app.UseSwagger();

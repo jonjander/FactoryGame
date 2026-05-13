@@ -1,0 +1,43 @@
+# Deploy FactoryGame API to Azure App Service (Linux, .NET 8).
+# Prerequisites (GitHub repo → Settings → Secrets and variables → Actions):
+#   - Secret:  AZURE_WEBAPP_PUBLISH_PROFILE  (Download publish profile from Azure Portal → Web App → Get publish profile)
+#   - Variable: AZURE_WEBAPP_NAME             (Web App name, e.g. factorygame-api)
+#
+# If Azure Deployment Center generates another workflow, keep one deploy path to avoid double deploys.
+
+name: Deploy API to Azure Web App
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: azure-webapp-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  PUBLISH_DIR: "${{ github.workspace }}/publish"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish API
+        run: dotnet publish src/FactoryGame.Api/FactoryGame.Api.csproj -c Release --no-self-contained -o "${{ env.PUBLISH_DIR }}"
+
+      - name: Deploy to Azure Web App
+        if: ${{ vars.AZURE_WEBAPP_NAME != '' }}
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.PUBLISH_DIR }}
