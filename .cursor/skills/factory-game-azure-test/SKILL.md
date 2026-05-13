@@ -40,10 +40,14 @@ Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen k
 - **Admin:** `X-Admin-Token` mot `/v1/admin/*` — värdet sätts i Azure **Application settings** (`Admin:BootstrapToken`); **lagra aldrig** token i repo eller i chat.
 - **FTP/zip-deploy:** används inte i nuvarande flöde; endast Git → Oryx.
 
-## Klient (Blazor / annat)
+## Klient (Blazor UI)
 
-- Peka `factory-config.json` (eller motsvarande) mot bas-URL ovan.
-- API **CORS:** sätt `Cors__Origins__0` i Azure till klientens URL om du inte kör `AllowAnyOrigin`.
+Själva **gränssnittet** ligger i `FactoryGame.Web` och deployas **inte** automatiskt med API-Web App:en i nuvarande Oryx-upplägg.
+
+- **Lokalt:** `dotnet run --project src/FactoryGame.Web` → öppna URL:en som CLI skriver ut. Sätt `src/FactoryGame.Web/wwwroot/factory-config.json` → `ApiBaseUrl` till API-bas-URL ovan; sätt **CORS** på API till samma klient-URL.
+- **Hostat i Azure:** publicera Blazor WASM (`dotnet publish` på Web-projektet) och serva `wwwroot` via Static Web Apps, Blob+CDN, eller en separat Web App; `ApiBaseUrl` pekar fortfarande på API-Web App.
+
+Se `README.md` → **Webbklient (Blazor WASM)**.
 
 ## Lokal verifiering
 

@@ -41,7 +41,11 @@ Med Postgres kör API `Database.MigrateAsync()` vid start. För manuella migrati
 dotnet run --project src/FactoryGame.Web
 ```
 
-Standard-API mot `http://localhost:5176`. Ändra `src/FactoryGame.Web/wwwroot/factory-config.json` om API körs på annan bas-URL.
+Standard-API i `wwwroot/factory-config.json` är `http://localhost:5176` (lokal API). För att använda **API i Azure** istället: sätt `ApiBaseUrl` till din Web App-URL, t.ex. `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net` (utan avslutande `/`). Då når du UI:t på den port `dotnet run` skriver ut (t.ex. `https://localhost:7048`) medan anrop går till molnet.
+
+På **API** i Azure: lägg till `Cors__Origins__0` = klientens exakta bas-URL (t.ex. `https://localhost:7048`) så webbläsaren får kalla API:t; annars blockeras anrop från Blazor.
+
+**Publicerat UI i Azure** (val när du vill slippa `dotnet run`): bygg `FactoryGame.Web` (`dotnet publish`), lägg ut `wwwroot`-innehållet på t.ex. **Azure Static Web Apps**, **Blob Storage + CDN**, eller en **andra** Web App som bara servar statiska filer — samma `factory-config.json`/`ApiBaseUrl` mot API-Web App:en.
 
 CORS: Development använder `Cors:Origins` i `appsettings.Development.json` på API-projektet.
 
