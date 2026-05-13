@@ -350,7 +350,7 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ## 7. Teknisk kravbild (.NET)
 
 ### Rekommenderad stack
-- Backend: ASP.NET Core (senaste LTS).
+- Backend: ASP.NET Core på **.NET 10** (teamets målram; följ Microsofts supportcykel).
 - Frontend: Blazor Web App eller separat SPA (t.ex. React) med .NET API.
 - Persistens: **Entity Framework Core** mot en **relations-SQL**-provider (samma domänmodell och migrationer oavsett provider i idealfall).
 - Drift / CI / paritetstester: PostgreSQL eller SQL Server (konkret provider valjs per miljo; se befintlig repo-konfiguration).

@@ -1,4 +1,4 @@
-# Deploy FactoryGame API to Azure App Service (Linux, .NET 8).
+# Deploy FactoryGame API to Azure App Service (Linux, .NET 10).
 # Prerequisites (GitHub repo → Settings → Secrets and variables → Actions):
 #   - Secret:  AZURE_WEBAPP_PUBLISH_PROFILE  (Download publish profile from Azure Portal → Web App → Get publish profile)
 #   - Variable: AZURE_WEBAPP_NAME             (Web App name, e.g. factorygame-api)
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOTNET_VERSION: "8.0.x"
+  DOTNET_VERSION: "10.0.x"
   PUBLISH_DIR: "${{ github.workspace }}/publish"
 
 jobs:

@@ -5,7 +5,7 @@ using FactoryGame.Infrastructure;
 using FactoryGame.Infrastructure.Data;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +22,7 @@ if (!builder.Environment.IsDevelopment())
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new() { Title = "FactoryGame API", Version = "v1" });
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "FactoryGame API", Version = "v1" });
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Session token from POST /v1/auth/guest",
@@ -39,22 +39,10 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey
     });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        },
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "ApiKey" }
-            },
-            Array.Empty<string>()
-        }
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = [],
+        [new OpenApiSecuritySchemeReference("ApiKey", document)] = []
     });
 });
 

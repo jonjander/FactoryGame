@@ -4,7 +4,7 @@ Server-authoritativ fabriksimulator med börs, seaport-pool, DNA-baserade grund�
 
 ## Krav
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Docker (för PostgreSQL och integrationstester; **inte** krav för `dotnet run` på API med standardinställningar)
 
 ## Databas (EF Core)
@@ -76,7 +76,7 @@ Integrationstester (`FactoryGame.Api.Tests`) startar Postgres via Testcontainers
 
 ## Azure Web App (API)
 
-Repot innehåller workflow [`.github/workflows/azure-webapp-api.yml`](.github/workflows/azure-webapp-api.yml) som bygger och publicerar **endast** `FactoryGame.Api` till en Linux Web App (.NET 8).
+Repot innehåller workflow [`.github/workflows/azure-webapp-api.yml`](.github/workflows/azure-webapp-api.yml) som bygger och publicerar **endast** `FactoryGame.Api` till en Linux Web App (.NET 10).
 
 **GitHub (Actions → secrets/variables):**
 
@@ -105,12 +105,12 @@ Om variabeln `AZURE_WEBAPP_NAME` saknas hoppar workflow över deploy-steget (byg
 
 Om **Source = External Git** och **Build provider = App Service Build Service** bygger **Azure (Oryx)** direkt från repot vid varje **Sync** — då syns deployment oftare i **Deployment Center → Loggar** än vid ren GitHub Actions zip-deploy.
 
-Gör så här så det matchar denna kodbas (**NET 8**, API-projekt i undermapp):
+Gör så här så det matchar denna kodbas (**NET 10**, API-projekt i undermapp):
 
-1. **Configuration → General settings → Stack settings** (eller motsvarande i din portal): **.NET** version ska vara **8** (LTS), **inte 10**. Alla `TargetFramework` i lösningen är `net8.0`; stack 10 ger onödig risk och fel diagnos.
+1. **Configuration → General settings → Stack settings**: **.NET** version **10** ska matcha lösningen (`net10.0` i alla `.csproj`).
 2. **Configuration → Application settings** → lägg till **`PROJECT`** = `src/FactoryGame.Api/FactoryGame.Api.csproj`  
    Annars försöker Oryx ofta bygga hela `.sln` eller fel projekt och bygget misslyckas eller deployar inte API:t.
-3. Repot har **`global.json`** i roten så Oryx väljer **.NET 8 SDK** i linje med projektet.
+3. Repot har **`global.json`** i roten så Oryx väljer **.NET 10 SDK** i linje med projektet.
 4. **Branch** ska peka på den gren du pushar till (t.ex. `master`). GitHub använder normalt **gemener** `master`; om Sync aldrig hämtar ny kod, kontrollera branchnamn exakt mot GitHub.
 
 **Två deployvägar:** du kan antingen köra **External Git + Oryx** *eller* enbart **GitHub Actions** (`azure-webapp-api.yml`). Båda samtidigt kan skapa förvirring (dubbel deploy, olika “deployment”-listor). För enkelhet: **Disconnect** External Git om du vill låta GitHub Actions äga deploy helt.
