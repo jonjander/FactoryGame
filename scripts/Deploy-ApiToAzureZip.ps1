@@ -74,6 +74,9 @@ try {
         --type zip `
         --timeout 600000 `
         --track-status true
+    if ($LASTEXITCODE -ne 0) {
+        throw "az webapp deploy avslutades med kod $LASTEXITCODE"
+    }
 }
 finally {
     if (Test-Path $publishDir) {
