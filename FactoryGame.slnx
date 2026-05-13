@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FactoryGame.Api/FactoryGame.Api.csproj" />
+    <Project Path="src/FactoryGame.Contracts/FactoryGame.Contracts.csproj" />
+    <Project Path="src/FactoryGame.Domain/FactoryGame.Domain.csproj" />
+    <Project Path="src/FactoryGame.Infrastructure/FactoryGame.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FactoryGame.Domain.Tests/FactoryGame.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

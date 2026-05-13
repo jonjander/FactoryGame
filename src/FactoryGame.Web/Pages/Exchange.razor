@@ -1,0 +1,100 @@
+@page "/exchange"
+@inject HttpClient Http
+
+<PageTitle>Börs</PageTitle>
+
+<div class="panel">
+    <h2>Börs</h2>
+    <p class="muted">Orderdjup och senaste avslut (publik läsning). Order kräver inloggning.</p>
+    <button type="button" class="secondary" @onclick="RefreshAsync" disabled="@_busy">Uppdatera</button>
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="error">@_error</p>
+    }
+</div>
+
+<div class="panel">
+    <h3>Öppna ordrar</h3>
+    <pre style="white-space:pre-wrap;font-size:0.85rem;">@_orders</pre>
+</div>
+
+<div class="panel">
+    <h3>Senaste avslut</h3>
+    <pre style="white-space:pre-wrap;font-size:0.85rem;">@_trades</pre>
+</div>
+
+<div class="panel">
+    <h3>Lägg order</h3>
+    <div class="muted">ElementId 1–20, limit buy/sell.</div>
+    <label>ElementId</label>
+    <input type="number" @bind="_elementId" />
+    <label>Sida (buy/sell)</label>
+    <input @bind="_side" />
+    <label>Limitpris</label>
+    <input type="number" step="0.01" @bind="_price" />
+    <label>Kvantitet</label>
+    <input type="number" @bind="_qty" />
+    <div style="margin-top:0.5rem;">
+        <button type="button" @onclick="PlaceAsync" disabled="@_busy">Skicka</button>
+    </div>
+    @if (!string.IsNullOrEmpty(_orderResult))
+    {
+        <pre style="margin-top:0.5rem;">@_orderResult</pre>
+    }
+</div>
+
+@code {
+    private bool _busy;
+    private string? _error;
+    private string _orders = "";
+    private string _trades = "";
+    private int _elementId = 1;
+    private string _side = "sell";
+    private decimal _price = 10m;
+    private long _qty = 1;
+    private string _orderResult = "";
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var o = await Http.GetAsync("/v1/market/orders/open");
+            var t = await Http.GetAsync("/v1/market/trades");
+            _orders = o.IsSuccessStatusCode ? await o.Content.ReadAsStringAsync() : await o.Content.ReadAsStringAsync();
+            _trades = t.IsSuccessStatusCode ? await t.Content.ReadAsStringAsync() : await t.Content.ReadAsStringAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task PlaceAsync()
+    {
+        _busy = true;
+        _orderResult = "";
+        try
+        {
+            var res = await Http.PostAsJsonAsync("/v1/market/orders",
+                new FactoryGame.Contracts.Market.PlaceOrderRequest(_elementId, _side, _price, _qty, $"web-{Guid.NewGuid():N}"));
+            _orderResult = await res.Content.ReadAsStringAsync();
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            _orderResult = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

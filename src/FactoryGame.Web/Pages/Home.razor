@@ -1,0 +1,68 @@
+﻿@page "/"
+@inject HttpClient Http
+@inject TokenStore Tokens
+@inject NavigationManager Nav
+
+<PageTitle>FactoryGame</PageTitle>
+
+<div class="panel">
+    <h1>FactoryGame</h1>
+    <p class="muted">MVP-klient: gästinloggning mot API, sedan Börs / Pool / Fabrik.</p>
+
+    <label>Enhetsnyckel (sparas i webbläsaren via hash på servern)</label>
+    <input @bind="_deviceKey" placeholder="min-enhet" />
+
+    <div style="margin-top:0.75rem;">
+        <button type="button" @onclick="LoginAsync" disabled="@_busy">Logga in som gäst</button>
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="error">@_error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string _deviceKey = $"web-{Guid.NewGuid():N}";
+    private bool _busy;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Tokens.LoadAsync();
+        if (!string.IsNullOrEmpty(Tokens.BearerToken))
+            Nav.NavigateTo("/exchange");
+    }
+
+    private async Task LoginAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.PostAsJsonAsync("/v1/auth/guest", new FactoryGame.Contracts.Auth.GuestAuthRequest(_deviceKey));
+            if (!res.IsSuccessStatusCode)
+            {
+                _error = await res.Content.ReadAsStringAsync();
+                return;
+            }
+
+            var body = await res.Content.ReadFromJsonAsync<FactoryGame.Contracts.Auth.GuestAuthResponse>();
+            if (body == null)
+            {
+                _error = "Ogiltigt svar från servern.";
+                return;
+            }
+
+            await Tokens.SetTokenAsync(body.SessionToken);
+            Nav.NavigateTo("/exchange");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

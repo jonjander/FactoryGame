@@ -1,0 +1,43 @@
+@page "/pool"
+@inject HttpClient Http
+
+<PageTitle>Pool</PageTitle>
+
+<div class="panel">
+    <h2>Seaport-pool</h2>
+    <button type="button" class="secondary" @onclick="LoadAsync" disabled="@_busy">Hämta</button>
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="error">@_error</p>
+    }
+    <pre style="white-space:pre-wrap;font-size:0.85rem;margin-top:0.75rem;">@_json</pre>
+</div>
+
+@code {
+    private bool _busy;
+    private string? _error;
+    private string _json = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.GetAsync("/v1/me/pool");
+            _json = await res.Content.ReadAsStringAsync();
+            if (!res.IsSuccessStatusCode)
+                _error = "Kunde inte läsa pool (är du inloggad?)";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

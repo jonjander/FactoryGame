@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: factorygame
+      POSTGRES_PASSWORD: factorygame
+      POSTGRES_DB: factorygame
+    ports:
+      - "5432:5432"
+    volumes:
+      - factorygame_pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=factorygame;Username=factorygame;Password=factorygame"
+
+volumes:
+  factorygame_pgdata:

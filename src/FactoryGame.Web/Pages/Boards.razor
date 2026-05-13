@@ -1,0 +1,272 @@
+@page "/boards"
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using FactoryGame.Contracts.Boards
+@inject HttpClient Http
+@inject OfflineCommandQueue Queue
+@inject BrowserStorage Storage
+
+<PageTitle>Fabrik</PageTitle>
+
+<div class="panel">
+    <h2>Spelplaner</h2>
+    <button type="button" class="secondary" @onclick="LoadBoardsAsync" disabled="@_busy">Lista</button>
+    <button type="button" @onclick="CreateBoardAsync" disabled="@_busy">Ny plan</button>
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="error">@_error</p>
+    }
+    <ul>
+        @foreach (var b in _boards)
+        {
+            <li>
+                <button type="button" class="secondary" @onclick="() => SelectAsync(b.Id)">@b.Name (@b.Mode, rev @b.RevisionVersion, tick @b.SimulationTick)</button>
+            </li>
+        }
+    </ul>
+</div>
+
+@if (_selected != null)
+{
+    <div class="panel">
+        <h3>Plan @(_selected.Value)</h3>
+        <p class="muted">JSON-plan: maskiner och kopplingar. Kopplingsbyggare (MVP) lägger till ett rör i JSON.</p>
+        <div class="panel" style="margin-bottom:0.75rem;">
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:end;">
+                <div>
+                    <label>Från maskin-id</label>
+                    <input @bind="_pipeFrom" style="max-width:140px;" />
+                </div>
+                <div>
+                    <label>Ut-port</label>
+                    <input @bind="_pipeFromPort" style="max-width:80px;" />
+                </div>
+                <div>
+                    <label>Till maskin-id</label>
+                    <input @bind="_pipeTo" style="max-width:140px;" />
+                </div>
+                <div>
+                    <label>In-port</label>
+                    <input @bind="_pipeToPort" style="max-width:80px;" />
+                </div>
+                <button type="button" class="secondary" @onclick="AddPipeToPlan" disabled="@_busy">Lägg rör</button>
+            </div>
+        </div>
+        <textarea rows="16" style="max-width:100%;width:100%;font-family:monospace;font-size:0.8rem;" @bind="_planJson"></textarea>
+        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button type="button" @onclick="SavePlanAsync" disabled="@_busy">Spara</button>
+            <button type="button" class="secondary" @onclick="StartAsync" disabled="@_busy">Start</button>
+            <button type="button" class="secondary" @onclick="StopAsync" disabled="@_busy">Stopp</button>
+            <button type="button" class="secondary" @onclick="SnapshotAsync" disabled="@_busy">Snapshot</button>
+        </div>
+        @if (!string.IsNullOrEmpty(_saveHint))
+        {
+            <p class="muted">@_saveHint</p>
+        }
+        <pre style="white-space:pre-wrap;font-size:0.85rem;">@_snapshot</pre>
+    </div>
+}
+
+@code {
+    private bool _busy;
+    private string? _error;
+    private List<BoardSummaryDto> _boards = new();
+    private Guid? _selected;
+    private string _planJson = DefaultPlan();
+    private string _snapshot = "";
+    private string? _saveHint;
+    private string _pipeFrom = "mix1";
+    private string _pipeFromPort = "out";
+    private string _pipeTo = "mix1";
+    private string _pipeToPort = "in";
+
+    private static string DefaultPlan() =>
+        """{"machines":[{"id":"mix1","type":"Mixer"}],"connections":[]}""";
+
+    protected override async Task OnInitializedAsync() => await LoadBoardsAsync();
+
+    private async Task LoadBoardsAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.GetFromJsonAsync<List<BoardSummaryDto>>("/v1/boards");
+            _boards = res ?? new List<BoardSummaryDto>();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CreateBoardAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.PostAsJsonAsync("/v1/boards", new CreateBoardRequest("Ny fabrik"));
+            if (!res.IsSuccessStatusCode)
+            {
+                _error = await res.Content.ReadAsStringAsync();
+                return;
+            }
+
+            var created = await res.Content.ReadFromJsonAsync<BoardSummaryDto>();
+            if (created != null)
+                Select(created.Id);
+            await LoadBoardsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Select(Guid id)
+    {
+        _selected = id;
+        _snapshot = "";
+        _saveHint = null;
+        _planJson = DefaultPlan();
+    }
+
+    private Task SelectAsync(Guid id)
+    {
+        Select(id);
+        return Task.CompletedTask;
+    }
+
+    private void AddPipeToPlan()
+    {
+        try
+        {
+            var node = JsonNode.Parse(_planJson) as JsonObject ?? new JsonObject();
+            var connections = node["connections"] as JsonArray ?? new JsonArray();
+            connections.Add(new JsonObject
+            {
+                ["fromId"] = _pipeFrom,
+                ["toId"] = _pipeTo,
+                ["fromPort"] = _pipeFromPort,
+                ["toPort"] = _pipeToPort
+            });
+            node["connections"] = connections;
+            if (node["machines"] == null)
+                node["machines"] = new JsonArray();
+            _planJson = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task SavePlanAsync()
+    {
+        if (_selected is not { } id)
+            return;
+        _busy = true;
+        _saveHint = null;
+        _error = null;
+        try
+        {
+            var plan = JsonSerializer.Deserialize<BoardPlanDto>(_planJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (plan == null)
+            {
+                _error = "Ogiltig JSON.";
+                return;
+            }
+
+            var body = new SavePlanRequest(plan);
+            if (await Storage.IsOnlineAsync())
+            {
+                var res = await Http.PutAsJsonAsync($"/v1/boards/{id}/plan", body);
+                if (res.StatusCode == System.Net.HttpStatusCode.Conflict)
+                {
+                    _saveHint = "Konflikt med servern (409). Öppna CLI och använd merge-flöde: jämför revision manuellt eller välj att skriva över via ny sparning.";
+                }
+                else if (!res.IsSuccessStatusCode)
+                    _error = await res.Content.ReadAsStringAsync();
+                else
+                    _saveHint = "Sparat på servern.";
+            }
+            else
+            {
+                await Queue.EnqueueAsync("PUT", $"/v1/boards/{id}/plan", body);
+                _saveHint = "Offline: sparning köad. Synka under CLI när du är online.";
+            }
+
+            await LoadBoardsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task StartAsync()
+    {
+        if (_selected is not { } id)
+            return;
+        _busy = true;
+        try
+        {
+            var res = await Http.PostAsync($"/v1/boards/{id}/start", null);
+            if (!res.IsSuccessStatusCode)
+                _error = await res.Content.ReadAsStringAsync();
+            await LoadBoardsAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task StopAsync()
+    {
+        if (_selected is not { } id)
+            return;
+        _busy = true;
+        try
+        {
+            var res = await Http.PostAsync($"/v1/boards/{id}/stop", null);
+            if (!res.IsSuccessStatusCode)
+                _error = await res.Content.ReadAsStringAsync();
+            await LoadBoardsAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SnapshotAsync()
+    {
+        if (_selected is not { } id)
+            return;
+        _busy = true;
+        try
+        {
+            var res = await Http.GetAsync($"/v1/boards/{id}/snapshot");
+            _snapshot = await res.Content.ReadAsStringAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

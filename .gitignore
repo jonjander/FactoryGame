@@ -1,0 +1,39 @@
+# Build
+bin/
+obj/
+out/
+artifacts/
+
+# Visual Studio / MSBuild
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# JetBrains Rider
+.idea/
+*.DotSettings.user
+
+# Test & coverage
+TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# Secrets & local config
+.env
+.env.local
+**/appsettings.Local.json
+**/appsettings.*.local.json
+*.pfx
+*.snk
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

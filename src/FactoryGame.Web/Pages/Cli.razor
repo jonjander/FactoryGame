@@ -1,0 +1,113 @@
+@page "/cli"
+@inject HttpClient Http
+@inject TokenStore Tokens
+@inject OfflineCommandQueue Queue
+@inject BrowserStorage Storage
+
+<PageTitle>CLI</PageTitle>
+
+<div class="panel">
+    <h2>Inbäddad CLI</h2>
+    <p class="muted">Kommandon (en per rad): <code>help</code>, <code>guest &lt;deviceKey&gt;</code>, <code>wallet</code>, <code>pool</code>, <code>tx</code>, <code>sync</code></p>
+    <textarea rows="8" style="width:100%;max-width:100%;font-family:monospace;font-size:0.85rem;" @bind="_input"></textarea>
+    <div style="margin-top:0.5rem;">
+        <button type="button" @onclick="RunAsync" disabled="@_busy">Kör</button>
+        <button type="button" class="secondary" @onclick="SyncQueueAsync" disabled="@_busy">Synka offline-kö (@_pending)</button>
+    </div>
+    <pre style="white-space:pre-wrap;font-size:0.85rem;margin-top:0.75rem;">@_output</pre>
+</div>
+
+@code {
+    private bool _busy;
+    private string _input = "help";
+    private string _output = "";
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Tokens.LoadAsync();
+        _pending = await Queue.PendingCountAsync();
+    }
+
+    private async Task SyncQueueAsync()
+    {
+        _busy = true;
+        try
+        {
+            var (sent, err) = await Queue.TryFlushAsync();
+            _pending = await Queue.PendingCountAsync();
+            _output = err == null
+                ? $"Synk klar. Skickade {sent}. Kö kvar: {_pending}."
+                : $"Synk stoppad: {err}\nSkickade {sent}. Kö kvar: {_pending}.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        _busy = true;
+        try
+        {
+            var lines = _input.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var line in lines)
+                await RunLineAsync(line);
+        }
+        finally
+        {
+            _busy = false;
+            _pending = await Queue.PendingCountAsync();
+        }
+    }
+
+    private async Task RunLineAsync(string line)
+    {
+        var parts = line.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var cmd = parts[0].ToLowerInvariant();
+        switch (cmd)
+        {
+            case "help":
+                _output = "guest <key> | wallet | pool | tx | sync";
+                break;
+            case "guest":
+                if (parts.Length < 2)
+                {
+                    _output = "Ange nyckel: guest my-device";
+                    return;
+                }
+
+                var res = await Http.PostAsJsonAsync("/v1/auth/guest", new FactoryGame.Contracts.Auth.GuestAuthRequest(parts[1]));
+                var raw = await res.Content.ReadAsStringAsync();
+                _output = raw;
+                if (res.IsSuccessStatusCode)
+                {
+                    var body = System.Text.Json.JsonSerializer.Deserialize<FactoryGame.Contracts.Auth.GuestAuthResponse>(raw);
+                    if (body != null)
+                        await Tokens.SetTokenAsync(body.SessionToken);
+                }
+                break;
+            case "wallet":
+                Append(await Http.GetStringAsync("/v1/me/wallet"));
+                break;
+            case "pool":
+                Append(await Http.GetStringAsync("/v1/me/pool"));
+                break;
+            case "tx":
+                Append(await Http.GetStringAsync("/v1/me/transactions"));
+                break;
+            case "sync":
+                await SyncQueueAsync();
+                break;
+            default:
+                _output = $"Okänt kommando: {cmd}";
+                break;
+        }
+    }
+
+    private void Append(string text)
+    {
+        _output = string.IsNullOrEmpty(_output) ? text : _output + "\n" + text;
+    }
+}
