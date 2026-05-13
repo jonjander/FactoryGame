@@ -68,8 +68,8 @@ builder.Services.AddRateLimiter(options =>
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
     {
         var path = ctx.Request.Path;
-        if (path.StartsWithSegments("/health") || path.StartsWithSegments("/swagger"))
-            return RateLimitPartition.GetNoLimiter("infra");
+        if (!path.StartsWithSegments("/v1"))
+            return RateLimitPartition.GetNoLimiter("nonapi");
 
         var key = ctx.Items["PlayerId"] is Guid pid
             ? $"p:{pid}"
@@ -100,23 +100,33 @@ await using (var scope = app.Services.CreateAsyncScope())
     await schema.EnsureSchemaAsync(db);
 }
 
-app.UseSwagger();
-app.UseSwaggerUI(options =>
-{
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "FactoryGame v1");
-});
-
 app.UseHttpsRedirection();
 
 app.UseCors("wasm");
+
+// Serve Blazor PWA before Swagger so GET / resolves to index.html, not Swagger UI.
+app.UseBlazorFrameworkFiles();
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+// Only run Swagger generators/UI for /swagger* so no middleware in that stack can intercept SPA routes (e.g. GET /).
+app.UseWhen(
+    ctx => ctx.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase),
+    branch =>
+    {
+        branch.UseSwagger();
+        branch.UseSwaggerUI(options =>
+        {
+            options.RoutePrefix = "swagger";
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "FactoryGame v1");
+        });
+    });
+
 app.UseRateLimiter();
 
 app.UseMiddleware<PlayerSessionMiddleware>();
 
 app.MapHealthChecks("/health").WithName("Health");
-
-app.MapGet("/", () => Results.Redirect("/swagger"))
-    .ExcludeFromDescription();
 
 app.MapAuthEndpoints();
 app.MapPlayerEndpoints();
@@ -124,6 +134,8 @@ app.MapContentEndpoints();
 app.MapMarketEndpoints();
 app.MapBoardEndpoints();
 app.MapAdminEndpoints();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

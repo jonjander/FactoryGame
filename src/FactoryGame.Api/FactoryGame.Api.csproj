@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="FactoryGame.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -19,6 +24,7 @@
     <ProjectReference Include="..\FactoryGame.Infrastructure\FactoryGame.Infrastructure.csproj" />
     <ProjectReference Include="..\FactoryGame.Contracts\FactoryGame.Contracts.csproj" />
     <ProjectReference Include="..\FactoryGame.Domain\FactoryGame.Domain.csproj" />
+    <ProjectReference Include="..\FactoryGame.Web\FactoryGame.Web.csproj" />
   </ItemGroup>
 
 </Project>
