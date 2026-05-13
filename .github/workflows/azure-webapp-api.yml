@@ -9,7 +9,7 @@ name: Deploy API to Azure Web App
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   workflow_dispatch:
 
 concurrency:

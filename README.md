@@ -87,6 +87,8 @@ Repot innehåller workflow [`.github/workflows/azure-webapp-api.yml`](.github/wo
 
 Om variabeln `AZURE_WEBAPP_NAME` saknas hoppar workflow över deploy-steget (bygget körs ändå).
 
+**”No deployments found” i Azure (Deployment Center → Loggar):** det är **normalt** om du deployar med en **egen** GitHub Actions-workflow i repot (som denna). Den vyn visar ofta bara deployment-historik som Azure **själv** skapat via Deployment Center-bygge (Oryx m.m.), inte zip-deploy från GitHub-runners. **Sanning:** **GitHub → Actions** → workflow *Deploy API to Azure Web App* (grön körning + steget *Deploy* kört). Zip-deploy brukar ändå registreras hos Kudu: öppna i webbläsare `https://<appnamn>.scm.azurewebsites.net/api/deployments` (byt `<appnamn>` mot Web App-namnet) — där syns poster om paketet verkligen nått appen.
+
 **Tom Log stream i Azure efter Sync:** (1) Öppna **GitHub → Actions** och senaste körningen av *Deploy API to Azure Web App* — bygget/deploy loggas där. Om steget **Deploy** är grått/hoppat saknas `AZURE_WEBAPP_NAME` eller så matchar inte publish profile. (2) Web App-namnet i variabeln ska vara **exakt** resursnamnet (hostname utan `.azurewebsites.net`, t.ex. `factorygame-h5hmbzgncnazcmgu`). (3) **Log stream** visar främst **körningsloggar** från din app — slå på **Monitoring → App Service logs → Application logging (Filesystem)** och sätt t.ex. `Logging__LogLevel__Default` = `Information` i Configuration, annars kan stream vara tom även när appen levererar trafik.
 
 **Azure Portal → Web App → Configuration → Application settings** (minsta för riktig drift):
