@@ -8,6 +8,7 @@ alwaysApply: true
 - Vid delegering eller "subagent": följ roller och uppstartsprompts i **`AGENTS.md`** (repo-rot).
 - Domänspecifika skills ligger i **`.cursor/skills/`** (`factory-game-krav-arkitektur`, `factory-game-server-sim`, `factory-game-bors-seaport`, `factory-game-web-klient`, `factory-game-azure-test`). Aktivera med `@skill-name` eller nämns i Task-prompten.
 - Spelkrav: **`KRAVSPEC.md`** är primär sanningskälla för beteende.
+- **Git:** varje commit-meddelande **måste** innehålla **`Version`** från `Directory.Build.props` (obligatoriskt; se **`factory-game-git-commit-push`**). Subagenter ska inte committa utan versionsprefix.
 
 ## Felsökning och körning (ägarens miljö)
 

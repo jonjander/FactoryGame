@@ -5,6 +5,10 @@ alwaysApply: true
 
 # Git: commit och push efter större ändringar
 
+## KRITISKT — versionsnummer i varje commit
+
+**Varje** `git commit` ska ha ett meddelande som **innehåller** den aktuella semver från `Directory.Build.props` → **`Version`**. Inga undantag för “små” ändringar om du ändå committar: utan versionsprefix är commiten **fel**. Läs alltid `Version` innan du skriver `-m`.
+
 När en **större ändring** är klar (t.ex. ny funktion, beteendeförändring, refaktor över flera filer, väsentlig bugfix, eller när en tydlig milstolpe avslutats):
 
 1. **Verifiera** att bygg/test som hör till ändringen är grönt om det är rimligt i sammanhanget.

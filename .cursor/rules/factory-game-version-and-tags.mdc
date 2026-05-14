@@ -5,6 +5,10 @@ alwaysApply: true
 
 # Appversion, UI och git-taggar
 
+## KRITISKT — versionsnummer i commit
+
+Alla commits som rör repot ska följa **factory-game-git-commit-push**: meddelandet **måste innehålla** värdet av **`Version`** från `Directory.Build.props`. För ren release-commit räcker **exakt** `<Version>` som hela meddelandet; annars prefix `<Version>` + beskrivning. Att glömma versionsnummer i commit-raden är **otillåtet** enligt projektregler.
+
 ## Källa
 
 - **Enda manuella sanningskällan** för löpnummer: `Directory.Build.props` → egenskapen **`Version`** (semver, t.ex. `0.1.0`).
@@ -15,7 +19,7 @@ alwaysApply: true
 
 1. **Öka `Version`** i `Directory.Build.props` (patch/minor/major enligt omfattning).
 2. **`releases.md`**: lägg till en sektion för den nya versionen (semver som rubrik) och kortfattade punkter om vad som är nytt eller ändrat.
-3. **Commit**: meddelandet ska vara **exakt** den nya semver-strängen, identisk med `<Version>` (t.ex. `0.1.1`) — ingen extra text och ingen `v`-prefix i commit-raden. Det uppfyller kravet att **versionsnummer alltid ingår** (se även **factory-game-git-commit-push** för commits som inte är ren release).
+3. **Commit (obligatoriskt versionsnummer):** meddelandet ska **innehålla** den nya `<Version>`. För release-leverans ska det vara **exakt** semver, identisk med `<Version>` (t.ex. `0.1.1`) — ingen extra text, ingen `v`-prefix i commit-raden. Detta är **icke förhandlingsbart** tillsammans med regeln ovan.
 4. **Push** commit till `origin`.
 5. **Tag** annoterad tag med `v`-prefix: `git tag -a v0.1.1 -m "0.1.1"` på samma commit (eller omedelbart efter), sedan `git push origin v0.1.1` (eller `git push origin --tags` om flera taggar ska upp samtidigt — undvik oavsiktliga extra-taggar).
 6. **I chattsvaret** till användaren: skriv uttryckligen vilken version som levererats, t.ex. *Levererat: **v0.1.1** (Version 0.1.1 i UI).*
