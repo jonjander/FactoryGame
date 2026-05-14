@@ -18,18 +18,16 @@ public static class DependencyInjection
         var dbResolution = DbConnectionResolver.Resolve(configuration.GetConnectionString("DefaultConnection"));
         services.AddSingleton(dbResolution);
 
-        services.AddDbContext<AppDbContext>(options =>
+        if (dbResolution.PinSharedMemoryDatabase)
         {
-            if (dbResolution.IsSqlite)
-                options.UseSqlite(dbResolution.ConnectionString);
-            else
-                options.UseNpgsql(dbResolution.ConnectionString);
-        });
+            var pin = new SqliteSharedMemoryDatabasePin(dbResolution.ConnectionString);
+            services.AddSingleton(pin);
+        }
 
-        services.AddSingleton<IDatabaseSchemaInitializer>(_ =>
-            dbResolution.UseEnsureCreatedInsteadOfMigrate
-                ? new SqliteEnsureCreatedDatabaseSchemaInitializer()
-                : new NpgsqlMigrateDatabaseSchemaInitializer());
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlite(dbResolution.ConnectionString));
+
+        services.AddSingleton<IDatabaseSchemaInitializer, SqliteDatabaseSchemaInitializer>();
 
         services.AddScoped<GuestAuthService>();
         services.AddScoped<ExchangeService>();

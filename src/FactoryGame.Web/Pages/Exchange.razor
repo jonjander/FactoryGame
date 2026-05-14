@@ -69,7 +69,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            _error = ApiConnectionErrors.Format(ex);
         }
         finally
         {
@@ -90,7 +90,7 @@
         }
         catch (Exception ex)
         {
-            _orderResult = ex.Message;
+            _orderResult = ApiConnectionErrors.Format(ex);
         }
         finally
         {

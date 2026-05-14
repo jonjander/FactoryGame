@@ -5,11 +5,11 @@ using FactoryGame.Contracts.Market;
 
 namespace FactoryGame.Api.Tests;
 
-public sealed class GuestFlowTests : IClassFixture<PostgresApiFixture>
+public sealed class GuestFlowTests : IClassFixture<ApiWebApplicationFixture>
 {
-    private readonly PostgresApiFixture _fixture;
+    private readonly ApiWebApplicationFixture _fixture;
 
-    public GuestFlowTests(PostgresApiFixture fixture) => _fixture = fixture;
+    public GuestFlowTests(ApiWebApplicationFixture fixture) => _fixture = fixture;
 
     [Fact]
     public async Task Two_guests_can_match_on_order_book()

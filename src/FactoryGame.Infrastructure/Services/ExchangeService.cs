@@ -90,21 +90,24 @@ public sealed class ExchangeService(AppDbContext db)
         while (progressed)
         {
             progressed = false;
-            var buys = await db.MarketOrders
+            var buys = (await db.MarketOrders
                 .Where(o => o.ElementId == elementId && o.Side == OrderSide.Buy && o.Status == OrderStatus.Open && o.QuantityRemaining > 0)
+                .ToListAsync(ct))
                 .OrderByDescending(o => o.LimitPrice)
                 .ThenBy(o => o.CreatedAt)
-                .ToListAsync(ct);
+                .ToList();
 
             foreach (var buy in buys)
             {
                 while (buy.QuantityRemaining > 0 && buy.Status == OrderStatus.Open)
                 {
-                    var sell = await db.MarketOrders
+                    var sellCandidates = await db.MarketOrders
                         .Where(o => o.ElementId == elementId && o.Side == OrderSide.Sell && o.Status == OrderStatus.Open && o.QuantityRemaining > 0 && o.LimitPrice <= buy.LimitPrice)
+                        .ToListAsync(ct);
+                    var sell = sellCandidates
                         .OrderBy(o => o.LimitPrice)
                         .ThenBy(o => o.CreatedAt)
-                        .FirstOrDefaultAsync(ct);
+                        .FirstOrDefault();
 
                     if (sell == null)
                         break;

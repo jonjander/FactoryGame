@@ -18,7 +18,7 @@ disable-model-invocation: true
 - **Swagger UI:** `/swagger` (OpenAPI JSON: `/swagger/v1/swagger.json`).
 - **Hälsa:** `GET /health` → svarstext `Healthy` vid OK.
 
-Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen kör. **Gäst-inloggning** (`POST /v1/auth/guest`) kräver att databas/migrationer fungerar i miljön — vid fel (t.ex. 500) se Azure Log stream och `ConnectionStrings__DefaultConnection`.
+Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen kör. **Blazor PWA** servas från samma värd som API (rot + `MapFallbackToFile`). **Gäst-inloggning** (`POST /v1/auth/guest`) kräver att SQLite/EF-start fungerar i miljön — vid fel (t.ex. 500) se Azure Log stream och `ConnectionStrings__DefaultConnection` (tom = in-memory; fil-sökväg för beständig data).
 
 ## Deploy (hur koden hamnar här)
 
@@ -42,12 +42,9 @@ Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen k
 
 ## Klient (Blazor UI)
 
-Själva **gränssnittet** ligger i `FactoryGame.Web` och deployas **inte** automatiskt med API-Web App:en i nuvarande Oryx-upplägg.
+Själva **gränssnittet** byggs in i samma Web App som API:t (`FactoryGame.Api` refererar `FactoryGame.Web`); publicerad app har PWA på rot och API under `/v1`. För **endast API**-smoke mot molnet: använd `/swagger` och `/v1/...` som tidigare.
 
-- **Lokalt:** `dotnet run --project src/FactoryGame.Web` → öppna URL:en som CLI skriver ut. Sätt `src/FactoryGame.Web/wwwroot/factory-config.json` → `ApiBaseUrl` till API-bas-URL ovan; sätt **CORS** på API till samma klient-URL.
-- **Hostat i Azure:** publicera Blazor WASM (`dotnet publish` på Web-projektet) och serva `wwwroot` via Static Web Apps, Blob+CDN, eller en separat Web App; `ApiBaseUrl` pekar fortfarande på API-Web App.
-
-Se `README.md` → **Webbklient (Blazor WASM)**.
+- **Lokalt:** `dotnet run --project src/FactoryGame.Api` → öppna bas-URL (PWA) eller `/swagger`. Vid separat `dotnet run` på `FactoryGame.Web`: sätt `ApiBaseUrl` i `factory-config.json` till API-bas-URL.
 
 ## Lokal verifiering
 

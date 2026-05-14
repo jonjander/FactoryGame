@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+    <!-- Without this, the WASM client often stays on Production and skips appsettings.Development.json. -->
+    <WasmApplicationEnvironmentName Condition="'$(Configuration)' == 'Debug'">Development</WasmApplicationEnvironmentName>
+    <WasmApplicationEnvironmentName Condition="'$(Configuration)' == 'Release'">Production</WasmApplicationEnvironmentName>
   </PropertyGroup>
 
   <ItemGroup>

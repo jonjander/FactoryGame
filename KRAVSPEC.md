@@ -352,9 +352,9 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ### Rekommenderad stack
 - Backend: ASP.NET Core på **.NET 10** (teamets målram; följ Microsofts supportcykel).
 - Frontend: Blazor Web App eller separat SPA (t.ex. React) med .NET API.
-- Persistens: **Entity Framework Core** mot en **relations-SQL**-provider (samma domänmodell och migrationer oavsett provider i idealfall).
-- Drift / CI / paritetstester: PostgreSQL eller SQL Server (konkret provider valjs per miljo; se befintlig repo-konfiguration).
-- **Utvecklingsfas:** lokal relations-DB som ar SQL-kompatibel i EF-perspektiv, typiskt **SQLite** (fil eller `:memory:`). Under utveckling ska det ga att **seedea eller aterstalla** tillstand genom att **ladda upp och ladda ner en fil** direkt fran webbappen (t.ex. SQLite-databasfil eller versionerad snapshot som API:t kan importera), utan att behova delad Postgres-instans for varje utvecklingssession.
+- Persistens: **Entity Framework Core** mot **SQLite** i nuvarande repo (in-memory som standard i utveckling; fil for bestandig lokal/moln-data).
+- Drift / CI / paritetstester: samma SQLite-modell om inget annat beslutas; lang sikt kan **SQL Server** eller annan relations-DB valjas utan att andra krav andras i onodan.
+- **Utvecklingsfas:** **SQLite** (fil eller `:memory:`). Under utveckling ska det ga att **seedea eller aterstalla** tillstand genom att **ladda upp och ladda ner en fil** direkt fran webbappen (t.ex. SQLite-databasfil eller versionerad snapshot som API:t kan importera).
 - Cache (valfritt i MVP): Redis.
 
 ### Arkitekturprinciper
@@ -399,7 +399,7 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ## 11. Oppna fragor (att besluta)
 - Ska MVP vara single-player eller enkel asynkron multiplayer?
 - Ska frontend byggas i Blazor eller separat JS-ramverk?
-- Vilken **SQL-provider** ska vara primar i produktion (Postgres vs SQL Server), givet att EF Core ar gemensamt lager?
+- Vilken **SQL-provider** ska vara primar i produktion nar SQLite inte racker (t.ex. SQL Server), givet att EF Core ar gemensamt lager?
 - Vilken molnplattform ska anvandas for hosting?
 - Transport for keyframes: polling, SSE eller WebSockets/SignalR?
 - Ska marknadspriser vara rena orderbokspriser eller finns referens-/styrpris fran server?

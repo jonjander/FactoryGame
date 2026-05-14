@@ -7,11 +7,11 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
 {
     public AppDbContext CreateDbContext(string[] args)
     {
-        var conn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-            ?? "Host=localhost;Port=5432;Database=factorygame;Username=factorygame;Password=factorygame";
+        var conn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+        var resolution = DbConnectionResolver.Resolve(string.IsNullOrWhiteSpace(conn) ? null : conn);
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(conn)
+            .UseSqlite(resolution.ConnectionString)
             .Options;
 
         return new AppDbContext(options);

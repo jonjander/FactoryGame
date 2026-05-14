@@ -33,7 +33,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            _error = ApiConnectionErrors.Format(ex);
         }
         finally
         {

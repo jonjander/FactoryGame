@@ -1,14 +1,22 @@
 using System.Reflection;
 using System.Threading.RateLimiting;
 using FactoryGame.Api.Auth;
+using FactoryGame.Api.Diagnostics;
 using FactoryGame.Api.Endpoints;
 using FactoryGame.Infrastructure;
 using FactoryGame.Infrastructure.Data;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var logMaxLines = builder.Configuration.GetValue<int?>("Diagnostics:RecentLogMaxLines") ?? 4000;
+var logBuffer = new RecentLogBuffer(logMaxLines);
+builder.Services.AddSingleton(logBuffer);
+var bufferedMinLevel = builder.Configuration.GetValue("Diagnostics:MinimumBufferedLogLevel", LogLevel.Information);
+builder.Logging.AddProvider(new RecentLogBufferLoggerProvider(logBuffer, bufferedMinLevel));
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -127,6 +135,8 @@ app.UseRateLimiter();
 app.UseMiddleware<PlayerSessionMiddleware>();
 
 app.MapHealthChecks("/health").WithName("Health");
+
+app.MapDiagnosticsEndpoints();
 
 app.MapAuthEndpoints();
 app.MapPlayerEndpoints();

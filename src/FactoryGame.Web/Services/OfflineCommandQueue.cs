@@ -57,7 +57,7 @@ public sealed class OfflineCommandQueue(BrowserStorage storage, IHttpClientFacto
             }
             catch (Exception ex)
             {
-                err = ex.Message;
+                err = ApiConnectionErrors.Format(ex);
                 still.Add(cmd);
             }
         }

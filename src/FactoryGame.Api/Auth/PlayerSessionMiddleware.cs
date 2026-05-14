@@ -11,6 +11,13 @@ public sealed class PlayerSessionMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context, AppDbContext db)
     {
+        // API lives under /v1 only; static UI and infrastructure routes skip DB session.
+        if (!context.Request.Path.StartsWithSegments("/v1"))
+        {
+            await next(context);
+            return;
+        }
+
         if (IsPublic(context))
         {
             await next(context);
@@ -85,13 +92,9 @@ public sealed class PlayerSessionMiddleware(RequestDelegate next)
     private static bool IsPublic(HttpContext context)
     {
         var path = context.Request.Path;
-        if (path.StartsWithSegments("/health") || path.StartsWithSegments("/swagger"))
-            return true;
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/content"))
             return true;
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/market"))
-            return true;
-        if (path == "/" && context.Request.Method == HttpMethods.Get)
             return true;
         if (path == GuestAuthPath && context.Request.Method == HttpMethods.Post)
             return true;
