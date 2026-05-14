@@ -17,7 +17,8 @@ Projektets MCP-server (`factorygame` i `.cursor/mcp.json`) exponerar verktyg som
 ## Innan du kör verktyg
 
 1. **Bygg MCP-paketet** efter git pull: `npm install` och `npm run build` i `tools/factorygame-mcp/`.
-2. **Starta om Cursor** efter ändringar i `.cursor/mcp.json` eller miljövariabler för MCP.
+2. **Valfri MCP-rök:** `npm run smoke` i samma katalog (bygger och kör stdio-klient mot `dist/index.js` + Azure).
+3. **Starta om Cursor** efter ändringar i `.cursor/mcp.json` eller miljövariabler för MCP.
 3. **Bas-URL:** sätts med `FACTORYGAME_BASE_URL` (MCP `env` i `.cursor/mcp.json` sätter dev-Azure som standard). Övrigt: se `@factory-game-azure-test`.
 
 ## Autentisering
