@@ -136,9 +136,18 @@ body {
 
 .app-footer {
     padding: 0.45rem 1.25rem 0.65rem;
-    text-align: center;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem 1rem;
     border-top: 1px solid #30363d;
     font-size: 0.8rem;
+}
+
+.app-footer button.secondary {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.65rem;
 }
 
 .panel {

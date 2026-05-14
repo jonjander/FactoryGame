@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject TokenStore Tokens
 @inject NavigationManager Nav
+@inject IJSRuntime Js
 
 <div class="page">
     <header class="top-bar">
@@ -19,10 +20,17 @@
     <main class="content">
         @Body
     </main>
-    <footer class="app-footer muted">Version @AppReleaseVersion.Current</footer>
+    <footer class="app-footer muted">
+        <span>Version @AppReleaseVersion.Current</span>
+        <button type="button" class="secondary" @onclick="HardReloadClientAsync" disabled="@_reloadBusy" title="Rensa PWA-cache och ladda om så senaste WASM hämtas">
+            @(_reloadBusy ? "Uppdaterar…" : "Hämta senaste app")
+        </button>
+    </footer>
 </div>
 
 @code {
+    private bool _reloadBusy;
+
     protected override async Task OnInitializedAsync()
     {
         await Tokens.LoadAsync();
@@ -30,6 +38,21 @@
     }
 
     private void OnAuthChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task HardReloadClientAsync()
+    {
+        if (_reloadBusy)
+            return;
+        _reloadBusy = true;
+        try
+        {
+            await Js.InvokeVoidAsync("factoryGame.hardReloadClient");
+        }
+        catch (JSException)
+        {
+            _reloadBusy = false;
+        }
+    }
 
     public void Dispose() => Tokens.Changed -= OnAuthChanged;
 }
