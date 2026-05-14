@@ -1,0 +1,23 @@
+{
+  "name": "factorygame-mcp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "MCP stdio server: FactoryGame HTTP API tools for Cursor",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "typescript": "^6.0.3"
+  },
+  "type": "module",
+  "private": true
+}

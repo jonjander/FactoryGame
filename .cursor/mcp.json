@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "factorygame": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/tools/factorygame-mcp/dist/index.js"
+      ],
+      "env": {
+        "FACTORYGAME_BASE_URL": "https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net"
+      }
+    }
+  }
+}
