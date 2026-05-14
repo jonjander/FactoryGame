@@ -27,7 +27,7 @@ dotnet run --project src/FactoryGame.Api
 - **Hälsa:** `GET /health`
 - **Diagnostik:** `GET /diagnostics/recent-logs` returnerar buffrade loggrad (text, ingen autentisering) sedan processstart. Påslagen i **Development**; i produktion sätt `Diagnostics:ExposeRecentLogEndpoint` till `true` endast vid behov (lämna `false` som standard).
 
-Klienten laddar `wwwroot/factory-config.json` (sist i konfigurationen) samt vid **Development** `wwwroot/appsettings.Development.json`. Om **`ApiBaseUrl`** saknas eller är tom används *samma ursprung som sidan* (rekommenderat när PWA servas från API:t). För **`dotnet run --project src/FactoryGame.Web`** (Blazor dev-server ensam) finns standard **`ApiBaseUrl`** `https://localhost:7145` i `appsettings.Development.json` (anpassa vid behov, t.ex. `http://localhost:5176` om du bara kör API på http — tänk på blandat innehåll om klienten är https).
+Klienten laddar `wwwroot/factory-config.json` (sist i konfigurationen) samt vid **Development** `wwwroot/appsettings.Development.json`. Om **`ApiBaseUrl`** saknas eller är tom används *samma ursprung som sidan* (rekommenderat när PWA servas från API:t, t.ex. Azure). Vid **`dotnet run --project src/FactoryGame.Web`** (Blazor dev-server ensam) väljs automatiskt **`https://localhost:7145`** när sidans URL är en känd lokal dev-port (se `Program.cs`); sätt annars **`ApiBaseUrl`** i `factory-config.json` (t.ex. om API kör på annan port eller http — tänk på blandat innehåll om klienten är https).
 
 ## Snabbstart (API i Docker)
 
@@ -45,7 +45,7 @@ API exponeras på port **8080** (samma in-memory SQLite som tom `DefaultConnecti
 dotnet run --project src/FactoryGame.Web
 ```
 
-Används för WASM hot reload / isolerad frontendarbete. Standard-API-URL i Development sätts i `wwwroot/appsettings.Development.json`; åsidosätt med **`ApiBaseUrl`** i `wwwroot/factory-config.json` om din API-port skiljer sig.
+Används för WASM hot reload / isolerad frontendarbete. Lokal API-bas för kända dev-portar väljs i **`Program.cs`**; åsidosätt med **`ApiBaseUrl`** i `wwwroot/factory-config.json` om din API-port skiljer sig.
 
 För **API i Azure** med **endast** denna host: lämna `ApiBaseUrl` tom i byggda `factory-config.json` (samma webbapp). För **UI på annan domän** (t.ex. Static Web Apps): sätt `ApiBaseUrl` till API-Web App:ens bas-URL (utan avslutande `/`).
 
@@ -98,7 +98,7 @@ Deploy sker genom att **pusha till GitHub**; Azure **Deployment Center** (Extern
 **Azure Portal → Configuration → Application settings** (drift):
 
 - `ConnectionStrings__DefaultConnection` – SQLite-fil för beständig data i molnet, eller tom sträng för in-memory (data försvinner vid omstart / instansbyte).
-- `ASPNETCORE_ENVIRONMENT` = `Production`
+- `ASPNETCORE_ENVIRONMENT` = `Production` (viktigt för värdad Blazor WASM: `Development` kan få klienten att ladda dev-inställningar och felaktigt peka API-anrop mot `localhost` i webbläsaren.)
 - `Cors__Origins__0` – klientens bas-URL om du begränsar CORS.
 
 **Loggar:** bygg-/deploy-logg för Oryx finns i **Deployment Center** / **Log stream** när källan är Azure-bygge. För **apploggar**, slå på **App Service logs → Application logging (Filesystem)** och ev. `Logging__LogLevel__Default` = `Information`.

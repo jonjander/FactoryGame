@@ -9,10 +9,10 @@ public static class ApiConnectionErrors
         var technical = DeepestMessage(ex);
         if (LooksLikeTransportFailure(ex, technical))
         {
-            return "Kan inte ansluta till API:et. Starta FactoryGame.Api (t.ex. dotnet run --project src/FactoryGame.Api) "
-                + "eller sätt ApiBaseUrl i wwwroot/factory-config.json. Vid separat Blazor dev-server används standard "
-                + "https://localhost:7145 från appsettings.Development.json om nyckeln ApiBaseUrl inte sätts i factory-config. "
-                + "Teknik: " + technical;
+            return "Kan inte ansluta till API:et. I Azure: kontrollera att App Service kör rätt build, att "
+                + "`ASPNETCORE_ENVIRONMENT` är `Production` om du inte avsiktligt kör Development, och att `factory-config.json` "
+                + "inte pekar ApiBaseUrl mot localhost. Vid lokal Blazor dev-server används automatiskt https://localhost:7145 "
+                + "för kända dev-portar. Teknik: " + technical;
         }
 
         return string.IsNullOrWhiteSpace(ex.Message) ? technical : ex.Message;
