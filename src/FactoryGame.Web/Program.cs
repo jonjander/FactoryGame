@@ -23,6 +23,13 @@ var apiBase = string.IsNullOrEmpty(configuredApi)
     ? (LooksLikeBlazorWasmDevHost(pageBase) ? defaultLocalApiHttps : pageBase)
     : configuredApi.TrimEnd('/') + "/";
 
+// HttpClient requires BaseAddress to end with '/' when request paths start with '/' (host gets dropped otherwise).
+apiBase = apiBase.TrimEnd('/') + "/";
+
+// Last resort if any path still left API on loopback while the SPA runs on a real host.
+if (IsLoopbackUrl(apiBase) && !IsLoopbackUrl(pageBase))
+    apiBase = pageBase.TrimEnd('/') + "/";
+
 static bool LooksLikeBlazorWasmDevHost(string baseAddress)
 {
     if (!Uri.TryCreate(baseAddress, UriKind.Absolute, out var u))

@@ -4,15 +4,19 @@ namespace FactoryGame.Web.Services;
 
 public static class ApiConnectionErrors
 {
-    public static string Format(Exception ex)
+    public static string Format(Exception ex, Uri? httpClientBaseAddress = null)
     {
         var technical = DeepestMessage(ex);
         if (LooksLikeTransportFailure(ex, technical))
         {
+            var baseHint = httpClientBaseAddress != null
+                ? $" HttpClient.BaseAddress: {httpClientBaseAddress}"
+                : "";
             return "Kan inte ansluta till API:et. I Azure: kontrollera att App Service kör rätt build, att "
                 + "`ASPNETCORE_ENVIRONMENT` är `Production` om du inte avsiktligt kör Development, och att `factory-config.json` "
-                + "inte pekar ApiBaseUrl mot localhost. Vid lokal Blazor dev-server används automatiskt https://localhost:7145 "
-                + "för kända dev-portar. Teknik: " + technical;
+                + "inte pekar ApiBaseUrl mot localhost. Rensa webbplatsdata / avregistrera service worker om felet kvarstår efter deploy. "
+                + "Vid lokal Blazor dev-server används automatiskt https://localhost:7145 för kända dev-portar. Teknik: " + technical
+                + baseHint;
         }
 
         return string.IsNullOrWhiteSpace(ex.Message) ? technical : ex.Message;

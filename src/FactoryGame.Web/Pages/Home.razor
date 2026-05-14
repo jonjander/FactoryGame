@@ -58,7 +58,7 @@
         }
         catch (Exception ex)
         {
-            _error = ApiConnectionErrors.Format(ex);
+            _error = ApiConnectionErrors.Format(ex, Http.BaseAddress);
         }
         finally
         {
