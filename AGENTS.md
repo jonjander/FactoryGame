@@ -8,6 +8,8 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 2. Ange **readonly** om ändringar inte ska göras.
 3. Bifoga sökvägar: `KRAVSPEC.md`, relevanta `.cs`-filer, eller `.cursor/skills/...`.
 
+**Drift/felsökning:** Repo-ägaren kör **inte** lokal app för tillfället; verifiering sker i **Azure Web App**. Be inte om lokalt `dotnet run`/localhost. Agenter kör gärna build/test i Cursor. Se `.cursor/rules/factory-game-team.mdc`.
+
 ---
 
 ## 1. Krav & speldesign (`requirements`)

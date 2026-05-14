@@ -8,3 +8,9 @@ alwaysApply: true
 - Vid delegering eller "subagent": följ roller och uppstartsprompts i **`AGENTS.md`** (repo-rot).
 - Domänspecifika skills ligger i **`.cursor/skills/`** (`factory-game-krav-arkitektur`, `factory-game-server-sim`, `factory-game-bors-seaport`, `factory-game-web-klient`, `factory-game-azure-test`). Aktivera med `@skill-name` eller nämns i Task-prompten.
 - Spelkrav: **`KRAVSPEC.md`** är primär sanningskälla för beteende.
+
+## Felsökning och körning (ägarens miljö)
+
+- **Användaren** kör i praktiken **ingen lokal** app eller manuell `dotnet run` för tillfället; felsökning sker i **Azure Web App** (molnet).
+- **Be därför inte** användaren att starta API/klient lokalt, öppna localhost eller köra kommandon på sin maskin för att verifiera beteende — föreslå i stället Azure-steg, loggar, `GET /diagnostics/recent-logs` (om påslagen), App Service-loggar, eller vad som är relevant i molnet.
+- **Agenten** får och bör fortfarande köra **`dotnet build` / `dotnet test`** och liknande **i Cursor-miljön** för att validera ändringar innan leverans.
