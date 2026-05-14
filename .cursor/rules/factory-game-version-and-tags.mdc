@@ -15,7 +15,7 @@ alwaysApply: true
 
 1. **Öka `Version`** i `Directory.Build.props` (patch/minor/major enligt omfattning).
 2. **`releases.md`**: lägg till en sektion för den nya versionen (semver som rubrik) och kortfattade punkter om vad som är nytt eller ändrat.
-3. **Commit**: meddelandet ska vara **endast** semver-strängen, identisk med `<Version>` (t.ex. `0.1.1`) — ingen extra text och ingen `v`-prefix i commit-raden.
+3. **Commit**: meddelandet ska vara **endast** semver-strängen, identisk med `<Version>` (t.ex. `0.1.1`) — ingen extra text och ingen `v`-prefix i commit-raden. *(Gäller endast release-commits där `Version` höjs; andra commits följer **factory-game-git-commit-push**.)*
 4. **Push** commit till `origin`.
 5. **Tag** annoterad tag med `v`-prefix: `git tag -a v0.1.1 -m "0.1.1"` på samma commit (eller omedelbart efter), sedan `git push origin v0.1.1` (eller `git push origin --tags` om flera taggar ska upp samtidigt — undvik oavsiktliga extra-taggar).
 6. **I chattsvaret** till användaren: skriv uttryckligen vilken version som levererats, t.ex. *Levererat: **v0.1.1** (Version 0.1.1 i UI).*
