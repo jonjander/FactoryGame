@@ -11,7 +11,9 @@ public static class MachineWikiCatalog
         new("Mixer", "2:1", "Combines two inputs with ratio settings; bitwise combine of DNA."),
         new("Heater", "1:1", "Increases energy/temperature bits deterministically."),
         new("Cooler", "1:1", "Decreases energy/temperature bits deterministically."),
-        new("Sorter", "1:4", "Routes configured elements to ports 1–3; all other to port 4 (rest).")
+        new("Sorter", "1:4", "Routes configured elements to ports 1–3; all other to port 4 (rest)."),
+        new("SeaportIn", "0:1", "Connector from shared seaport pool into the board (output to pipes)."),
+        new("SeaportOut", "1:0", "Connector from the board back into the seaport pool (input from pipes).")
     ];
 
     public readonly record struct MachineWikiEntry(string Type, string Ports, string Summary);

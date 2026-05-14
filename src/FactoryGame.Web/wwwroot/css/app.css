@@ -192,3 +192,76 @@ input, textarea, select {
     color: #f85149;
     white-space: pre-wrap;
 }
+
+.board-list {
+    padding-left: 1.25rem;
+}
+
+.fg-store .fg-table-wrap {
+    overflow-x: auto;
+}
+
+.fg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.fg-table th,
+.fg-table td {
+    border-bottom: 1px solid #30363d;
+    padding: 0.45rem 0.5rem;
+    text-align: left;
+}
+
+.fg-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0.75rem;
+}
+
+.fg-sub {
+    margin-top: 0.75rem;
+}
+
+.fg-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.fg-row > div {
+    min-width: 160px;
+    flex: 1;
+}
+
+.fg-pipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.fg-pipe-actions {
+    display: flex;
+    align-items: flex-end;
+}
+
+select.fg-select {
+    max-width: 100%;
+}
+
+textarea.fg-json {
+    max-width: 100%;
+    width: 100%;
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+}
+
+pre.fg-snapshot {
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+    max-width: 100%;
+}

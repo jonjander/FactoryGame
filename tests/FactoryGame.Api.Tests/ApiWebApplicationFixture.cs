@@ -11,9 +11,10 @@ public sealed class ApiWebApplicationFixture : IAsyncLifetime
 
     public Task InitializeAsync()
     {
+        var dbName = "FactoryGameTest_" + Guid.NewGuid().ToString("N");
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
-            b.UseSetting("ConnectionStrings:DefaultConnection", "");
+            b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
             b.UseSetting("GameEconomy:SimulationTickIntervalSeconds", "600");
             b.UseSetting("Admin:BootstrapToken", "test-bootstrap");
         });

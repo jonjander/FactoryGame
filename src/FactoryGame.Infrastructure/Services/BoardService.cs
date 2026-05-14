@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FactoryGame.Contracts.Boards;
 using FactoryGame.Domain.Boards;
+using FactoryGame.Domain.Content;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
 using FactoryGame.Infrastructure.Options;
@@ -38,6 +39,73 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .OrderBy(b => b.Name)
             .ToListAsync(ct);
         return boards.Select(ToSummary).ToList();
+    }
+
+    public async Task<BoardPlanDto?> GetLatestPlanAsync(Guid playerId, Guid boardId, CancellationToken ct)
+    {
+        var board = await db.Boards.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct);
+        if (board == null)
+            return null;
+
+        if (board.RevisionVersion == 0)
+            return new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+
+        var revision = await db.BoardRevisions.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.BoardId == boardId && r.Version == board.RevisionVersion, ct);
+        if (revision == null)
+            return new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+
+        return JsonSerializer.Deserialize<BoardPlanDto>(revision.PlanJson, Json)
+               ?? new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+    }
+
+    public async Task PlaceMachineFromStockAsync(Guid playerId, Guid boardId, Guid stockId, string machineId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(machineId))
+            throw new InvalidOperationException("Machine id is required.");
+        if (machineId.Any(char.IsWhiteSpace))
+            throw new InvalidOperationException("Machine id must not contain whitespace.");
+        foreach (var c in machineId)
+        {
+            if (!char.IsLetterOrDigit(c) && c is not ('_' or '-'))
+                throw new InvalidOperationException("Machine id may only contain letters, digits, '_' and '-'.");
+        }
+
+        var board = await db.Boards.FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct)
+            ?? throw new InvalidOperationException("Board not found.");
+        if (board.Mode != BoardMode.Edit)
+            throw new InvalidOperationException("Plan can only be changed in Edit mode.");
+
+        var stock = await db.PlayerMachineStocks.FirstOrDefaultAsync(s => s.Id == stockId && s.PlayerId == playerId, ct)
+            ?? throw new InvalidOperationException("Stock item not found.");
+
+        if (!MachinePortCatalog.IsKnownMachineType(stock.MachineType))
+            throw new InvalidOperationException("Unknown machine type in stock.");
+
+        var plan = await GetLatestPlanAsync(playerId, boardId, ct)
+                   ?? new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+        if (plan.Machines.Any(m => m.Id.Equals(machineId, StringComparison.Ordinal)))
+            throw new InvalidOperationException("Machine id already exists on plan.");
+
+        var machines = plan.Machines.ToList();
+        machines.Add(new MachineDto(machineId, stock.MachineType));
+        var newPlan = new BoardPlanDto(machines, plan.Connections.ToList());
+        ValidateSorterRules(newPlan);
+
+        db.PlayerMachineStocks.Remove(stock);
+
+        var json = JsonSerializer.Serialize(newPlan, Json);
+        board.RevisionVersion++;
+        db.BoardRevisions.Add(new BoardRevisionEntity
+        {
+            Id = Guid.NewGuid(),
+            BoardId = board.Id,
+            Version = board.RevisionVersion,
+            PlanJson = json,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task SavePlanAsync(Guid playerId, Guid boardId, BoardPlanDto plan, CancellationToken ct)

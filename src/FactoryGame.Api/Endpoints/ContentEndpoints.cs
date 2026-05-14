@@ -1,3 +1,4 @@
+using FactoryGame.Contracts.Machines;
 using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Dna;
 using FactoryGame.Domain.Names;
@@ -10,6 +11,27 @@ public static class ContentEndpoints
     public static void MapContentEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/v1/content").WithTags("Content");
+
+        group.MapGet("/machine-store", () =>
+            {
+                MachinePortDto[] PortsFor(string machineType) =>
+                    MachinePortCatalog.GetPorts(machineType)
+                        .Select(p => new MachinePortDto(p.Name, p.Direction == PortDirection.In ? "in" : "out"))
+                        .ToArray();
+
+                var store = MachineStoreCatalog.All.Select(e =>
+                    new MachineStoreItemDto(e.MachineType, e.DisplayName, e.Price, true, PortsFor(e.MachineType))).ToList();
+
+                var connectors = new[]
+                {
+                    (type: "SeaportIn", display: "Seaport in (pool → fabrik)", price: 0m),
+                    (type: "SeaportOut", display: "Seaport ut (fabrik → pool)", price: 0m)
+                }.Select(x => new MachineStoreItemDto(x.type, x.display, x.price, false, PortsFor(x.type))).ToList();
+
+                return Results.Ok(new { store, connectors });
+            })
+            .WithName("GetMachineStore")
+            .WithOpenApi();
 
         group.MapGet("/elements", (string? locale) =>
             {

@@ -1,4 +1,7 @@
+using FactoryGame.Contracts.Machines;
 using FactoryGame.Infrastructure.Data;
+using FactoryGame.Infrastructure.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace FactoryGame.Api.Endpoints;
@@ -8,6 +11,39 @@ public static class PlayerEndpoints
     public static void MapPlayerEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/v1").WithTags("Player");
+
+        group.MapGet("/me/machine-inventory", async Task<IResult> (HttpContext http, MachineInventoryService inv, CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                var rows = await inv.ListStockAsync(playerId, ct);
+                return Results.Ok(rows);
+            })
+            .WithName("GetMyMachineInventory")
+            .WithOpenApi();
+
+        group.MapPost("/me/machine-inventory/purchase", async Task<IResult> (
+                HttpContext http,
+                [FromBody] PurchaseMachineRequest? body,
+                MachineInventoryService inv,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                if (body == null || string.IsNullOrWhiteSpace(body.MachineType))
+                    return Results.BadRequest(new { error = "MachineType is required." });
+                try
+                {
+                    await inv.PurchaseAsync(playerId, body.MachineType.Trim(), ct);
+                    return Results.NoContent();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(new { error = ex.Message });
+                }
+            })
+            .WithName("PurchaseMachine")
+            .WithOpenApi();
 
         group.MapGet("/me/wallet", async Task<IResult> (HttpContext http, AppDbContext db, CancellationToken ct) =>
             {

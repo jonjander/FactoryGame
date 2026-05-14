@@ -2,6 +2,7 @@
 @using System.Text.Json
 @using System.Text.Json.Nodes
 @using FactoryGame.Contracts.Boards
+@using FactoryGame.Contracts.Machines
 @inject HttpClient Http
 @inject OfflineCommandQueue Queue
 @inject BrowserStorage Storage
@@ -16,44 +17,148 @@
     {
         <p class="error">@_error</p>
     }
-    <ul>
+    <ul class="board-list">
         @foreach (var b in _boards)
         {
             <li>
-                <button type="button" class="secondary" @onclick="() => SelectAsync(b.Id)">@b.Name (@b.Mode, rev @b.RevisionVersion, tick @b.SimulationTick)</button>
+                <button type="button" class="secondary" @onclick="async () => await SelectBoardAsync(b.Id)">@b.Name (@b.Mode, rev @b.RevisionVersion, tick @b.SimulationTick)</button>
             </li>
         }
     </ul>
 </div>
 
+<div class="panel fg-store">
+    <h2>Maskinbutik & lager</h2>
+    <p class="muted">Köp maskiner till ditt lager. Placera dem på en sparad plan med valfritt maskin-id (bokstäver, siffror, <code>_</code>, <code>-</code>).</p>
+    @if (_walletCash is { } cash)
+    {
+        <p>Kassa: <strong>@cash.ToString("0.##")</strong></p>
+    }
+    @if (_storeItems.Count == 0 && _connectors.Count == 0)
+    {
+        <p class="muted">Laddar butik…</p>
+    }
+    else
+    {
+        <div class="fg-table-wrap">
+            <table class="fg-table">
+                <thead>
+                <tr><th>Maskin</th><th>Pris</th><th></th></tr>
+                </thead>
+                <tbody>
+                @foreach (var item in _storeItems)
+                {
+                    <tr>
+                        <td>@item.DisplayName <span class="muted">(@item.Type)</span></td>
+                        <td>@item.Price.ToString("0.##")</td>
+                        <td><button type="button" class="secondary" @onclick="async () => await PurchaseAsync(item.Type)" disabled="@_busy">Köp</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <h3>Ditt maskinlager</h3>
+        @if (_inventory.Count == 0)
+        {
+            <p class="muted">Inga köpta maskiner i lager.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var row in _inventory)
+                {
+                    <li><code>@row.Id</code> — @row.MachineType</li>
+                }
+            </ul>
+        }
+    }
+</div>
+
 @if (_selected != null)
 {
-    <div class="panel">
+    <div class="panel fg-board">
         <h3>Plan @(_selected.Value)</h3>
-        <p class="muted">JSON-plan: maskiner och kopplingar. Kopplingsbyggare (MVP) lägger till ett rör i JSON.</p>
-        <div class="panel" style="margin-bottom:0.75rem;">
-            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:end;">
+
+        <div class="fg-toolbar">
+            <button type="button" class="secondary" @onclick="ReloadPlanUiAsync" disabled="@_busy">Läs om plan från server</button>
+            <button type="button" class="secondary" @onclick="AddSeaportInAsync" disabled="@_busy">+ Seaport in</button>
+            <button type="button" class="secondary" @onclick="AddSeaportOutAsync" disabled="@_busy">+ Seaport ut</button>
+        </div>
+
+        <div class="panel fg-sub">
+            <h4>Placera från lager</h4>
+            <div class="fg-row">
                 <div>
-                    <label>Från maskin-id</label>
-                    <input @bind="_pipeFrom" style="max-width:140px;" />
+                    <label>Lagerpost</label>
+                    <select class="fg-select" @bind="_placeStockId">
+                        <option value="">— Välj —</option>
+                        @foreach (var row in _inventory)
+                        {
+                            <option value="@row.Id">@row.MachineType (@row.Id.ToString("N")[..8]…)</option>
+                        }
+                    </select>
                 </div>
                 <div>
-                    <label>Ut-port</label>
-                    <input @bind="_pipeFromPort" style="max-width:80px;" />
+                    <label>Nytt maskin-id på planen</label>
+                    <input @bind="_placeMachineId" placeholder="t.ex. boiler1" />
                 </div>
-                <div>
-                    <label>Till maskin-id</label>
-                    <input @bind="_pipeTo" style="max-width:140px;" />
-                </div>
-                <div>
-                    <label>In-port</label>
-                    <input @bind="_pipeToPort" style="max-width:80px;" />
-                </div>
-                <button type="button" class="secondary" @onclick="AddPipeToPlan" disabled="@_busy">Lägg rör</button>
+                <button type="button" @onclick="PlaceFromStockAsync" disabled="@_busy">Placera</button>
             </div>
         </div>
-        <textarea rows="16" style="max-width:100%;width:100%;font-family:monospace;font-size:0.8rem;" @bind="_planJson"></textarea>
-        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+
+        <div class="panel fg-sub">
+            <h4>Koppla rör</h4>
+            <p class="muted">Endast maskiner som finns i planen och <strong>lediga</strong> portar (en koppling per port).</p>
+            <div class="fg-pipe-grid">
+                <div>
+                    <label>Från maskin</label>
+                    <select class="fg-select" @bind="_pipeFromId" @bind:after="OnPipeEndpointChanged">
+                        <option value="">— Välj —</option>
+                        @foreach (var m in GetPlanMachines())
+                        {
+                            <option value="@m.Id">@m.Id (@m.Type)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label>Från utgång</label>
+                    <select class="fg-select" @bind="_pipeFromPort" @bind:after="OnPipeEndpointChanged">
+                        <option value="">— Välj —</option>
+                        @foreach (var p in GetFreeOutputPorts(_pipeFromId))
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label>Till maskin</label>
+                    <select class="fg-select" @bind="_pipeToId" @bind:after="OnPipeEndpointChanged">
+                        <option value="">— Välj —</option>
+                        @foreach (var m in GetPlanMachines())
+                        {
+                            <option value="@m.Id">@m.Id (@m.Type)</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label>Till ingång</label>
+                    <select class="fg-select" @bind="_pipeToPort" @bind:after="OnPipeEndpointChanged">
+                        <option value="">— Välj —</option>
+                        @foreach (var p in GetFreeInputPorts(_pipeToId))
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                </div>
+                <div class="fg-pipe-actions">
+                    <button type="button" class="secondary" @onclick="AddPipeToPlan" disabled="@_busy">Lägg rör</button>
+                </div>
+            </div>
+        </div>
+
+        <h4>Plan (JSON)</h4>
+        <textarea class="fg-json" rows="14" @bind="_planJson" @bind:event="oninput"></textarea>
+        <div class="fg-toolbar">
             <button type="button" @onclick="SavePlanAsync" disabled="@_busy">Spara</button>
             <button type="button" class="secondary" @onclick="StartAsync" disabled="@_busy">Start</button>
             <button type="button" class="secondary" @onclick="StopAsync" disabled="@_busy">Stopp</button>
@@ -63,11 +168,13 @@
         {
             <p class="muted">@_saveHint</p>
         }
-        <pre style="white-space:pre-wrap;font-size:0.85rem;">@_snapshot</pre>
+        <pre class="fg-snapshot">@_snapshot</pre>
     </div>
 }
 
 @code {
+    private static readonly JsonSerializerOptions JsonRelaxed = new() { PropertyNameCaseInsensitive = true };
+
     private bool _busy;
     private string? _error;
     private List<BoardSummaryDto> _boards = new();
@@ -75,15 +182,160 @@
     private string _planJson = DefaultPlan();
     private string _snapshot = "";
     private string? _saveHint;
-    private string _pipeFrom = "mix1";
-    private string _pipeFromPort = "out";
-    private string _pipeTo = "mix1";
-    private string _pipeToPort = "in";
+    private string _pipeFromId = "";
+    private string _pipeFromPort = "";
+    private string _pipeToId = "";
+    private string _pipeToPort = "";
+    private string _placeStockId = "";
+    private string _placeMachineId = "boiler1";
+    private decimal? _walletCash;
+    private List<MachineStoreItemDto> _storeItems = new();
+    private List<MachineStoreItemDto> _connectors = new();
+    private List<PlayerMachineStockDto> _inventory = new();
+    private readonly Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
+
+    private sealed class MachineStorePayload
+    {
+        public List<MachineStoreItemDto> Store { get; set; } = new();
+        public List<MachineStoreItemDto> Connectors { get; set; } = new();
+    }
 
     private static string DefaultPlan() =>
         """{"machines":[{"id":"mix1","type":"Mixer"}],"connections":[]}""";
 
-    protected override async Task OnInitializedAsync() => await LoadBoardsAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBoardsAsync();
+        await LoadWalletAsync();
+        await LoadMachineStoreAsync();
+        await LoadInventoryAsync();
+    }
+
+    private void RebuildMachineMeta()
+    {
+        _machineMeta.Clear();
+        foreach (var x in _storeItems)
+            _machineMeta[x.Type] = x;
+        foreach (var x in _connectors)
+            _machineMeta[x.Type] = x;
+    }
+
+    private async Task LoadMachineStoreAsync()
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<MachineStorePayload>("/v1/content/machine-store", JsonRelaxed);
+            _storeItems = res?.Store ?? new List<MachineStoreItemDto>();
+            _connectors = res?.Connectors ?? new List<MachineStoreItemDto>();
+            RebuildMachineMeta();
+        }
+        catch
+        {
+            /* tyst: butiken är valfri för listning */
+        }
+    }
+
+    private async Task LoadWalletAsync()
+    {
+        try
+        {
+            var w = await Http.GetFromJsonAsync<WalletJson>("/v1/me/wallet", JsonRelaxed);
+            _walletCash = w?.cash;
+        }
+        catch
+        {
+            _walletCash = null;
+        }
+    }
+
+    private sealed class WalletJson
+    {
+        public decimal cash { get; set; }
+    }
+
+    private async Task LoadInventoryAsync()
+    {
+        try
+        {
+            var rows = await Http.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory", JsonRelaxed);
+            _inventory = rows ?? new List<PlayerMachineStockDto>();
+        }
+        catch
+        {
+            _inventory = new List<PlayerMachineStockDto>();
+        }
+    }
+
+    private async Task PurchaseAsync(string machineType)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.PostAsJsonAsync("/v1/me/machine-inventory/purchase", new PurchaseMachineRequest(machineType));
+            if (!res.IsSuccessStatusCode)
+                _error = await res.Content.ReadAsStringAsync();
+            else
+            {
+                await LoadWalletAsync();
+                await LoadInventoryAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task PlaceFromStockAsync()
+    {
+        if (_selected is not { } boardId)
+        {
+            _error = "Välj en spelplan först.";
+            return;
+        }
+
+        if (!Guid.TryParse(_placeStockId, out var stockId) || stockId == Guid.Empty)
+        {
+            _error = "Välj en lagerpost.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_placeMachineId))
+        {
+            _error = "Ange maskin-id.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.PostAsJsonAsync($"/v1/boards/{boardId}/place-from-stock",
+                new PlaceMachineFromStockRequest(stockId, _placeMachineId.Trim()));
+            if (!res.IsSuccessStatusCode)
+                _error = await res.Content.ReadAsStringAsync();
+            else
+            {
+                _saveHint = "Maskin placerad och plan sparad.";
+                await LoadInventoryAsync();
+                await LoadBoardsAsync();
+                await ReloadPlanUiAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
 
     private async Task LoadBoardsAsync()
     {
@@ -119,7 +371,7 @@
 
             var created = await res.Content.ReadFromJsonAsync<BoardSummaryDto>();
             if (created != null)
-                Select(created.Id);
+                await SelectBoardAsync(created.Id);
             await LoadBoardsAsync();
         }
         catch (Exception ex)
@@ -132,30 +384,171 @@
         }
     }
 
-    private void Select(Guid id)
+    private async Task SelectBoardAsync(Guid id)
     {
         _selected = id;
         _snapshot = "";
         _saveHint = null;
-        _planJson = DefaultPlan();
+        _pipeFromId = "";
+        _pipeFromPort = "";
+        _pipeToId = "";
+        _pipeToPort = "";
+        await ReloadPlanUiAsync();
     }
 
-    private Task SelectAsync(Guid id)
+    private async Task ReloadPlanUiAsync()
     {
-        Select(id);
-        return Task.CompletedTask;
+        if (_selected is not { } id)
+            return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.GetAsync($"/v1/boards/{id}/plan");
+            if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                _planJson = DefaultPlan();
+                return;
+            }
+
+            if (!res.IsSuccessStatusCode)
+            {
+                _error = await res.Content.ReadAsStringAsync();
+                return;
+            }
+
+            var plan = await res.Content.ReadFromJsonAsync<BoardPlanDto>(JsonRelaxed);
+            if (plan != null)
+                _planJson = JsonSerializer.Serialize(plan, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OnPipeEndpointChanged()
+    {
+        StateHasChanged();
+    }
+
+    private IReadOnlyList<MachineDto> GetPlanMachines()
+    {
+        try
+        {
+            var plan = JsonSerializer.Deserialize<BoardPlanDto>(_planJson, JsonRelaxed);
+            return plan?.Machines ?? Array.Empty<MachineDto>();
+        }
+        catch
+        {
+            return Array.Empty<MachineDto>();
+        }
+    }
+
+    private IReadOnlyList<ConnectionDto> GetPlanConnections()
+    {
+        try
+        {
+            var plan = JsonSerializer.Deserialize<BoardPlanDto>(_planJson, JsonRelaxed);
+            return plan?.Connections ?? Array.Empty<ConnectionDto>();
+        }
+        catch
+        {
+            return Array.Empty<ConnectionDto>();
+        }
+    }
+
+    private IReadOnlyList<string> GetFreeOutputPorts(string machineId)
+    {
+        if (string.IsNullOrEmpty(machineId))
+            return Array.Empty<string>();
+        var m = GetPlanMachines().FirstOrDefault(x => x.Id == machineId);
+        if (m is null)
+            return Array.Empty<string>();
+        if (!_machineMeta.TryGetValue(m.Type, out var meta))
+            return Array.Empty<string>();
+        var used = new HashSet<string>(
+            GetPlanConnections().Where(c => c.FromId == machineId).Select(c => c.FromPort),
+            StringComparer.Ordinal);
+        return meta.Ports.Where(p => p.Direction == "out" && !used.Contains(p.Name)).Select(p => p.Name).ToList();
+    }
+
+    private IReadOnlyList<string> GetFreeInputPorts(string machineId)
+    {
+        if (string.IsNullOrEmpty(machineId))
+            return Array.Empty<string>();
+        var m = GetPlanMachines().FirstOrDefault(x => x.Id == machineId);
+        if (m is null)
+            return Array.Empty<string>();
+        if (!_machineMeta.TryGetValue(m.Type, out var meta))
+            return Array.Empty<string>();
+        var used = new HashSet<string>(
+            GetPlanConnections().Where(c => c.ToId == machineId).Select(c => c.ToPort),
+            StringComparer.Ordinal);
+        return meta.Ports.Where(p => p.Direction == "in" && !used.Contains(p.Name)).Select(p => p.Name).ToList();
+    }
+
+    private Task AddSeaportInAsync() => AddSeaportConnectorAsync("SeaportIn");
+
+    private Task AddSeaportOutAsync() => AddSeaportConnectorAsync("SeaportOut");
+
+    private async Task AddSeaportConnectorAsync(string connectorType)
+    {
+        try
+        {
+            var prefix = connectorType.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase) ? "seaIn" : "seaOut";
+            var node = JsonNode.Parse(_planJson) as JsonObject ?? new JsonObject();
+            var machines = node["machines"] as JsonArray ?? new JsonArray();
+            var n = 1;
+            while (MachineIdExists(machines, $"{prefix}{n}"))
+                n++;
+            var id = $"{prefix}{n}";
+            machines.Add(new JsonObject { ["id"] = id, ["type"] = connectorType });
+            node["machines"] = machines;
+            if (node["connections"] == null)
+                node["connections"] = new JsonArray();
+            _planJson = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            _saveHint = $"La till {connectorType} som {id}. Spara planen för att behålla.";
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private static bool MachineIdExists(JsonArray machines, string id)
+    {
+        foreach (var item in machines)
+        {
+            if (item is JsonObject o && string.Equals(o["id"]?.GetValue<string>(), id, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     private void AddPipeToPlan()
     {
+        if (string.IsNullOrEmpty(_pipeFromId) || string.IsNullOrEmpty(_pipeToId) ||
+            string.IsNullOrEmpty(_pipeFromPort) || string.IsNullOrEmpty(_pipeToPort))
+        {
+            _error = "Välj maskiner och lediga portar för hela röret.";
+            return;
+        }
+
         try
         {
             var node = JsonNode.Parse(_planJson) as JsonObject ?? new JsonObject();
             var connections = node["connections"] as JsonArray ?? new JsonArray();
             connections.Add(new JsonObject
             {
-                ["fromId"] = _pipeFrom,
-                ["toId"] = _pipeTo,
+                ["fromId"] = _pipeFromId,
+                ["toId"] = _pipeToId,
                 ["fromPort"] = _pipeFromPort,
                 ["toPort"] = _pipeToPort
             });
@@ -163,6 +556,8 @@
             if (node["machines"] == null)
                 node["machines"] = new JsonArray();
             _planJson = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            _error = null;
+            _saveHint = "Rör tillagt i JSON (ej sparat).";
         }
         catch (Exception ex)
         {
@@ -179,8 +574,7 @@
         _error = null;
         try
         {
-            var plan = JsonSerializer.Deserialize<BoardPlanDto>(_planJson,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var plan = JsonSerializer.Deserialize<BoardPlanDto>(_planJson, JsonRelaxed);
             if (plan == null)
             {
                 _error = "Ogiltig JSON.";

@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<GuestAuthService>();
         services.AddScoped<ExchangeService>();
         services.AddScoped<BoardService>();
+        services.AddScoped<MachineInventoryService>();
         services.AddScoped<AdminService>();
         services.AddHostedService<BaseIncomeBackgroundService>();
         services.AddHostedService<SimulationTickHostedService>();

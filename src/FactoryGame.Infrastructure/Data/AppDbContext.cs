@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TradeExecutionEntity> TradeExecutions => Set<TradeExecutionEntity>();
     public DbSet<BoardEntity> Boards => Set<BoardEntity>();
     public DbSet<BoardRevisionEntity> BoardRevisions => Set<BoardRevisionEntity>();
+    public DbSet<PlayerMachineStockEntity> PlayerMachineStocks => Set<PlayerMachineStockEntity>();
     public DbSet<SimulationClockEntity> SimulationClock => Set<SimulationClockEntity>();
     public DbSet<ApiKeyEntity> ApiKeys => Set<ApiKeyEntity>();
 
@@ -86,6 +87,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.BoardId, x.Version }).IsUnique();
             e.HasOne(x => x.Board).WithMany().HasForeignKey(x => x.BoardId);
+        });
+
+        modelBuilder.Entity<PlayerMachineStockEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.PlayerId);
+            e.HasOne<PlayerEntity>().WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SimulationClockEntity>(e =>

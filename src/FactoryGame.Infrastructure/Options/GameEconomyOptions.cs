@@ -4,7 +4,7 @@ public sealed class GameEconomyOptions
 {
     public const string SectionName = "GameEconomy";
 
-    public decimal StartingCash { get; set; } = 1000m;
+    public decimal StartingCash { get; set; } = 25000m;
 
     public long PoolMaxVolume { get; set; } = 10000;
 
