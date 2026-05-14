@@ -23,7 +23,7 @@ dotnet run --project src/FactoryGame.Api
 
 - **PWA / UI:** bas-URL från `launchSettings.json` (t.ex. `https://localhost:7145/` eller `http://localhost:5176/`) — samma port som API:t.
 - **REST API:** under **`/v1/...`** (oförändrade endpoints).
-- **Swagger:** `https://localhost:7145/swagger` (https-profilen).
+- **Swagger:** `https://localhost:7145/swagger` (https-profilen). Middleware för Swagger körs före Blazor-fallback så `/swagger` inte ersätts av PWA:ns `index.html`.
 - **Hälsa:** `GET /health`
 - **Diagnostik:** `GET /diagnostics/recent-logs` returnerar buffrade loggrad (text, ingen autentisering) sedan processstart. Påslagen i **Development**; i produktion sätt `Diagnostics:ExposeRecentLogEndpoint` till `true` endast vid behov (lämna `false` som standard).
 

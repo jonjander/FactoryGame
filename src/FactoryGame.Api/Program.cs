@@ -112,23 +112,18 @@ app.UseHttpsRedirection();
 
 app.UseCors("wasm");
 
-// Serve Blazor PWA before Swagger so GET / resolves to index.html, not Swagger UI.
+// Swagger must run before Blazor/static files and before endpoint fallback, otherwise GET /swagger
+// is handled by MapFallbackToFile(index.html) and the SPA shows "nothing at this address."
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.RoutePrefix = "swagger";
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "FactoryGame v1");
+});
+
 app.UseBlazorFrameworkFiles();
 app.UseDefaultFiles();
 app.UseStaticFiles();
-
-// Only run Swagger generators/UI for /swagger* so no middleware in that stack can intercept SPA routes (e.g. GET /).
-app.UseWhen(
-    ctx => ctx.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase),
-    branch =>
-    {
-        branch.UseSwagger();
-        branch.UseSwaggerUI(options =>
-        {
-            options.RoutePrefix = "swagger";
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "FactoryGame v1");
-        });
-    });
 
 app.UseRateLimiter();
 
