@@ -8,7 +8,7 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 2. Ange **readonly** om ändringar inte ska göras.
 3. Bifoga sökvägar: `KRAVSPEC.md`, relevanta `.cs`-filer, eller `.cursor/skills/...`.
 
-**Drift/felsökning:** Repo-ägaren kör **inte** lokal app för tillfället; verifiering sker i **Azure Web App**. Be inte om lokalt `dotnet run`/localhost. Agenter kör gärna build/test i Cursor. Se `.cursor/rules/factory-game-team.mdc`.
+**Drift/felsökning:** Repo-ägaren verifierar i **Azure** (`https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net`), inte genom lokal `dotnet run`. Be inte om localhost-körning hos användaren. Efter användarens Azure-test: hämta gärna **`GET .../diagnostics/recent-logs`** (om endpoint påslagen) enligt `.cursor/rules/factory-game-team.mdc`. **Agenten** kör `dotnet build` / `dotnet test` i Cursor. Se `@factory-game-azure-test`.
 
 ---
 
@@ -78,7 +78,7 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 
 **Uppstartsprompt:**
 
-> Kör build och tester i `FactoryGame`-roten; rapportera fel och föreslå minimal fix.
+> Kör build och tester i `FactoryGame`-roten **i Cursor**; rapportera fel och föreslå minimal fix. Be inte repo-ägaren köra lokalt — driftverifiering sker mot Azure enligt `.cursor/rules/factory-game-team.mdc` / `@factory-game-azure-test`.
 
 ---
 

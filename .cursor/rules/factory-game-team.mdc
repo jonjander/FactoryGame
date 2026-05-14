@@ -11,6 +11,7 @@ alwaysApply: true
 
 ## Felsökning och körning (ägarens miljö)
 
-- **Användaren** kör i praktiken **ingen lokal** app eller manuell `dotnet run` för tillfället; felsökning sker i **Azure Web App** (molnet).
-- **Be därför inte** användaren att starta API/klient lokalt, öppna localhost eller köra kommandon på sin maskin för att verifiera beteende — föreslå i stället Azure-steg, loggar, `GET /diagnostics/recent-logs` (om påslagen), App Service-loggar, eller vad som är relevant i molnet.
-- **Agenten** får och bör fortfarande köra **`dotnet build` / `dotnet test`** och liknande **i Cursor-miljön** för att validera ändringar innan leverans.
+- **Primär Azure Web App (dev):** `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net` — samma värd för **PWA**, **`/v1`-API**, **`/swagger`** och (om påslagen) **`GET /diagnostics/recent-logs`**.
+- **Användaren** verifierar i praktiken i **Azure** (ingen lokal `dotnet run` på användarens maskin). **Be inte** användaren att starta app lokalt eller öppna localhost för att bekräfta beteende.
+- **Efter att användaren testat i Azure:** agenten hämtar gärna felsökningsunderlag från denna bas-URL, t.ex. **`GET /diagnostics/recent-logs`** (text, sedan processstart). I **Production** måste appinställningen **`Diagnostics__ExposeRecentLogEndpoint` = `true`** sättas om endpointen ska svara; i **Development** är den alltid på. Alternativ/komplement: **App Service → Log stream** / Application Insights om det finns.
+- **Agenten** kör **`dotnet build` / `dotnet test`** (och vid behov repo-skript som Azure-smoke) **i Cursor-miljön** — det är agentens lokala verifiering, inte något användaren behöver köra.
