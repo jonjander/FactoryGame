@@ -16,11 +16,12 @@ public static class ApiConnectionErrors
             var baseHint = httpClientBaseAddress != null
                 ? $" HttpClient.BaseAddress: {httpClientBaseAddress}"
                 : "";
-            return "Kan inte ansluta till API:et. I Azure: kontrollera att App Service kör rätt build, att "
-                + "`ASPNETCORE_ENVIRONMENT` är `Production` om du inte avsiktligt kör Development, och att `factory-config.json` "
-                + "inte pekar ApiBaseUrl mot localhost. Rensa webbplatsdata / avregistrera service worker om felet kvarstår efter deploy. "
-                + "Vid lokal Blazor dev-server används automatiskt https://localhost:7145 för kända dev-portar. Teknik: " + technical
-                + baseHint;
+            return "Kan inte ansluta till API:et."
+                + baseHint
+                + " Azure: kontrollera deploy och att `ASPNETCORE_ENVIRONMENT` är Production (Release-build). "
+                + "Lokalt: starta API (`dotnet run --project src/FactoryGame.Api`) eller välj VS-profil "
+                + "«https (UI → Azure API)» / «https (UI → lokal API)». Se `factory-config.json` (ApiTarget) och README. "
+                + "Rensa webbplatsdata / service worker vid kvarstående fel efter deploy. Teknik: " + technical;
         }
 
         return string.IsNullOrWhiteSpace(ex.Message) ? technical : ex.Message;

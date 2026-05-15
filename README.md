@@ -27,7 +27,7 @@ dotnet run --project src/FactoryGame.Api
 - **Hälsa:** `GET /health`
 - **Diagnostik:** `GET /diagnostics/recent-logs` returnerar buffrade loggrad (text, ingen autentisering) sedan processstart. Påslagen i **Development**; i produktion sätt `Diagnostics:ExposeRecentLogEndpoint` till `true` endast vid behov (lämna `false` som standard).
 
-Klienten laddar `wwwroot/factory-config.json` (sist i konfigurationen) samt vid **Development** `wwwroot/appsettings.Development.json`. Om **`ApiBaseUrl`** saknas eller är tom används *samma ursprung som sidan* (rekommenderat när PWA servas från API:t, t.ex. Azure). Vid **`dotnet run --project src/FactoryGame.Web`** (Blazor dev-server ensam) väljs automatiskt **`https://localhost:7145`** när sidans URL är en känd lokal dev-port (se `Program.cs`); sätt annars **`ApiBaseUrl`** i `factory-config.json` (t.ex. om API kör på annan port eller http — tänk på blandat innehåll om klienten är https).
+Klienten väljer API-bas via **`ApiTarget`** (`Auto`, `SameOrigin`, `LocalDev`, `Azure`, `Custom`) i `wwwroot/appsettings.Development.json` (endast Debug-build) och URL:er i `wwwroot/factory-config.json`. **`Auto`** (standard i Azure/Release): samma ursprung som sidan på riktig värd; på localhost med WASM Development → lokal API (`https://localhost:7145`). **`dotnet run --project src/FactoryGame.Web`**: använd VS-profilerna **«https (UI → lokal API)»** eller **«https (UI → Azure API)»** (`FactoryGameApiTarget` som MSBuild-egenskap), eller sätt `ApiTarget` / `ApiBaseUrl` i config. **`dotnet run --project src/FactoryGame.Api`**: UI och API delar port — SameOrigin automatiskt.
 
 ## Snabbstart (API i Docker)
 
@@ -45,7 +45,7 @@ API exponeras på port **8080** (samma in-memory SQLite som tom `DefaultConnecti
 dotnet run --project src/FactoryGame.Web
 ```
 
-Används för WASM hot reload / isolerad frontendarbete. Lokal API-bas för kända dev-portar väljs i **`Program.cs`**; åsidosätt med **`ApiBaseUrl`** i `wwwroot/factory-config.json` om din API-port skiljer sig.
+Används för WASM hot reload / isolerad frontendarbete. Standard Debug: **`ApiTarget: LocalDev`** i `appsettings.Development.json`. Profil **«https (UI → Azure API)»** sätter `FactoryGameApiTarget=Azure` vid build (UI lokalt, API i Azure).
 
 För **API i Azure** med **endast** denna host: lämna `ApiBaseUrl` tom i byggda `factory-config.json` (samma webbapp). För **UI på annan domän** (t.ex. Static Web Apps): sätt `ApiBaseUrl` till API-Web App:ens bas-URL (utan avslutande `/`).
 

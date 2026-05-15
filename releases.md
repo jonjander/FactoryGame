@@ -2,6 +2,12 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.9
+
+- **Klient — API-URL:** `ApiTarget` (Auto / LocalDev / Azure / …), `ApiEndpointResolver`, VS-profiler «UI → lokal API» och «UI → Azure API» (`FactoryGameApiTarget`).
+- **Klient:** `factory-config.json` med Azure- och lokal bas-URL; Debug-default `LocalDev` i `appsettings.Development.json`.
+- **API:** CORS i Development tillåter alla localhost-portar (Blazor dev-server + API).
+
 ## 0.2.8
 
 - **Pool:** inventarievy med namn, antal, marknads- och radvärde, global börs-rank (pris), totalt uppskattat värde och volym — ersätter JSON-dump.

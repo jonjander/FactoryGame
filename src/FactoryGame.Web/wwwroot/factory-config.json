@@ -1,1 +1,4 @@
-{}
+{
+  "LocalApiBaseUrl": "https://localhost:7145",
+  "AzureApiBaseUrl": "https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net"
+}

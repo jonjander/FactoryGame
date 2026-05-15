@@ -1,4 +1,4 @@
-using System;
+using System.Reflection;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using FactoryGame.Web;
@@ -9,46 +9,13 @@ builder.Configuration.AddJsonFile("factory-config.json", optional: true, reloadO
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-var configuredApi = builder.Configuration["ApiBaseUrl"]?.Trim() ?? "";
-var pageBase = builder.HostEnvironment.BaseAddress;
-// If the SPA is served from a real host (e.g. Azure) but config still points at loopback
-// (common when ASPNETCORE_ENVIRONMENT=Development on the server caused WASM to load dev appsettings),
-// ignore that ApiBaseUrl — otherwise the browser calls the user's localhost and fails with "Load failed".
-if (!string.IsNullOrEmpty(configuredApi) && IsLoopbackUrl(configuredApi) && !IsLoopbackUrl(pageBase))
-    configuredApi = "";
+var buildApiTarget = typeof(Program).Assembly
+    .GetCustomAttributes<AssemblyMetadataAttribute>()
+    .FirstOrDefault(a => a.Key == "FactoryGameApiTarget")?.Value;
 
-// API default from src/FactoryGame.Api/Properties/launchSettings.json (https profile).
-const string defaultLocalApiHttps = "https://localhost:7145/";
-var apiBase = string.IsNullOrEmpty(configuredApi)
-    ? (LooksLikeBlazorWasmDevHost(pageBase) ? defaultLocalApiHttps : pageBase)
-    : configuredApi.TrimEnd('/') + "/";
+var apiBaseUri = ApiEndpointResolver.Resolve(builder.Configuration, builder.HostEnvironment, buildApiTarget);
 
-// HttpClient requires BaseAddress to end with '/' when request paths start with '/' (host gets dropped otherwise).
-apiBase = apiBase.TrimEnd('/') + "/";
-
-// Last resort if any path still left API on loopback while the SPA runs on a real host.
-if (IsLoopbackUrl(apiBase) && !IsLoopbackUrl(pageBase))
-    apiBase = pageBase.TrimEnd('/') + "/";
-
-static bool LooksLikeBlazorWasmDevHost(string baseAddress)
-{
-    if (!Uri.TryCreate(baseAddress, UriKind.Absolute, out var u))
-        return false;
-    if (!u.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) &&
-        !u.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))
-        return false;
-    // Ports from src/FactoryGame.Web/Properties/launchSettings.json (Kestrel + IIS Express).
-    return u.Port is 5130 or 7048 or 32617 or 44310;
-}
-
-static bool IsLoopbackUrl(string value)
-{
-    if (!Uri.TryCreate(value, UriKind.Absolute, out var u))
-        return false;
-    return u.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-        || u.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
-}
-
+builder.Services.AddSingleton(new ApiEndpointInfo(apiBaseUri));
 builder.Services.AddSingleton<BrowserStorage>();
 builder.Services.AddSingleton<TokenStore>();
 builder.Services.AddSingleton<WalletState>();
@@ -56,7 +23,7 @@ builder.Services.AddSingleton<SnackbarService>();
 builder.Services.AddScoped<AuthMessageHandler>();
 builder.Services.AddSingleton<OfflineCommandQueue>();
 
-builder.Services.AddHttpClient("api", c => { c.BaseAddress = new Uri(apiBase); })
+builder.Services.AddHttpClient("api", c => { c.BaseAddress = apiBaseUri; })
     .AddHttpMessageHandler<AuthMessageHandler>();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("api"));

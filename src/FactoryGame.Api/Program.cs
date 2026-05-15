@@ -63,7 +63,20 @@ builder.Services.AddCors(o =>
 {
     o.AddPolicy("wasm", p =>
     {
-        if (corsOrigins.Length == 0)
+        if (builder.Environment.IsDevelopment())
+        {
+            p.SetIsOriginAllowed(origin =>
+                {
+                    if (!Uri.TryCreate(origin, UriKind.Absolute, out var u))
+                        return false;
+                    return u.Scheme is "http" or "https"
+                        && (u.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                            || u.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase));
+                })
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+        else if (corsOrigins.Length == 0)
             p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
         else
             p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod();
