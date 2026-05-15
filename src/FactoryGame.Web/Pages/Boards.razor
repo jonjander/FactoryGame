@@ -105,34 +105,35 @@
                                LatestKeyframe="_latestKeyframe"
                                SeaportPortFlows="@(_boardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
                                MachinePortFlows="@(_boardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
+                               SelectedMachineId="_settingsMachineId"
+                               SelectedMachineIdChanged="OnCanvasMachineSelectedAsync"
                                PlanChanged="OnCanvasPlanChangedAsync"
                                ConnectionAdded="OnCanvasConnectionAddedAsync"
                                ConnectionRemoved="OnCanvasConnectionRemovedAsync" />
             </div>
         }
 
-        @if (GetSeaportOutMachines().Count > 0)
+        @if (GetPlanMachines().Count > 0)
         {
             <div class="panel fg-sub">
-                <h4>Seaport — grundämne från pool (utgång «out»)</h4>
-                <p class="muted">Välj vilket grundämne som matas ut från poolen in i fabriken. Visas som <strong>E01 →</strong> vid porten i canvas.</p>
-                @foreach (var sea in GetSeaportOutMachines())
-                {
-                    <div class="fg-seaport-pool-pick">
-                        <label for="sea-el-@sea.Id">@sea.Id (@sea.Type)</label>
-                        <select id="sea-el-@sea.Id"
-                                class="fg-select"
-                                disabled="@(_busy || IsSelectedBoardRunning())"
-                                value="@GetSeaportOutElementId(sea.Id)"
-                                @onchange="e => OnSeaportOutElementChangedAsync(sea.Id, e)">
-                            @foreach (var el in _elements)
-                            {
-                                <option value="@el.Id">@el.Symbol — @el.Name</option>
-                            }
-                        </select>
-                    </div>
-                }
+                <h4>Maskininställningar</h4>
+                <p class="muted">Klicka en maskin i canvas eller välj i listan. Endast fasta steg (dropdown). Spara planen efter ändring.</p>
+                <label for="fg-settings-machine-pick">Maskin</label>
+                <select id="fg-settings-machine-pick"
+                        class="fg-select fg-settings-machine-pick"
+                        disabled="@(_busy || IsSelectedBoardRunning())"
+                        @bind="_settingsMachineId">
+                    <option value="">— Välj —</option>
+                    @foreach (var m in GetPlanMachines())
+                    {
+                        <option value="@m.Id">@m.Id (@m.Type)</option>
+                    }
+                </select>
             </div>
+            <MachineSettingsPanel Machine="@GetSettingsMachine()"
+                                  Disabled="@(_busy || IsSelectedBoardRunning())"
+                                  Elements="_elements"
+                                  MachineChanged="OnMachineSettingsChangedAsync" />
         }
 
         <div class="panel fg-sub">
@@ -280,6 +281,7 @@
     private List<PlayerMachineStockDto> _inventory = new();
     private readonly Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private List<ElementContentItem> _elements = [];
+    private string _settingsMachineId = "";
 
     private sealed class MachineStorePayload
     {
@@ -852,23 +854,31 @@
             m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
             || m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)).ToList();
 
-    private int GetSeaportOutElementId(string machineId)
+    private MachineDto? GetSettingsMachine()
     {
-        var m = GetPlanMachines().FirstOrDefault(x => x.Id == machineId);
-        return m == null ? 1 : PlanMachineSettings.GetOutElementId(m);
+        if (string.IsNullOrWhiteSpace(_settingsMachineId))
+            return null;
+        return GetPlanMachines().FirstOrDefault(m =>
+            m.Id.Equals(_settingsMachineId, StringComparison.Ordinal));
     }
 
-    private async Task OnSeaportOutElementChangedAsync(string machineId, ChangeEventArgs e)
+    private Task OnCanvasMachineSelectedAsync(string? machineId)
     {
-        if (!int.TryParse(e.Value?.ToString(), out var elementId) || elementId <= 0)
-            return;
+        _settingsMachineId = machineId ?? "";
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnMachineSettingsChangedAsync(MachineDto updated)
+    {
         if (!TryDeserializePlan(out var plan))
             return;
 
-        var machines = plan.Machines.Select(m =>
-            m.Id == machineId ? PlanMachineSettings.WithOutElementId(m, elementId) : m).ToList();
+        var machines = plan.Machines
+            .Select(m => m.Id == updated.Id ? updated : m)
+            .ToList();
         _planJson = SerializePlan(new BoardPlanDto(machines, plan.Connections));
-        _saveHint = $"Seaport {machineId}: ut-element {elementId} (ej sparat).";
+        _settingsMachineId = updated.Id;
+        _saveHint = $"Inställningar för {updated.Id} uppdaterade (ej sparat).";
         await SyncBoardInfoFromEditorAsync();
         await InvokeAsync(StateHasChanged);
     }

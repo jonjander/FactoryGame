@@ -54,7 +54,7 @@
             if (!_machineMeta.TryGetValue(m.Type, out var meta))
                 meta = null;
 
-            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "")"
+            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "")"
                transform="translate(@Fmt(mx), @Fmt(my))"
                @onmousedown="e => OnMachineMouseDown(e, m.Id)"
                @onmousedown:stopPropagation="true">
@@ -144,6 +144,12 @@
 
     [Parameter]
     public IReadOnlyList<MachinePortFlowDto> MachinePortFlows { get; set; } = Array.Empty<MachinePortFlowDto>();
+
+    [Parameter]
+    public string? SelectedMachineId { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> SelectedMachineIdChanged { get; set; }
 
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
@@ -308,10 +314,15 @@
         return string.Join(' ', classes);
     }
 
-    private void OnMachineMouseDown(MouseEventArgs e, string machineId)
+    private bool IsSelected(string machineId) =>
+        !string.IsNullOrEmpty(SelectedMachineId)
+        && SelectedMachineId.Equals(machineId, StringComparison.Ordinal);
+
+    private async Task OnMachineMouseDown(MouseEventArgs e, string machineId)
     {
         if (ReadOnly)
             return;
+        await SelectedMachineIdChanged.InvokeAsync(machineId);
         _dragMachineId = machineId;
         var idx = Plan.Machines.ToList().FindIndex(m => m.Id == machineId);
         if (idx < 0)
@@ -345,10 +356,11 @@
         _dragMachineId = null;
     }
 
-    private void OnCanvasBackgroundClick()
+    private async Task OnCanvasBackgroundClick()
     {
         _pendingOut = null;
         _selectedConnectionIndex = null;
+        await SelectedMachineIdChanged.InvokeAsync(null);
     }
 
     private void OnPipeClick(int connectionIndex)

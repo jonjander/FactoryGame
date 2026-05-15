@@ -19,6 +19,15 @@ public static class MachineDnaCompatibility
         if (t.Equals("Destilator", StringComparison.OrdinalIgnoreCase) && d.Phase is MaterialPhase.Solid)
             return "Destilator blockeras av fast fas i DNA.";
 
+        if (t.Equals("Condenser", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Gas)
+            return "Condenser kräver gasfas.";
+
+        if (t.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Liquid)
+            return "Crystallizer kräver vätskefas.";
+
+        if (t.Equals("Melter", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Solid)
+            return "Melter kräver fast fas.";
+
         if (t.Equals("Heater", StringComparison.OrdinalIgnoreCase) && d.Explosivity > 85)
             return "Heater blockeras: explosivitet i DNA för hög.";
 

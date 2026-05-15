@@ -5,7 +5,7 @@ internal abstract class PassThroughProcessor : IMachineProcessor
     public abstract string MachineType { get; }
     protected abstract string InPort { get; }
     protected abstract string OutPort { get; }
-    protected abstract long TransformDna(long dna);
+    protected abstract long TransformDna(long dna, string? settingsJson);
 
     public void Process(MachineRuntimeState machine, TickContext ctx, string? settingsJson)
     {
@@ -24,7 +24,7 @@ internal abstract class PassThroughProcessor : IMachineProcessor
             return;
         }
 
-        pkt.Dna = TransformDna(pkt.Dna);
+        pkt.Dna = TransformDna(pkt.Dna, settingsJson);
         pkt.Quantity = Math.Min(pkt.Quantity, ctx.UnitsPerTick);
         if (!machine.GetOrCreateOutput(OutPort).TryEnqueue(pkt))
             machine.GetOrCreateInput(InPort).TryEnqueue(pkt);

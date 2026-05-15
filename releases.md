@@ -2,6 +2,11 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.12
+
+- **Fabrik — simulering:** Destilator, Liquid separator, Condenser, Crystallizer, Melter; utökad Mixer (fattig/ostabil blandning).
+- **Fabrik — inställningar:** gemensam panel med dropdowns per maskin (värme, cut, mix-intensitet, sorter-portar, seaport-element); klick i canvas markerar maskin.
+
 ## 0.2.11
 
 - **Fabrik — seaport ut:** välj grundämne från pool per connector (`outElementId`) i egen panel; etikett `E01 →` vid out-port i canvas.

@@ -1,0 +1,121 @@
+@using FactoryGame.Contracts.Boards
+@using FactoryGame.Web.Models
+
+@if (_machine != null && _fields.Count > 0)
+{
+    <div class="panel fg-sub fg-machine-settings">
+        <h4>Inställningar — @_machine.Id <span class="muted">(@_machine.Type)</span></h4>
+        @if (Disabled)
+        {
+            <p class="muted">Planen körs — inställningar kan endast ändras i redigeringsläge.</p>
+        }
+        @foreach (var field in _fields)
+        {
+            <div class="fg-machine-setting-row">
+                <label for="@SettingInputId(field)">@field.Label</label>
+                @if (MachineSettingsUi.UsesElementPicker(field))
+                {
+                    <select id="@SettingInputId(field)"
+                            class="fg-select"
+                            disabled="@Disabled"
+                            value="@GetElementPickerValue(field)"
+                            @onchange="e => OnElementFieldChanged(field, e)">
+                        @foreach (var opt in GetElementOptions(field))
+                        {
+                            <option value="@opt.Value">@opt.Label</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <select id="@SettingInputId(field)"
+                            class="fg-select"
+                            disabled="@Disabled"
+                            value="@GetNumericValue(field)"
+                            @onchange="e => OnNumericFieldChanged(field, e)">
+                        @foreach (var opt in field.Options)
+                        {
+                            <option value="@opt.Value">@opt.Label</option>
+                        }
+                    </select>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public MachineDto? Machine { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ElementContentItem> Elements { get; set; } = Array.Empty<ElementContentItem>();
+
+    [Parameter]
+    public EventCallback<MachineDto> MachineChanged { get; set; }
+
+    private MachineDto? _machine;
+    private IReadOnlyList<MachineSettingField> _fields = Array.Empty<MachineSettingField>();
+
+    protected override void OnParametersSet()
+    {
+        _machine = Machine;
+        _fields = Machine == null
+            ? Array.Empty<MachineSettingField>()
+            : MachineSettingsUi.GetFields(Machine.Type);
+    }
+
+    private string SettingInputId(MachineSettingField field) =>
+        $"ms-{_machine?.Id}-{field.JsonKey}";
+
+    private int GetNumericValue(MachineSettingField field)
+    {
+        if (_machine == null)
+            return field.Options[0].Value;
+        var stored = PlanMachineSettings.GetInt(_machine, field.JsonKey, -1);
+        if (stored < 0)
+            return field.Options[0].Value;
+        return field.Options.Any(o => o.Value == stored) ? stored : field.Options[0].Value;
+    }
+
+    private int GetElementPickerValue(MachineSettingField field)
+    {
+        if (_machine == null)
+            return 0;
+        return field.JsonKey switch
+        {
+            "outElementId" => PlanMachineSettings.GetOutElementId(_machine),
+            "port1" or "port2" or "port3" => PlanMachineSettings.GetSorterPortElement(_machine, field.JsonKey),
+            _ => 0
+        };
+    }
+
+    private IReadOnlyList<MachineSettingOption> GetElementOptions(MachineSettingField field) =>
+        MachineSettingsUi.ElementOptions(Elements, allowEmpty: field.JsonKey is "port1" or "port2" or "port3");
+
+    private async Task OnNumericFieldChanged(MachineSettingField field, ChangeEventArgs e)
+    {
+        if (_machine == null || !int.TryParse(e.Value?.ToString(), out var v))
+            return;
+        var updated = PlanMachineSettings.WithInt(_machine, field.JsonKey, v);
+        _machine = updated;
+        await MachineChanged.InvokeAsync(updated);
+    }
+
+    private async Task OnElementFieldChanged(MachineSettingField field, ChangeEventArgs e)
+    {
+        if (_machine == null || !int.TryParse(e.Value?.ToString(), out var v))
+            return;
+        var updated = field.JsonKey switch
+        {
+            "outElementId" => PlanMachineSettings.WithOutElementId(_machine, v),
+            "port1" or "port2" or "port3" => PlanMachineSettings.WithSorterPort(_machine, field.JsonKey, v),
+            _ => _machine
+        };
+        _machine = updated;
+        await MachineChanged.InvokeAsync(updated);
+    }
+}

@@ -100,9 +100,30 @@ internal static class MaterialFlowTrace
             return ResolveOutput(dna, inputElementSymbol, "kyls i Cooler");
         }
 
+        if (machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
+        {
+            var dna = DnaTransforms.Condense(inputEl.Dna);
+            return ResolveOutput(dna, inputElementSymbol, "kondenseras till vätska");
+        }
+
+        if (machine.Type.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
+        {
+            var cut = 2048;
+            var (dna, solid) = DnaTransforms.Crystallize(inputEl.Dna, cut);
+            var note = solid ? "kristalliseras till fast form" : "kyls (fryspunkt över cut, fortfarande vätska)";
+            return ResolveOutput(dna, inputElementSymbol, note);
+        }
+
+        if (machine.Type.Equals("Melter", StringComparison.OrdinalIgnoreCase))
+        {
+            var (dna, melted) = DnaTransforms.Melt(inputEl.Dna, 1800);
+            var note = melted ? "smälts till vätska" : "värms (kokpunkt under cut, fortfarande fast)";
+            return ResolveOutput(dna, inputElementSymbol, note);
+        }
+
         if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
         {
-            return (inputElementId, inputElementSymbol, "blandas i Mixer (kräver två ingångar)");
+            return (inputElementId, inputElementSymbol, "blandas i Mixer (kräver två ingångar; intensitet styr kvalitet)");
         }
 
         if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
@@ -135,8 +156,13 @@ internal static class MaterialFlowTrace
             _ when machineType.Equals("Boiler", StringComparison.OrdinalIgnoreCase) => "in",
             _ when machineType.Equals("Heater", StringComparison.OrdinalIgnoreCase) => "in",
             _ when machineType.Equals("Cooler", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Condenser", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Melter", StringComparison.OrdinalIgnoreCase) => "in",
             _ when machineType.Equals("Mixer", StringComparison.OrdinalIgnoreCase) => "in1",
             _ when machineType.Equals("Sorter", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Destilator", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("LiquidSeparator", StringComparison.OrdinalIgnoreCase) => "in",
             _ => null
         };
 

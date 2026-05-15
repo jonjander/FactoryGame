@@ -589,6 +589,24 @@ pre.fg-snapshot {
     font-family: var(--mono, ui-monospace, monospace);
 }
 
+.fg-machine-settings .fg-machine-setting-row {
+    display: grid;
+    grid-template-columns: minmax(8rem, 12rem) 1fr;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    margin-bottom: 0.65rem;
+}
+
+.fg-settings-machine-pick {
+    max-width: 20rem;
+    margin-bottom: 0.75rem;
+}
+
+.fg-factory-canvas .fg-machine-selected .fg-machine-body {
+    stroke: #58a6ff;
+    stroke-width: 2px;
+}
+
 .fg-seaport-pool-pick .fg-select {
     min-width: 14rem;
 }

@@ -241,8 +241,13 @@ public static class SeaportPortFlowAnalyzer
             _ when machineType.Equals("Boiler", StringComparison.OrdinalIgnoreCase) => "in",
             _ when machineType.Equals("Heater", StringComparison.OrdinalIgnoreCase) => "in",
             _ when machineType.Equals("Cooler", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Condenser", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Melter", StringComparison.OrdinalIgnoreCase) => "in",
             _ when machineType.Equals("Mixer", StringComparison.OrdinalIgnoreCase) => "in1",
             _ when machineType.Equals("Sorter", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Destilator", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("LiquidSeparator", StringComparison.OrdinalIgnoreCase) => "in",
             _ => null
         };
 
