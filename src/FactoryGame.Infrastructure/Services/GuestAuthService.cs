@@ -2,14 +2,17 @@ using System.Security.Cryptography;
 using System.Text;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
-using FactoryGame.Domain.Content;
 using FactoryGame.Infrastructure.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace FactoryGame.Infrastructure.Services;
 
-public sealed class GuestAuthService(AppDbContext db, IOptions<GameEconomyOptions> economyOptions)
+public sealed class GuestAuthService(
+    AppDbContext db,
+    IOptions<GameEconomyOptions> economyOptions,
+    IServiceScopeFactory scopeFactory)
 {
     private readonly GameEconomyOptions _economy = economyOptions.Value;
 
@@ -23,8 +26,10 @@ public sealed class GuestAuthService(AppDbContext db, IOptions<GameEconomyOption
             .Include(p => p.Balance)
             .FirstOrDefaultAsync(p => p.GuestDeviceKeyHash == hash, cancellationToken);
 
+        var isNewPlayer = false;
         if (player == null)
         {
+            isNewPlayer = true;
             var id = Guid.NewGuid();
             player = new PlayerEntity
             {
@@ -48,22 +53,10 @@ public sealed class GuestAuthService(AppDbContext db, IOptions<GameEconomyOption
                 CashDelta = _economy.StartingCash,
                 CreatedAt = DateTimeOffset.UtcNow
             });
-
-            if (_economy.DevStartingElementId is { } starterId && _economy.DevStartingElementQuantity > 0
-                && ElementCatalog.All.Any(e => e.Id == starterId))
-            {
-                var vol = _economy.DevStartingElementQuantity;
-                db.PoolStacks.Add(new PoolStackEntity
-                {
-                    Id = Guid.NewGuid(),
-                    PlayerId = id,
-                    ElementId = starterId,
-                    Quantity = vol,
-                    VolumePerUnit = 1
-                });
-                player.Pool.UsedVolume += vol;
-            }
         }
+
+        if (isNewPlayer)
+            await db.SaveChangesAsync(cancellationToken);
 
         var token = CreateSessionToken();
         db.PlayerSessions.Add(new PlayerSessionEntity
@@ -75,6 +68,13 @@ public sealed class GuestAuthService(AppDbContext db, IOptions<GameEconomyOption
         });
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await using (var scope = scopeFactory.CreateAsyncScope())
+        {
+            var bootstrap = scope.ServiceProvider.GetRequiredService<PlayerPoolBootstrapService>();
+            await bootstrap.EnsureStarterPoolAsync(player.Id, cancellationToken);
+        }
+
         return new GuestAuthResult(player.Id, token);
     }
 

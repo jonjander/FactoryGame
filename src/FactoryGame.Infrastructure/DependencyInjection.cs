@@ -31,6 +31,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IDatabaseSchemaInitializer, SqliteDatabaseSchemaInitializer>();
 
+        services.AddScoped<PlayerPoolBootstrapService>();
         services.AddScoped<GuestAuthService>();
         services.AddScoped<ExchangeService>();
         services.AddScoped<MarketLiquidityService>();

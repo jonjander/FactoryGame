@@ -16,12 +16,15 @@ public static class MarketEndpoints
 
         group.MapGet("/summary", async Task<IResult> (
                 HttpContext http,
+                PlayerPoolBootstrapService poolBootstrap,
                 IServiceScopeFactory scopeFactory,
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
                     return Results.Unauthorized();
+
+                await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
 
                 await using (var scope = scopeFactory.CreateAsyncScope())
                 {

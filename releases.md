@@ -2,6 +2,11 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.2
+
+- **Startmaterial i pool:** nya spelare (och befintliga utan tidigare startpaket) får **5 grundämnen** (id 1–5), **25 st** vardera, vid gästinloggning eller första besök på börsen.
+- Konfiguration: `GameEconomy:StartingElementIds` och `StartingElementQuantityPerStack` i appsettings.
+
 ## 0.2.1
 
 - **Slingor tillåtna:** spara/starta plan med t.ex. seaport → boiler → seaport (cykel blockerade inte längre vid `PUT .../plan`).

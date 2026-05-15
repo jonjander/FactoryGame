@@ -43,7 +43,7 @@ public sealed class MarketLiquidityTests : IClassFixture<ApiWebApplicationFixtur
         const int elementId = 1;
         var playerAsk = 12.50m;
         var sell = await seller.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(elementId, "sell", playerAsk, 40, "player-sell-cap"));
+            new PlaceOrderRequest(elementId, "sell", playerAsk, 20, "player-sell-cap"));
         sell.EnsureSuccessStatusCode();
 
         await other.GetAsync("/v1/market/summary");
