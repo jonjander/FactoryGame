@@ -2,9 +2,11 @@ using System.Text.Json;
 using FactoryGame.Contracts.Boards;
 using FactoryGame.Domain.Boards;
 using FactoryGame.Domain.Content;
+using FactoryGame.Domain.Simulation;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
 using FactoryGame.Infrastructure.Options;
+using FactoryGame.Infrastructure.Simulation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -12,7 +14,11 @@ namespace FactoryGame.Infrastructure.Services;
 
 public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> economyOptions)
 {
-    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
 
     private readonly GameEconomyOptions _economy = economyOptions.Value;
 
@@ -116,6 +122,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             throw new InvalidOperationException("Plan can only be saved in Edit mode.");
 
         ValidateSorterRules(plan);
+        ValidatePlanGraph(plan);
 
         var json = JsonSerializer.Serialize(plan, Json);
         board.RevisionVersion++;
@@ -146,6 +153,8 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         var plan = JsonSerializer.Deserialize<BoardPlanDto>(revision.PlanJson, Json)
             ?? throw new InvalidOperationException("Invalid plan JSON.");
 
+        ValidatePlanGraph(plan);
+
         var cost = plan.Machines.Count * _economy.MachinePlacementCost;
         var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ct);
         if (balance.Cash < cost)
@@ -175,6 +184,120 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<BoardInfoDto?> GetBoardInfoAsync(Guid playerId, Guid boardId, CancellationToken ct)
+    {
+        var board = await db.Boards.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct);
+        if (board == null)
+            return null;
+
+        var plan = await GetLatestPlanAsync(playerId, boardId, ct)
+                   ?? new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+        return BuildBoardInfo(board, plan);
+    }
+
+    public async Task<BoardInfoDto?> PreviewBoardInfoAsync(Guid playerId, Guid boardId, BoardPlanDto plan, CancellationToken ct)
+    {
+        var board = await db.Boards.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct);
+        if (board == null)
+            return null;
+
+        ValidateSorterRules(plan);
+        return BuildBoardInfo(board, plan);
+    }
+
+    public async Task<BoardKeyframeDto?> GetLatestKeyframeAsync(Guid playerId, Guid boardId, CancellationToken ct)
+    {
+        var board = await db.Boards.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct);
+        if (board == null)
+            return null;
+        var kf = await db.BoardKeyframes.AsNoTracking()
+            .Where(k => k.BoardId == boardId)
+            .OrderByDescending(k => k.Tick)
+            .FirstOrDefaultAsync(ct);
+        if (kf == null)
+            return null;
+        return ToKeyframeDto(board, kf);
+    }
+
+    public async Task<BoardKeyframesResponseDto?> GetKeyframesAfterAsync(
+        Guid playerId,
+        Guid boardId,
+        long? afterTick,
+        CancellationToken ct)
+    {
+        var board = await db.Boards.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct);
+        if (board == null)
+            return null;
+
+        var q = db.BoardKeyframes.AsNoTracking().Where(k => k.BoardId == boardId);
+        if (afterTick.HasValue)
+            q = q.Where(k => k.Tick > afterTick.Value);
+
+        var list = await q.OrderBy(k => k.Tick).Take(30).ToListAsync(ct);
+        var dtos = list.Select(k => ToKeyframeDto(board, k)).ToList();
+        return new BoardKeyframesResponseDto(dtos, board.SimulationTick);
+    }
+
+    private BoardInfoDto BuildBoardInfo(BoardEntity board, BoardPlanDto plan)
+    {
+        var machines = plan.Machines.Select(m => new MachineInfo(m.Id, m.Type, m.Settings)).ToList();
+        var connections = plan.Connections
+            .Select(c => new ConnectionInfo(c.FromId, c.FromPort, c.ToId, c.ToPort))
+            .ToList();
+
+        BoardLineState? runtime = null;
+        SeaportTickDelta? delta = null;
+        if (board.Mode == BoardMode.Running)
+        {
+            var kf = db.BoardKeyframes.AsNoTracking()
+                .Where(k => k.BoardId == board.Id)
+                .OrderByDescending(k => k.Tick)
+                .FirstOrDefault();
+            if (kf != null)
+            {
+                runtime = BoardLineStateSerializer.Deserialize(kf.LineStateJson);
+                delta = BoardLineStateSerializer.DeserializeDelta(kf.SeaportDeltaJson);
+            }
+        }
+
+        var poolQty = db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId == board.PlayerId)
+            .ToDictionary(s => s.ElementId, s => (decimal)s.Quantity);
+
+        var prices = db.MarketPriceCandles.AsNoTracking()
+            .GroupBy(c => c.ElementId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.BucketStart).First().Close);
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines,
+            connections,
+            board.Mode == BoardMode.Running,
+            _economy.SimulationTickIntervalSeconds,
+            runtime,
+            delta,
+            poolQty,
+            prices));
+
+        return new BoardInfoDto(
+            board.Id,
+            board.Name,
+            board.Mode.ToString(),
+            board.SimulationTick,
+            new SeaportFlowsDto(
+                report.IntoFactory.Select(MapFlow).ToList(),
+                report.OutOfFactory.Select(MapFlow).ToList()),
+            new ThroughputDto(report.TotalUnitsPerSecond, report.ThroughputIsEstimate, report.ThroughputNote),
+            new ValueEstimateDto(report.EstimatedValuePerSecond, report.ValueIsEstimate, report.ValueNote),
+            report.Issues.Select(i => new BoardIssueDto(i.Severity, i.Code, i.Message, i.MachineId)).ToList());
+    }
+
+    private static SeaportFlowLineDto MapFlow(SeaportFlowLine f) =>
+        new(f.MachineId, f.MachineType, f.Port, f.LinkedMachineId, f.LinkedPort, f.UnitsPerSecond, f.Description);
+
     public async Task<BoardSnapshotDto?> GetSnapshotAsync(Guid playerId, Guid boardId, long? afterTick, CancellationToken ct)
     {
         var board = await db.Boards.AsNoTracking()
@@ -190,6 +313,26 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
     {
         var clock = await db.SimulationClock.AsNoTracking().FirstOrDefaultAsync(c => c.Id == 1, ct);
         return clock?.CurrentTick ?? 0;
+    }
+
+    private static void ValidatePlanGraph(BoardPlanDto plan)
+    {
+        var sim = SimulationPlanMapper.ToSimulationPlan(plan);
+        _ = PlanGraph.TopologicalMachineOrder(sim, out var cycleError);
+        if (cycleError != null)
+            throw new InvalidOperationException(cycleError);
+    }
+
+    private BoardKeyframeDto ToKeyframeDto(BoardEntity board, BoardKeyframeEntity kf)
+    {
+        var delta = BoardLineStateSerializer.DeserializeDelta(kf.SeaportDeltaJson);
+        return new BoardKeyframeDto(
+            board.Id,
+            kf.Tick,
+            kf.RevisionVersion,
+            board.LastSnapshotNote ?? "",
+            board.Mode.ToString(),
+            new SeaportDeltaDto(delta.WithdrawnFromPool, delta.DepositedToPool));
     }
 
     private static void ValidateSorterRules(BoardPlanDto plan)

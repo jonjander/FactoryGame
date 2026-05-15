@@ -25,4 +25,6 @@ public class MarketOrderEntity
 
     /// <summary>Optional idempotency for PlaceOrder (KRAVSPEC).</summary>
     public string? IdempotencyKey { get; set; }
+
+    public bool IsSynthetic { get; set; }
 }

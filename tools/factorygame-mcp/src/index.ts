@@ -313,6 +313,70 @@ function registerTools(mcp: McpServer): void {
   );
 
   mcp.registerTool(
+    "boards_info",
+    {
+      description:
+        "GET /v1/boards/{boardId}/info — factory report (seaport flows, throughput, issues).",
+      inputSchema: {
+        ...optionalSession,
+        boardId: z.string().uuid(),
+      },
+    },
+    async ({ sessionToken, apiKey, boardId }) => {
+      const r = await fetchPlayer("GET", `/v1/boards/${boardId}/info`, {
+        sessionToken,
+        apiKey,
+      });
+      return formatToolResult(r);
+    }
+  );
+
+  mcp.registerTool(
+    "boards_keyframe_latest",
+    {
+      description:
+        "GET /v1/boards/{boardId}/keyframes/latest — latest simulation keyframe.",
+      inputSchema: {
+        ...optionalSession,
+        boardId: z.string().uuid(),
+      },
+    },
+    async ({ sessionToken, apiKey, boardId }) => {
+      const r = await fetchPlayer(
+        "GET",
+        `/v1/boards/${boardId}/keyframes/latest`,
+        { sessionToken, apiKey }
+      );
+      return formatToolResult(r);
+    }
+  );
+
+  mcp.registerTool(
+    "boards_keyframes",
+    {
+      description:
+        "GET /v1/boards/{boardId}/keyframes?afterTick= — poll keyframes after a tick.",
+      inputSchema: {
+        ...optionalSession,
+        boardId: z.string().uuid(),
+        afterTick: z.number().int().optional(),
+      },
+    },
+    async ({ sessionToken, apiKey, boardId, afterTick }) => {
+      const q =
+        afterTick !== undefined
+          ? `?afterTick=${encodeURIComponent(String(afterTick))}`
+          : "";
+      const r = await fetchPlayer(
+        "GET",
+        `/v1/boards/${boardId}/keyframes${q}`,
+        { sessionToken, apiKey }
+      );
+      return formatToolResult(r);
+    }
+  );
+
+  mcp.registerTool(
     "admin_list_players",
     {
       description:

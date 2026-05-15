@@ -11,7 +11,8 @@ public static class MachineStoreCatalog
         new("Cooler", "Cooler", 1800m),
         new("LiquidSeparator", "Liquid separator", 3200m),
         new("Destilator", "Destilator", 3500m),
-        new("Sorter", "Sorter", 5000m)
+        new("Sorter", "Sorter", 5000m),
+        new("SeaportConnector", "Seaport connector", 50m)
     ];
 
     public static bool TryGetCanonicalType(string machineTypeOrAlias, out string canonicalType)

@@ -11,6 +11,40 @@ public static class BoardEndpoints
     {
         var group = app.MapGroup("/v1/boards").WithTags("Boards");
 
+        group.MapGet("/{boardId:guid}/info", async Task<IResult> (HttpContext http, Guid boardId, BoardService boards, CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                var info = await boards.GetBoardInfoAsync(playerId, boardId, ct);
+                return info == null ? Results.NotFound() : Results.Ok(info);
+            })
+            .WithName("GetBoardInfo")
+            .WithOpenApi();
+
+        group.MapPost("/{boardId:guid}/info/preview", async Task<IResult> (
+                HttpContext http,
+                Guid boardId,
+                [FromBody] SavePlanRequest? body,
+                BoardService boards,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                if (body?.Plan == null)
+                    return Results.BadRequest(new { error = "Plan is required." });
+                try
+                {
+                    var info = await boards.PreviewBoardInfoAsync(playerId, boardId, body.Plan, ct);
+                    return info == null ? Results.NotFound() : Results.Ok(info);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(new { error = ex.Message });
+                }
+            })
+            .WithName("PreviewBoardInfo")
+            .WithOpenApi();
+
         group.MapGet("/{boardId:guid}/plan", async Task<IResult> (HttpContext http, Guid boardId, BoardService boards, CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
@@ -127,6 +161,35 @@ public static class BoardEndpoints
                 }
             })
             .WithName("StopBoard")
+            .WithOpenApi();
+
+        group.MapGet("/{boardId:guid}/keyframes/latest", async Task<IResult> (
+                HttpContext http,
+                Guid boardId,
+                BoardService boards,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                var kf = await boards.GetLatestKeyframeAsync(playerId, boardId, ct);
+                return kf == null ? Results.NotFound() : Results.Ok(kf);
+            })
+            .WithName("GetLatestBoardKeyframe")
+            .WithOpenApi();
+
+        group.MapGet("/{boardId:guid}/keyframes", async Task<IResult> (
+                HttpContext http,
+                Guid boardId,
+                long? afterTick,
+                BoardService boards,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                var resp = await boards.GetKeyframesAfterAsync(playerId, boardId, afterTick, ct);
+                return resp == null ? Results.NotFound() : Results.Ok(resp);
+            })
+            .WithName("GetBoardKeyframes")
             .WithOpenApi();
 
         group.MapGet("/{boardId:guid}/snapshot", async Task<IResult> (

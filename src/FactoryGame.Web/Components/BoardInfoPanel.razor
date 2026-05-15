@@ -1,0 +1,72 @@
+@using FactoryGame.Contracts.Boards
+
+<div class="panel fg-sub fg-board-info">
+    <h4>Fabrikinformation — @Info.Name</h4>
+    <p class="muted">
+        Läge: <strong>@Info.Mode</strong> · tick @Info.SimulationTick
+        @if (Info.Throughput.IsEstimate) { <span> · uppskattning</span> }
+    </p>
+
+    <div class="fg-info-grid">
+        <div>
+            <h5>Genomströmning</h5>
+            <p><strong>@Info.Throughput.TotalUnitsPerSecond.ToString("0.##")</strong> enheter/s</p>
+            <p class="muted">@Info.Throughput.Note</p>
+        </div>
+        <div>
+            <h5>Uppskattat värde</h5>
+            <p><strong>@Info.Value.EstimatedValuePerSecond.ToString("0.##")</strong> /s</p>
+            <p class="muted">@Info.Value.Note</p>
+        </div>
+    </div>
+
+    <h5>In från seaport (pool → fabrik)</h5>
+    @if (Info.Seaport.IntoFactory.Count == 0)
+    {
+        <p class="muted">Inga aktiva inflöden.</p>
+    }
+    else
+    {
+        <ul class="fg-info-list">
+            @foreach (var line in Info.Seaport.IntoFactory)
+            {
+                <li><strong>@line.UnitsPerSecond.ToString("0.##")</strong>/s — @line.Description</li>
+            }
+        </ul>
+    }
+
+    <h5>Ut till seaport (fabrik → pool)</h5>
+    @if (Info.Seaport.OutOfFactory.Count == 0)
+    {
+        <p class="muted">Inga aktiva utflöden.</p>
+    }
+    else
+    {
+        <ul class="fg-info-list">
+            @foreach (var line in Info.Seaport.OutOfFactory)
+            {
+                <li><strong>@line.UnitsPerSecond.ToString("0.##")</strong>/s — @line.Description</li>
+            }
+        </ul>
+    }
+
+    <h5>Rapporter</h5>
+    @if (Info.Issues.Count == 0)
+    {
+        <p class="muted">Inga fel eller varningar.</p>
+    }
+    else
+    {
+        <ul class="fg-issues">
+            @foreach (var issue in Info.Issues.OrderBy(i => i.Severity))
+            {
+                <li class="fg-issue fg-issue-@issue.Severity">@issue.Message</li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public BoardInfoDto Info { get; set; } = null!;
+}

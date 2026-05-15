@@ -19,4 +19,6 @@ public class TradeExecutionEntity
     public Guid SellOrderId { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    public bool IsSynthetic { get; set; }
 }

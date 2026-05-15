@@ -51,6 +51,8 @@ static bool IsLoopbackUrl(string value)
 
 builder.Services.AddSingleton<BrowserStorage>();
 builder.Services.AddSingleton<TokenStore>();
+builder.Services.AddSingleton<WalletState>();
+builder.Services.AddSingleton<SnackbarService>();
 builder.Services.AddScoped<AuthMessageHandler>();
 builder.Services.AddSingleton<OfflineCommandQueue>();
 

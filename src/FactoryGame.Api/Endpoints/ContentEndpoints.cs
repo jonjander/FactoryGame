@@ -22,10 +22,11 @@ public static class ContentEndpoints
                 var store = MachineStoreCatalog.All.Select(e =>
                     new MachineStoreItemDto(e.MachineType, e.DisplayName, e.Price, true, PortsFor(e.MachineType))).ToList();
 
+                // Legacy plan types: port metadata only (not purchasable; use SeaportConnector in store).
                 var connectors = new[]
                 {
-                    (type: "SeaportIn", display: "Seaport in (pool → fabrik)", price: 0m),
-                    (type: "SeaportOut", display: "Seaport ut (fabrik → pool)", price: 0m)
+                    (type: "SeaportIn", display: "Seaport in (legacy)", price: 0m),
+                    (type: "SeaportOut", display: "Seaport ut (legacy)", price: 0m)
                 }.Select(x => new MachineStoreItemDto(x.type, x.display, x.price, false, PortsFor(x.type))).ToList();
 
                 return Results.Ok(new { store, connectors });

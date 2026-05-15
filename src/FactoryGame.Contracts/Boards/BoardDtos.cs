@@ -4,7 +4,7 @@ namespace FactoryGame.Contracts.Boards;
 
 public sealed record MachineDto(string Id, string Type, JsonElement? Settings = null);
 
-public sealed record ConnectionDto(string FromId, string ToId, string FromPort, string ToPort);
+public sealed record ConnectionDto(string FromId, string FromPort, string ToId, string ToPort);
 
 public sealed record BoardPlanDto(IReadOnlyList<MachineDto> Machines, IReadOnlyList<ConnectionDto> Connections);
 

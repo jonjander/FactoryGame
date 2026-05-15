@@ -87,7 +87,8 @@ public sealed class ExchangeService(AppDbContext db)
     private async Task MatchOrdersForElementAsync(int elementId, CancellationToken ct)
     {
         var progressed = true;
-        while (progressed)
+        var guard = 0;
+        while (progressed && guard++ < 500)
         {
             progressed = false;
             var buys = (await db.MarketOrders
@@ -110,6 +111,9 @@ public sealed class ExchangeService(AppDbContext db)
                         .FirstOrDefault();
 
                     if (sell == null)
+                        break;
+
+                    if (buy.IsSynthetic && sell.IsSynthetic)
                         break;
 
                     var qty = Math.Min(buy.QuantityRemaining, sell.QuantityRemaining);

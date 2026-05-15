@@ -1,10 +1,8 @@
-using System.Text.Json;
-using FactoryGame.Contracts.Boards;
 using FactoryGame.Domain.Boards;
-using FactoryGame.Domain.Simulation;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
 using FactoryGame.Infrastructure.Options;
+using FactoryGame.Infrastructure.Simulation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,8 +16,6 @@ public sealed class SimulationTickHostedService(
     IOptions<GameEconomyOptions> economyOptions,
     ILogger<SimulationTickHostedService> logger) : BackgroundService
 {
-    private static readonly JsonSerializerOptions PlanJson = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(Math.Max(1, economyOptions.Value.SimulationTickIntervalSeconds));
     private readonly int _maxCatchUpTicks = Math.Max(1, economyOptions.Value.SimulationMaxCatchUpTicks);
 
@@ -47,6 +43,7 @@ public sealed class SimulationTickHostedService(
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var runner = scope.ServiceProvider.GetRequiredService<BoardSimulationRunner>();
 
         var clock = await db.SimulationClock.FirstOrDefaultAsync(c => c.Id == 1, ct);
         if (clock == null)
@@ -70,19 +67,14 @@ public sealed class SimulationTickHostedService(
             var running = await db.Boards.Where(b => b.Mode == BoardMode.Running).ToListAsync(ct);
             foreach (var board in running)
             {
-                board.SimulationTick = clock.CurrentTick;
-                var revision = await db.BoardRevisions.AsNoTracking()
-                    .FirstOrDefaultAsync(r => r.BoardId == board.Id && r.Version == board.RevisionVersion, ct);
-                if (revision == null || board.RevisionVersion == 0)
+                try
                 {
-                    board.LastSnapshotNote = BoardTickSimulator.BuildNote(clock.CurrentTick, Array.Empty<(string, string)>());
-                    continue;
+                    await runner.TickBoardAsync(board, clock.CurrentTick, ct);
                 }
-
-                var plan = JsonSerializer.Deserialize<BoardPlanDto>(revision.PlanJson, PlanJson);
-                var machines = plan?.Machines.Select(m => (m.Id, m.Type)).ToList()
-                    ?? (IReadOnlyList<(string Id, string Type)>)Array.Empty<(string, string)>();
-                board.LastSnapshotNote = BoardTickSimulator.BuildNote(clock.CurrentTick, machines);
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Board tick failed for {BoardId}", board.Id);
+                }
             }
         }
 

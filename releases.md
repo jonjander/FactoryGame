@@ -2,6 +2,16 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.0
+
+- **Fabrik-simulering:** deterministisk tick-motor (`BoardTickEngine`) med materialpaket, portbuffertar och maskinprocessorer (Boiler, Heater, Cooler, Mixer, Sorter, SeaportConnector); DNA-blockering under körning.
+- **Seaport-pool i tick:** `SeaportPoolGateway` — connector drar/sätter element i spelarens pool vid `Running`.
+- **Keyframes:** persistence + `GET /v1/boards/{id}/keyframes/latest` och `.../keyframes?afterTick=`; `SimulationTickHostedService` kör riktig simulering.
+- **Fabrikinformation v2:** `GET/POST .../info` med runtime från keyframe, pool och spotpris; cykelvalidering vid spara/start.
+- **Webbklient Fabrik:** visuell **SVG-canvas** (drag-placering, port-koppling), fabrikinfo-panel, auto-refresh vid körning; header med **kassa**, snackbar, **SeaportConnector** i butik (ersätter in/out-knappar), auto maskin-id.
+- **Börs:** syntetiskt orderdjup och seedad kurshistorik; API `GET /v1/market/summary`, `.../depth`, `.../history`; sida `/exchange`.
+- **MCP:** verktyg `boards_info`, `boards_keyframe_latest`, `boards_keyframes` för Azure-smoke.
+
 ## 0.1.9
 
 - Webbklient: **Logga ut** i toppraden; ogiltig sparad session rensas automatiskt vid **401** och vid start på Home (undviker «Inloggad» med trasig token efter deploy).

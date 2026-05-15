@@ -1,0 +1,17 @@
+@inject SnackbarService Snackbar
+@implements IDisposable
+
+@if (Snackbar.Current is { } msg)
+{
+    <div class="fg-snackbar fg-snackbar-@msg.Kind.ToString().ToLowerInvariant()" role="status">
+        @msg.Text
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Snackbar.Changed += OnSnackbarChanged;
+
+    private void OnSnackbarChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Snackbar.Changed -= OnSnackbarChanged;
+}

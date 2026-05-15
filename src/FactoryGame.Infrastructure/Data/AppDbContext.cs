@@ -13,10 +13,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<EconomyTransactionEntity> EconomyTransactions => Set<EconomyTransactionEntity>();
     public DbSet<MarketOrderEntity> MarketOrders => Set<MarketOrderEntity>();
     public DbSet<TradeExecutionEntity> TradeExecutions => Set<TradeExecutionEntity>();
+    public DbSet<MarketPriceCandleEntity> MarketPriceCandles => Set<MarketPriceCandleEntity>();
     public DbSet<BoardEntity> Boards => Set<BoardEntity>();
     public DbSet<BoardRevisionEntity> BoardRevisions => Set<BoardRevisionEntity>();
     public DbSet<PlayerMachineStockEntity> PlayerMachineStocks => Set<PlayerMachineStockEntity>();
     public DbSet<SimulationClockEntity> SimulationClock => Set<SimulationClockEntity>();
+    public DbSet<BoardKeyframeEntity> BoardKeyframes => Set<BoardKeyframeEntity>();
     public DbSet<ApiKeyEntity> ApiKeys => Set<ApiKeyEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -64,6 +66,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.ElementId, x.Status, x.Side });
+            e.HasIndex(x => new { x.ElementId, x.IsSynthetic, x.Status });
             e.HasIndex(x => new { x.PlayerId, x.IdempotencyKey }).IsUnique();
             e.Property(x => x.LimitPrice).HasPrecision(18, 4);
         });
@@ -72,7 +75,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.ElementId);
+            e.HasIndex(x => new { x.ElementId, x.CreatedAt });
             e.Property(x => x.Price).HasPrecision(18, 4);
+        });
+
+        modelBuilder.Entity<MarketPriceCandleEntity>(e =>
+        {
+            e.ToTable("MarketPriceCandles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.HasIndex(x => new { x.ElementId, x.BucketStart }).IsUnique();
+            e.Property(x => x.Open).HasPrecision(18, 4);
+            e.Property(x => x.High).HasPrecision(18, 4);
+            e.Property(x => x.Low).HasPrecision(18, 4);
+            e.Property(x => x.Close).HasPrecision(18, 4);
         });
 
         modelBuilder.Entity<BoardEntity>(e =>
@@ -87,6 +103,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.BoardId, x.Version }).IsUnique();
             e.HasOne(x => x.Board).WithMany().HasForeignKey(x => x.BoardId);
+        });
+
+        modelBuilder.Entity<BoardKeyframeEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.BoardId, x.Tick });
+            e.HasOne(x => x.Board).WithMany().HasForeignKey(x => x.BoardId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<PlayerMachineStockEntity>(e =>

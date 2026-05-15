@@ -1,0 +1,244 @@
+@using FactoryGame.Contracts.Boards
+@using FactoryGame.Contracts.Machines
+
+<div class="fg-factory-canvas-wrap">
+    @if (!ReadOnly)
+    {
+        <p class="muted">Dra maskiner för att placera. Klicka utgång → ingång för att koppla rör.</p>
+    }
+    else
+    {
+        <p class="muted">Planen körs — endast visning.</p>
+    }
+    <svg xmlns="http://www.w3.org/2000/svg"
+         class="fg-factory-canvas"
+         viewBox="@_viewBox"
+         @onmousemove="OnMouseMove"
+         @onmouseup="OnMouseUp"
+         @onmouseleave="OnMouseUp">
+        <defs>
+            <marker id="fg-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L6,3 L0,6 Z" fill="var(--fg-pipe, #5b9bd5)" />
+            </marker>
+        </defs>
+
+        @foreach (var conn in Plan.Connections)
+        {
+            if (!TryGetPortPoint(conn.FromId, conn.FromPort, true, out var p1) ||
+                !TryGetPortPoint(conn.ToId, conn.ToPort, false, out var p2))
+                continue;
+            var midX = (p1.X + p2.X) / 2;
+            <path class="fg-pipe"
+                  d="M @Fmt(p1.X) @Fmt(p1.Y) C @Fmt(midX) @Fmt(p1.Y), @Fmt(midX) @Fmt(p2.Y), @Fmt(p2.X) @Fmt(p2.Y)"
+                  marker-end="url(#fg-arrow)" />
+        }
+
+        @for (var i = 0; i < Plan.Machines.Count; i++)
+        {
+            var m = Plan.Machines[i];
+            var (mx, my) = PlanLayout.GetPosition(m, i);
+            var w = MachineWidth;
+            var h = MachineHeight;
+            if (!_machineMeta.TryGetValue(m.Type, out var meta))
+                meta = null;
+
+            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "")"
+               transform="translate(@Fmt(mx), @Fmt(my))"
+               @onmousedown="e => OnMachineMouseDown(e, m.Id)"
+               @onmousedown:stopPropagation="true">
+                <rect class="fg-machine-body" width="@w" height="@h" rx="6" />
+                <foreignObject x="4" y="6" width="@(w - 8)" height="20">
+                    <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-label-html">@m.Id</div>
+                </foreignObject>
+                <foreignObject x="4" y="26" width="@(w - 8)" height="16">
+                    <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-type-html">@m.Type</div>
+                </foreignObject>
+
+                @if (meta != null)
+                {
+                    var inPorts = meta.Ports.Where(p => p.Direction == "in").ToList();
+                    var outPorts = meta.Ports.Where(p => p.Direction == "out").ToList();
+                    @for (var pi = 0; pi < inPorts.Count; pi++)
+                    {
+                        var port = inPorts[pi];
+                        var py = PortY(pi, inPorts.Count, h);
+                        <circle class="fg-port fg-port-in @PortClass(m.Id, port.Name, false)"
+                                cx="0" cy="@Fmt(py)" r="5"
+                                @onclick="() => OnPortClick(m.Id, port.Name, false)"
+                                @onclick:stopPropagation="true">
+                            <title>@port.Name</title>
+                        </circle>
+                    }
+                    @for (var pi = 0; pi < outPorts.Count; pi++)
+                    {
+                        var port = outPorts[pi];
+                        var py = PortY(pi, outPorts.Count, h);
+                        <circle class="fg-port fg-port-out @PortClass(m.Id, port.Name, true)"
+                                cx="@w" cy="@Fmt(py)" r="5"
+                                @onclick="() => OnPortClick(m.Id, port.Name, true)"
+                                @onclick:stopPropagation="true">
+                            <title>@port.Name</title>
+                        </circle>
+                    }
+                }
+            </g>
+        }
+    </svg>
+</div>
+
+@code {
+    private const double MachineWidth = 120;
+    private const double MachineHeight = 64;
+    private const double CanvasPad = 24;
+
+    [Parameter, EditorRequired]
+    public BoardPlanDto Plan { get; set; } = null!;
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<string, MachineStoreItemDto> MachineMeta { get; set; } =
+        new Dictionary<string, MachineStoreItemDto>(StringComparer.OrdinalIgnoreCase);
+
+    [Parameter]
+    public BoardKeyframeDto? LatestKeyframe { get; set; }
+
+    [Parameter]
+    public EventCallback<BoardPlanDto> PlanChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<(string FromId, string FromPort, string ToId, string ToPort)> ConnectionAdded { get; set; }
+
+    private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
+    private string _viewBox = "0 0 800 480";
+    private string? _dragMachineId;
+    private double _dragOffsetX;
+    private double _dragOffsetY;
+    private (string Id, string Port)? _pendingOut;
+
+    protected override void OnParametersSet()
+    {
+        _machineMeta = MachineMeta.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+        UpdateViewBox();
+    }
+
+    private void UpdateViewBox()
+    {
+        if (Plan.Machines.Count == 0)
+        {
+            _viewBox = "0 0 800 480";
+            return;
+        }
+
+        double maxX = 400, maxY = 300;
+        for (var i = 0; i < Plan.Machines.Count; i++)
+        {
+            var (x, y) = PlanLayout.GetPosition(Plan.Machines[i], i);
+            maxX = Math.Max(maxX, x + MachineWidth + CanvasPad);
+            maxY = Math.Max(maxY, y + MachineHeight + CanvasPad);
+        }
+        _viewBox = $"0 0 {Fmt(maxX)} {Fmt(maxY)}";
+    }
+
+    private static double PortY(int index, int count, double height)
+    {
+        if (count <= 1)
+            return height / 2;
+        var margin = 14;
+        var span = height - margin * 2;
+        return margin + span * index / (count - 1);
+    }
+
+    private bool TryGetPortPoint(string machineId, string portName, bool isOutput, out (double X, double Y) point)
+    {
+        point = default;
+        var idx = Plan.Machines.ToList().FindIndex(m => m.Id == machineId);
+        if (idx < 0)
+            return false;
+        var m = Plan.Machines[idx];
+        if (!_machineMeta.TryGetValue(m.Type, out var meta))
+            return false;
+
+        var ports = isOutput
+            ? meta.Ports.Where(p => p.Direction == "out").ToList()
+            : meta.Ports.Where(p => p.Direction == "in").ToList();
+        var pi = ports.FindIndex(p => p.Name.Equals(portName, StringComparison.OrdinalIgnoreCase));
+        if (pi < 0)
+            return false;
+
+        var (mx, my) = PlanLayout.GetPosition(m, idx);
+        var py = PortY(pi, ports.Count, MachineHeight);
+        point = isOutput
+            ? (mx + MachineWidth, my + py)
+            : (mx, my + py);
+        return true;
+    }
+
+    private string PortClass(string machineId, string portName, bool isOutput)
+    {
+        if (_pendingOut is { } p && isOutput && p.Id == machineId && p.Port == portName)
+            return "fg-port-pending";
+        return "";
+    }
+
+    private void OnMachineMouseDown(MouseEventArgs e, string machineId)
+    {
+        if (ReadOnly)
+            return;
+        _dragMachineId = machineId;
+        var idx = Plan.Machines.ToList().FindIndex(m => m.Id == machineId);
+        if (idx < 0)
+            return;
+        var (mx, my) = PlanLayout.GetPosition(Plan.Machines[idx], idx);
+        _dragOffsetX = e.OffsetX - mx;
+        _dragOffsetY = e.OffsetY - my;
+    }
+
+    private async Task OnMouseMove(MouseEventArgs e)
+    {
+        if (_dragMachineId == null || ReadOnly)
+            return;
+
+        var machines = Plan.Machines.ToList();
+        var idx = machines.FindIndex(m => m.Id == _dragMachineId);
+        if (idx < 0)
+            return;
+
+        var nx = Math.Max(0, e.OffsetX - _dragOffsetX);
+        var ny = Math.Max(0, e.OffsetY - _dragOffsetY);
+        machines[idx] = PlanLayout.WithPosition(machines[idx], nx, ny);
+        var updated = new BoardPlanDto(machines, Plan.Connections);
+        Plan = updated;
+        UpdateViewBox();
+        await PlanChanged.InvokeAsync(updated);
+    }
+
+    private void OnMouseUp(MouseEventArgs _)
+    {
+        _dragMachineId = null;
+    }
+
+    private async Task OnPortClick(string machineId, string portName, bool isOutput)
+    {
+        if (ReadOnly)
+            return;
+
+        if (isOutput)
+        {
+            _pendingOut = (machineId, portName);
+            return;
+        }
+
+        if (_pendingOut is not { } from)
+            return;
+
+        _pendingOut = null;
+        if (from.Id == machineId)
+            return;
+
+        await ConnectionAdded.InvokeAsync((from.Id, from.Port, machineId, portName));
+    }
+
+    private static string Fmt(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

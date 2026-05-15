@@ -40,6 +40,7 @@ public static class MachinePortCatalog
                 new("out3", PortDirection.Out),
                 new("out4", PortDirection.Out)
             ],
+            ["SeaportConnector"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
             ["SeaportIn"] = [new("out", PortDirection.Out)],
             ["SeaportOut"] = [new("in", PortDirection.In)]
         };

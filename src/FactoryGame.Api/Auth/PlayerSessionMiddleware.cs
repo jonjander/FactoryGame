@@ -95,7 +95,11 @@ public sealed class PlayerSessionMiddleware(RequestDelegate next)
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/content"))
             return true;
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/market"))
+        {
+            if (path.StartsWithSegments("/v1/market/summary"))
+                return false;
             return true;
+        }
         if (path == GuestAuthPath && context.Request.Method == HttpMethods.Post)
             return true;
         return false;
