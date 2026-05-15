@@ -26,22 +26,26 @@ public static class BoardTickEngine
             FlowHelper.InitPortsForMachine(runtime, m.Type);
         }
 
-        var order = PlanGraph.TopologicalMachineOrder(plan, out var cycleError);
-        if (cycleError != null)
-        {
-            foreach (var m in plan.Machines)
-                state.GetOrCreate(m.Id, m.Type).BlockedReason = cycleError;
-        }
+        var order = PlanGraph.MachineProcessingOrder(plan, out _);
 
         var machineMeta = plan.Machines.ToDictionary(m => m.Id, m => m, StringComparer.Ordinal);
+        var transferPasses = Math.Max(2, plan.Connections.Count);
+
+        for (var pass = 0; pass < transferPasses; pass++)
+        {
+            foreach (var machineId in order)
+            {
+                if (!machineMeta.TryGetValue(machineId, out _))
+                    continue;
+                TransferInputs(plan, state, state.Machines[machineId], ctx.UnitsPerTick);
+            }
+        }
 
         foreach (var machineId in order)
         {
             if (!machineMeta.TryGetValue(machineId, out var meta))
                 continue;
             var runtime = state.Machines[machineId];
-
-            TransferInputs(plan, state, runtime, ctx.UnitsPerTick);
 
             if (!runtime.IsBlocked)
             {

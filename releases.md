@@ -2,6 +2,12 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.1
+
+- **Slingor tillåtna:** spara/starta plan med t.ex. seaport → boiler → seaport (cykel blockerade inte längre vid `PUT .../plan`).
+- **Simulering:** fler transfer-pass per tick + stabil maskinordning vid slinga.
+- **Fabrikinformation:** analyserar planen i JSON-editorn (preview) i Edit-läge; visar antal maskiner/rör och «slinga»; MCP/API `GET .../info` inkl. `planConnectionCount` / `planHasCycle`.
+
 ## 0.2.0
 
 - **Fabrik-simulering:** deterministisk tick-motor (`BoardTickEngine`) med materialpaket, portbuffertar och maskinprocessorer (Boiler, Heater, Cooler, Mixer, Sorter, SeaportConnector); DNA-blockering under körning.

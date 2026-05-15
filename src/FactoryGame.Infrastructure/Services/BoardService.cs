@@ -122,7 +122,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             throw new InvalidOperationException("Plan can only be saved in Edit mode.");
 
         ValidateSorterRules(plan);
-        ValidatePlanGraph(plan);
+        ValidateConnectionEndpoints(plan);
 
         var json = JsonSerializer.Serialize(plan, Json);
         board.RevisionVersion++;
@@ -153,7 +153,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         var plan = JsonSerializer.Deserialize<BoardPlanDto>(revision.PlanJson, Json)
             ?? throw new InvalidOperationException("Invalid plan JSON.");
 
-        ValidatePlanGraph(plan);
+        ValidateConnectionEndpoints(plan);
 
         var cost = plan.Machines.Count * _economy.MachinePlacementCost;
         var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ct);
@@ -282,6 +282,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             poolQty,
             prices));
 
+        var simPlan = SimulationPlanMapper.ToSimulationPlan(plan);
         return new BoardInfoDto(
             board.Id,
             board.Name,
@@ -292,7 +293,10 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
                 report.OutOfFactory.Select(MapFlow).ToList()),
             new ThroughputDto(report.TotalUnitsPerSecond, report.ThroughputIsEstimate, report.ThroughputNote),
             new ValueEstimateDto(report.EstimatedValuePerSecond, report.ValueIsEstimate, report.ValueNote),
-            report.Issues.Select(i => new BoardIssueDto(i.Severity, i.Code, i.Message, i.MachineId)).ToList());
+            report.Issues.Select(i => new BoardIssueDto(i.Severity, i.Code, i.Message, i.MachineId)).ToList(),
+            plan.Machines.Count,
+            plan.Connections.Count,
+            PlanGraph.HasCycle(simPlan));
     }
 
     private static SeaportFlowLineDto MapFlow(SeaportFlowLine f) =>
@@ -315,12 +319,16 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         return clock?.CurrentTick ?? 0;
     }
 
-    private static void ValidatePlanGraph(BoardPlanDto plan)
+    private static void ValidateConnectionEndpoints(BoardPlanDto plan)
     {
-        var sim = SimulationPlanMapper.ToSimulationPlan(plan);
-        _ = PlanGraph.TopologicalMachineOrder(sim, out var cycleError);
-        if (cycleError != null)
-            throw new InvalidOperationException(cycleError);
+        var machineIds = plan.Machines.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var c in plan.Connections)
+        {
+            if (!machineIds.Contains(c.FromId))
+                throw new InvalidOperationException($"Connection from unknown machine «{c.FromId}».");
+            if (!machineIds.Contains(c.ToId))
+                throw new InvalidOperationException($"Connection to unknown machine «{c.ToId}».");
+        }
     }
 
     private BoardKeyframeDto ToKeyframeDto(BoardEntity board, BoardKeyframeEntity kf)

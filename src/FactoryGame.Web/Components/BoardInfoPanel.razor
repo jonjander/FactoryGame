@@ -4,6 +4,8 @@
     <h4>Fabrikinformation — @Info.Name</h4>
     <p class="muted">
         Läge: <strong>@Info.Mode</strong> · tick @Info.SimulationTick
+        · @Info.PlanMachineCount maskin(er), @Info.PlanConnectionCount rör
+        @if (Info.PlanHasCycle) { <span> · slinga</span> }
         @if (Info.Throughput.IsEstimate) { <span> · uppskattning</span> }
     </p>
 

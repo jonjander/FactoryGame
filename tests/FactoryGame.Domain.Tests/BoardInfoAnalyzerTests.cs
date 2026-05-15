@@ -28,6 +28,31 @@ public sealed class BoardInfoAnalyzerTests
     }
 
     [Fact]
+    public void Analyze_seaport_boiler_loop_shows_both_flows_and_connected_ports()
+    {
+        var machines = new[]
+        {
+            new MachineInfo("seaportconnector1", "SeaportConnector", null),
+            new MachineInfo("boiler1", "Boiler", null)
+        };
+        var connections = new[]
+        {
+            new ConnectionInfo("seaportconnector1", "out", "boiler1", "in"),
+            new ConnectionInfo("boiler1", "out", "seaportconnector1", "in")
+        };
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines, connections, IsRunning: false, TickIntervalSeconds: 10));
+
+        Assert.Single(report.IntoFactory);
+        Assert.Single(report.OutOfFactory);
+        Assert.Contains(report.Issues, i => i.Code == "cycle_detected");
+        Assert.DoesNotContain(report.Issues, i => i.Code == "port_unconnected" && i.MachineId == "boiler1");
+        Assert.DoesNotContain(report.Issues, i => i.Code == "seaport_in_idle");
+        Assert.DoesNotContain(report.Issues, i => i.Code == "seaport_out_idle");
+    }
+
+    [Fact]
     public void Analyze_warns_on_unconnected_mixer_port()
     {
         var machines = new[] { new MachineInfo("mix1", "Mixer", null) };

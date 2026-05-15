@@ -40,6 +40,28 @@ public static class PlanGraph
         return order;
     }
 
+    /// <summary>Topological order when acyclic; otherwise stable id order for looped factory lines.</summary>
+    public static IReadOnlyList<string> MachineProcessingOrder(SimulationPlan plan, out string? cycleWarning)
+    {
+        var topo = TopologicalMachineOrder(plan, out var cycleError);
+        if (cycleError == null)
+        {
+            cycleWarning = null;
+            return topo;
+        }
+
+        cycleWarning = cycleError;
+        return plan.Machines.Select(m => m.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+    }
+
+    public static bool HasCycle(SimulationPlan plan)
+    {
+        if (plan.Machines.Count == 0)
+            return false;
+        var order = TopologicalMachineOrder(plan, out var cycleError);
+        return cycleError != null && order.Count == 0;
+    }
+
     public static Dictionary<(string FromId, string FromPort), SimulationConnection> OutgoingByPort(
         SimulationPlan plan) =>
         plan.Connections.ToDictionary(c => (c.FromId, c.FromPort), c => c, comparer: PortKeyComparer.Instance);

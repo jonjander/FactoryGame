@@ -77,6 +77,18 @@ public static class BoardInfoAnalyzer
                 null));
         }
 
+        if (connections.Count > 0)
+        {
+            var simPlan = ToSimulationPlan(machines, connections);
+            if (PlanGraph.HasCycle(simPlan))
+            {
+                issues.Add(BoardIssue.Info(
+                    "cycle_detected",
+                    "Planen innehåller en slinga (t.ex. seaport → maskin → seaport). Det är tillåtet; simuleringen kör i stabil maskinordning.",
+                    null));
+            }
+        }
+
         CollectRuntimeIssues(request, issues);
 
         double intoUps;
@@ -118,6 +130,13 @@ public static class BoardInfoAnalyzer
             valueNote,
             issues);
     }
+
+    private static SimulationPlan ToSimulationPlan(
+        IReadOnlyList<MachineInfo> machines,
+        IReadOnlyList<ConnectionInfo> connections) =>
+        new(
+            machines.Select(m => new SimulationMachine(m.Id, m.Type, m.Settings?.GetRawText())).ToList(),
+            connections.Select(c => new SimulationConnection(c.FromId, c.FromPort, c.ToId, c.ToPort)).ToList());
 
     private static bool IsSeaportType(string type) =>
         type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)

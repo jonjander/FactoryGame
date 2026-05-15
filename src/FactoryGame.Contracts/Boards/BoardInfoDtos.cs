@@ -8,7 +8,10 @@ public sealed record BoardInfoDto(
     SeaportFlowsDto Seaport,
     ThroughputDto Throughput,
     ValueEstimateDto Value,
-    IReadOnlyList<BoardIssueDto> Issues);
+    IReadOnlyList<BoardIssueDto> Issues,
+    int PlanMachineCount = 0,
+    int PlanConnectionCount = 0,
+    bool PlanHasCycle = false);
 
 public sealed record SeaportFlowsDto(
     IReadOnlyList<SeaportFlowLineDto> IntoFactory,

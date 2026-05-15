@@ -302,11 +302,11 @@
         }
     }
 
-    private Task OnCanvasPlanChangedAsync(BoardPlanDto plan)
+    private async Task OnCanvasPlanChangedAsync(BoardPlanDto plan)
     {
         _planJson = SerializePlan(plan);
         _saveHint = "Layout ändrad i canvas (ej sparat).";
-        return Task.CompletedTask;
+        await SyncBoardInfoFromEditorAsync();
     }
 
     private async Task OnCanvasConnectionAddedAsync((string FromId, string FromPort, string ToId, string ToPort) pipe)
@@ -330,6 +330,7 @@
         _planJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
         _saveHint = "Rör tillagt i canvas (ej sparat).";
         Snackbar.Show("Rör kopplat — spara planen.", SnackbarKind.Info);
+        await SyncBoardInfoFromEditorAsync();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -515,7 +516,7 @@
     {
         if (_selected is not { } boardId)
             return;
-        if (!TryDeserializePlan(out var plan))
+        if (!TryDeserializePlan(out _))
         {
             _error = "Ogiltig plan-JSON — kan inte analysera info.";
             return;
@@ -525,11 +526,7 @@
         _error = null;
         try
         {
-            var res = await Http.PostAsJsonAsync($"/v1/boards/{boardId}/info/preview", new SavePlanRequest(plan));
-            if (!res.IsSuccessStatusCode)
-                _error = await res.Content.ReadAsStringAsync();
-            else
-                _boardInfo = await res.Content.ReadFromJsonAsync<BoardInfoDto>(JsonRelaxed);
+            await SyncBoardInfoFromEditorAsync();
         }
         catch (Exception ex)
         {
@@ -549,14 +546,37 @@
             return;
         }
 
+        if (IsSelectedBoardRunning())
+        {
+            try
+            {
+                _boardInfo = await Http.GetFromJsonAsync<BoardInfoDto>($"/v1/boards/{boardId}/info", JsonRelaxed);
+            }
+            catch
+            {
+                _boardInfo = null;
+            }
+            return;
+        }
+
+        await SyncBoardInfoFromEditorAsync();
+    }
+
+    /// <summary>In Edit mode, analyze the plan JSON in the editor (matches canvas). Running uses server keyframe.</summary>
+    private async Task SyncBoardInfoFromEditorAsync()
+    {
+        if (_selected is not { } boardId || !TryDeserializePlan(out var plan))
+            return;
+
         try
         {
-            var info = await Http.GetFromJsonAsync<BoardInfoDto>($"/v1/boards/{boardId}/info", JsonRelaxed);
-            _boardInfo = info;
+            var res = await Http.PostAsJsonAsync($"/v1/boards/{boardId}/info/preview", new SavePlanRequest(plan));
+            if (res.IsSuccessStatusCode)
+                _boardInfo = await res.Content.ReadFromJsonAsync<BoardInfoDto>(JsonRelaxed);
         }
         catch
         {
-            _boardInfo = null;
+            /* keep previous info */
         }
     }
 
@@ -717,6 +737,7 @@
         _error = null;
         _saveHint = "Rör tillagt i JSON (ej sparat).";
         Snackbar.Show("Rör tillagt — spara planen för att behålla.", SnackbarKind.Info);
+        _ = SyncBoardInfoFromEditorAsync();
     }
 
     private async Task SavePlanAsync()
