@@ -1,0 +1,37 @@
+@if (Visible)
+{
+    <div class="fg-modal-backdrop" @onclick="CancelAsync">
+        <div class="fg-modal" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="fg-confirm-title">
+            <h4 id="fg-confirm-title" class="fg-modal-title">Bekräfta</h4>
+            <p class="fg-modal-message">@Message</p>
+            <div class="fg-modal-actions">
+                <button type="button" @onclick="ConfirmAsync">@ConfirmLabel</button>
+                <button type="button" class="secondary" @onclick="CancelAsync">@CancelLabel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public string Message { get; set; } = "";
+
+    [Parameter]
+    public string ConfirmLabel { get; set; } = "Ja";
+
+    [Parameter]
+    public string CancelLabel { get; set; } = "Avbryt";
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private Task ConfirmAsync() => OnConfirm.InvokeAsync();
+
+    private Task CancelAsync() => OnCancel.InvokeAsync();
+}

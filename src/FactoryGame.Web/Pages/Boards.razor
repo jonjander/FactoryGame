@@ -12,6 +12,12 @@
 
 <PageTitle>Fabrik</PageTitle>
 
+<ConfirmDialog Visible="_confirmVisible"
+               Message="_confirmMessage"
+               ConfirmLabel="Ja, byt koppling"
+               OnConfirm="OnConfirmDialogYesAsync"
+               OnCancel="OnConfirmDialogNoAsync" />
+
 <div class="panel">
     <h2>Spelplaner</h2>
     <button type="button" class="secondary" @onclick="LoadBoardsAsync" disabled="@_busy">Lista</button>
@@ -96,8 +102,10 @@
                                ReadOnly="@IsSelectedBoardRunning()"
                                MachineMeta="_machineMeta"
                                LatestKeyframe="_latestKeyframe"
+                               SeaportPortFlows="@(_boardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
                                PlanChanged="OnCanvasPlanChangedAsync"
-                               ConnectionAdded="OnCanvasConnectionAddedAsync" />
+                               ConnectionAdded="OnCanvasConnectionAddedAsync"
+                               ConnectionRemoved="OnCanvasConnectionRemovedAsync" />
             </div>
         }
 
@@ -124,7 +132,7 @@
 
         <div class="panel fg-sub">
             <h4>Koppla rör</h4>
-            <p class="muted">Endast maskiner som finns i planen och <strong>lediga</strong> portar (en koppling per port).</p>
+            <p class="muted">Alla portar kan väljas. Om en port redan är kopplad får du bekräfta innan den gamla kopplingen byts ut.</p>
             <div class="fg-pipe-grid">
                 <div>
                     <label>Från maskin</label>
@@ -140,9 +148,9 @@
                     <label>Från utgång</label>
                     <select class="fg-select" @bind="_pipeFromPort" @bind:after="OnPipeEndpointChanged">
                         <option value="">— Välj —</option>
-                        @foreach (var p in GetFreeOutputPorts(_pipeFromId))
+                        @foreach (var p in GetOutputPortChoices(_pipeFromId))
                         {
-                            <option value="@p">@p</option>
+                            <option value="@p.Name">@p.Label</option>
                         }
                     </select>
                 </div>
@@ -160,16 +168,38 @@
                     <label>Till ingång</label>
                     <select class="fg-select" @bind="_pipeToPort" @bind:after="OnPipeEndpointChanged">
                         <option value="">— Välj —</option>
-                        @foreach (var p in GetFreeInputPorts(_pipeToId))
+                        @foreach (var p in GetInputPortChoices(_pipeToId))
                         {
-                            <option value="@p">@p</option>
+                            <option value="@p.Name">@p.Label</option>
                         }
                     </select>
                 </div>
                 <div class="fg-pipe-actions">
-                    <button type="button" class="secondary" @onclick="AddPipeToPlan" disabled="@_busy">Lägg rör</button>
+                    <button type="button" class="secondary" @onclick="AddPipeToPlanAsync" disabled="@_busy">Lägg rör</button>
                 </div>
             </div>
+            @{
+                var planConnections = GetPlanConnections();
+            }
+            @if (planConnections.Count > 0)
+            {
+                <ul class="fg-connection-list">
+                    @for (var ci = 0; ci < planConnections.Count; ci++)
+                    {
+                        var conn = planConnections[ci];
+                        var connIndex = ci;
+                        <li>
+                            <span class="fg-connection-label">@conn.FromId.@conn.FromPort → @conn.ToId.@conn.ToPort</span>
+                            <button type="button"
+                                    class="secondary"
+                                    disabled="@(_busy || IsSelectedBoardRunning())"
+                                    @onclick="() => RemoveConnectionAtAsync(connIndex)">
+                                Ta bort
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
         </div>
 
         <h4>Plan (JSON)</h4>
@@ -209,6 +239,10 @@
     private BoardKeyframeDto? _latestKeyframe;
     private PeriodicTimer? _pollTimer;
     private CancellationTokenSource? _pollCts;
+    private bool _confirmVisible;
+    private string _confirmMessage = "";
+    private TaskCompletionSource<bool>? _confirmTcs;
+
     private string _pipeFromId = "";
     private string _pipeFromPort = "";
     private string _pipeToId = "";
@@ -309,27 +343,27 @@
         await SyncBoardInfoFromEditorAsync();
     }
 
-    private async Task OnCanvasConnectionAddedAsync((string FromId, string FromPort, string ToId, string ToPort) pipe)
+    private async Task OnCanvasConnectionAddedAsync((string FromId, string FromPort, string ToId, string ToPort) pipe) =>
+        await TryApplyConnectionAsync(pipe.FromId, pipe.FromPort, pipe.ToId, pipe.ToPort);
+
+    private Task OnCanvasConnectionRemovedAsync(int index) => RemoveConnectionAtAsync(index);
+
+    private async Task RemoveConnectionAtAsync(int index)
     {
         if (!TryDeserializePlan(out var plan))
             return;
+        if (index < 0 || index >= plan.Connections.Count)
+            return;
 
         var connections = plan.Connections.ToList();
-        if (connections.Any(c => c.FromId == pipe.FromId && c.FromPort == pipe.FromPort))
-        {
-            Snackbar.Show("Utgångsporten är redan kopplad.", SnackbarKind.Info);
-            return;
-        }
-        if (connections.Any(c => c.ToId == pipe.ToId && c.ToPort == pipe.ToPort))
-        {
-            Snackbar.Show("Ingångsporten är redan kopplad.", SnackbarKind.Info);
-            return;
-        }
-
-        connections.Add(new ConnectionDto(pipe.FromId, pipe.FromPort, pipe.ToId, pipe.ToPort));
+        var removed = connections[index];
+        connections.RemoveAt(index);
         _planJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
-        _saveHint = "Rör tillagt i canvas (ej sparat).";
-        Snackbar.Show("Rör kopplat — spara planen.", SnackbarKind.Info);
+        _saveHint = "Rör borttaget (ej sparat).";
+        _error = null;
+        Snackbar.Show(
+            $"Rör borttaget: {removed.FromId}.{removed.FromPort} → {removed.ToId}.{removed.ToPort}",
+            SnackbarKind.Info);
         await SyncBoardInfoFromEditorAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -627,7 +661,109 @@
 
     private void OnPipeEndpointChanged()
     {
+        if (!GetOutputPortChoices(_pipeFromId).Any(p => p.Name == _pipeFromPort))
+            _pipeFromPort = "";
+        if (!GetInputPortChoices(_pipeToId).Any(p => p.Name == _pipeToPort))
+            _pipeToPort = "";
         StateHasChanged();
+    }
+
+    private Task OnConfirmDialogYesAsync()
+    {
+        _confirmVisible = false;
+        _confirmTcs?.TrySetResult(true);
+        _confirmTcs = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnConfirmDialogNoAsync()
+    {
+        _confirmVisible = false;
+        _confirmTcs?.TrySetResult(false);
+        _confirmTcs = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<bool> AskReplaceConnectionAsync(string message)
+    {
+        _confirmMessage = message;
+        _confirmVisible = true;
+        _confirmTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await InvokeAsync(StateHasChanged);
+        return await _confirmTcs.Task;
+    }
+
+    private static string FormatConnection(ConnectionDto c) =>
+        $"{c.FromId}.{c.FromPort} → {c.ToId}.{c.ToPort}";
+
+    private static string BuildReplaceConfirmMessage(
+        string fromId,
+        string fromPort,
+        string toId,
+        string toPort,
+        ConnectionDto? fromConflict,
+        ConnectionDto? toConflict)
+    {
+        var removals = new List<string>();
+        if (fromConflict is { } fc)
+            removals.Add(FormatConnection(fc));
+        if (toConflict is { } tc && !removals.Any(r => r == FormatConnection(tc)))
+            removals.Add(FormatConnection(tc));
+
+        var removedText = removals.Count switch
+        {
+            0 => "",
+            1 => removals[0],
+            _ => string.Join(" och ", removals)
+        };
+
+        return
+            $"Vill du verkligen ta bort kopplingen {removedText} för att ansluta {fromId}.{fromPort} till {toId}.{toPort} istället?";
+    }
+
+    private async Task<bool> TryApplyConnectionAsync(string fromId, string fromPort, string toId, string toPort)
+    {
+        if (!TryDeserializePlan(out var plan))
+            return false;
+
+        if (string.Equals(fromId, toId, StringComparison.Ordinal))
+        {
+            Snackbar.Show("Kan inte koppla en maskin till sig själv.", SnackbarKind.Info);
+            return false;
+        }
+
+        var proposed = new ConnectionDto(fromId, fromPort, toId, toPort);
+        if (plan.Connections.Any(c =>
+                c.FromId == proposed.FromId && c.FromPort == proposed.FromPort &&
+                c.ToId == proposed.ToId && c.ToPort == proposed.ToPort))
+        {
+            Snackbar.Show("Röret är redan kopplat.", SnackbarKind.Info);
+            return false;
+        }
+
+        var connections = plan.Connections.ToList();
+        var fromConflict = connections.FirstOrDefault(c => c.FromId == fromId && c.FromPort == fromPort);
+        var toConflict = connections.FirstOrDefault(c => c.ToId == toId && c.ToPort == toPort);
+
+        if (fromConflict is not null || toConflict is not null)
+        {
+            var message = BuildReplaceConfirmMessage(fromId, fromPort, toId, toPort, fromConflict, toConflict);
+            if (!await AskReplaceConnectionAsync(message))
+                return false;
+        }
+
+        connections.RemoveAll(c =>
+            (c.FromId == fromId && c.FromPort == fromPort) ||
+            (c.ToId == toId && c.ToPort == toPort));
+        connections.Add(proposed);
+
+        _planJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
+        _saveHint = "Rör ändrat (ej sparat).";
+        _error = null;
+        Snackbar.Show("Rör kopplat — spara planen.", SnackbarKind.Info);
+        await SyncBoardInfoFromEditorAsync();
+        await InvokeAsync(StateHasChanged);
+        return true;
     }
 
     private void OnPlaceStockChanged()
@@ -686,58 +822,69 @@
     private IReadOnlyList<ConnectionDto> GetPlanConnections() =>
         TryDeserializePlan(out var plan) ? plan.Connections : Array.Empty<ConnectionDto>();
 
-    private IReadOnlyList<string> GetFreeOutputPorts(string machineId)
+    private readonly record struct PortChoice(string Name, string Label);
+
+    private IReadOnlyList<PortChoice> GetOutputPortChoices(string machineId)
     {
         if (string.IsNullOrEmpty(machineId))
-            return Array.Empty<string>();
+            return Array.Empty<PortChoice>();
         var m = GetPlanMachines().FirstOrDefault(x => x.Id == machineId);
         if (m is null)
-            return Array.Empty<string>();
+            return Array.Empty<PortChoice>();
         if (!_machineMeta.TryGetValue(m.Type, out var meta))
-            return Array.Empty<string>();
-        var used = new HashSet<string>(
-            GetPlanConnections().Where(c => c.FromId == machineId).Select(c => c.FromPort),
-            StringComparer.Ordinal);
-        return meta.Ports.Where(p => p.Direction == "out" && !used.Contains(p.Name)).Select(p => p.Name).ToList();
+            return Array.Empty<PortChoice>();
+
+        return meta.Ports
+            .Where(p => p.Direction == "out")
+            .Select(p =>
+            {
+                var conn = GetPlanConnections()
+                    .FirstOrDefault(c => c.FromId == machineId && c.FromPort == p.Name);
+                var label = conn is null
+                    ? p.Name
+                    : $"{p.Name} (→ {conn.ToId}.{conn.ToPort})";
+                return new PortChoice(p.Name, label);
+            })
+            .ToList();
     }
 
-    private IReadOnlyList<string> GetFreeInputPorts(string machineId)
+    private IReadOnlyList<PortChoice> GetInputPortChoices(string machineId)
     {
         if (string.IsNullOrEmpty(machineId))
-            return Array.Empty<string>();
+            return Array.Empty<PortChoice>();
         var m = GetPlanMachines().FirstOrDefault(x => x.Id == machineId);
         if (m is null)
-            return Array.Empty<string>();
+            return Array.Empty<PortChoice>();
         if (!_machineMeta.TryGetValue(m.Type, out var meta))
-            return Array.Empty<string>();
-        var used = new HashSet<string>(
-            GetPlanConnections().Where(c => c.ToId == machineId).Select(c => c.ToPort),
-            StringComparer.Ordinal);
-        return meta.Ports.Where(p => p.Direction == "in" && !used.Contains(p.Name)).Select(p => p.Name).ToList();
+            return Array.Empty<PortChoice>();
+
+        return meta.Ports
+            .Where(p => p.Direction == "in")
+            .Select(p =>
+            {
+                var conn = GetPlanConnections()
+                    .FirstOrDefault(c => c.ToId == machineId && c.ToPort == p.Name);
+                var label = conn is null
+                    ? p.Name
+                    : $"{p.Name} (← {conn.FromId}.{conn.FromPort})";
+                return new PortChoice(p.Name, label);
+            })
+            .ToList();
     }
 
-    private void AddPipeToPlan()
+    private async Task AddPipeToPlanAsync()
     {
         if (string.IsNullOrEmpty(_pipeFromId) || string.IsNullOrEmpty(_pipeToId) ||
             string.IsNullOrEmpty(_pipeFromPort) || string.IsNullOrEmpty(_pipeToPort))
         {
-            _error = "Välj maskiner och lediga portar för hela röret.";
+            _error = "Välj maskiner och portar för hela röret.";
             return;
         }
 
-        if (!TryDeserializePlan(out var plan))
-        {
-            _error = "Ogiltig plan-JSON — kan inte lägga rör.";
+        if (!await TryApplyConnectionAsync(_pipeFromId, _pipeFromPort, _pipeToId, _pipeToPort))
             return;
-        }
 
-        var connections = plan.Connections.ToList();
-        connections.Add(new ConnectionDto(_pipeFromId, _pipeFromPort, _pipeToId, _pipeToPort));
-        _planJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
         _error = null;
-        _saveHint = "Rör tillagt i JSON (ej sparat).";
-        Snackbar.Show("Rör tillagt — spara planen för att behålla.", SnackbarKind.Info);
-        _ = SyncBoardInfoFromEditorAsync();
     }
 
     private async Task SavePlanAsync()

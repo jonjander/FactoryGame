@@ -34,5 +34,14 @@ public sealed class MarketLiquidityOptions
 
     public long SystemPoolQuantityPerElement { get; set; } = 1_000_000;
 
-    public int RefreshIntervalMinutes { get; set; } = 5;
+    public int RefreshIntervalMinutes { get; set; } = 15;
+
+    /// <summary>When false, GET /summary does not rebuild synthetic books (use depth or background refresh).</summary>
+    public bool RefreshOnSummaryRequest { get; set; } = false;
+
+    /// <summary>Skip full synthetic ladder rebuild if open synthetics were created within this window.</summary>
+    public int ElementRefreshCooldownMinutes { get; set; } = 15;
+
+    /// <summary>Cap work per background tick across all pooled elements.</summary>
+    public int MaxElementsPerBackgroundRefresh { get; set; } = 25;
 }

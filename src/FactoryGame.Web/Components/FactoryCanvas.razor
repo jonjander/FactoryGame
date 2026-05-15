@@ -4,7 +4,16 @@
 <div class="fg-factory-canvas-wrap">
     @if (!ReadOnly)
     {
-        <p class="muted">Dra maskiner för att placera. Klicka utgång → ingång för att koppla rör.</p>
+        <p class="muted">Dra maskiner. Koppla: klicka utgång → ingång (även upptagna portar — bekräfta byte). Ta bort: klicka rör → «Ta bort rör».</p>
+        @if (_selectedConnectionIndex is int sel && sel >= 0 && sel < Plan.Connections.Count)
+        {
+            var sc = Plan.Connections[sel];
+            <div class="fg-pipe-toolbar">
+                <span class="muted">Valt: @sc.FromId.@sc.FromPort → @sc.ToId.@sc.ToPort</span>
+                <button type="button" class="secondary" @onclick="RemoveSelectedPipeAsync">Ta bort rör</button>
+                <button type="button" class="secondary" @onclick="ClearPipeSelection">Avmarkera</button>
+            </div>
+        }
     }
     else
     {
@@ -13,6 +22,7 @@
     <svg xmlns="http://www.w3.org/2000/svg"
          class="fg-factory-canvas"
          viewBox="@_viewBox"
+         @onclick="OnCanvasBackgroundClick"
          @onmousemove="OnMouseMove"
          @onmouseup="OnMouseUp"
          @onmouseleave="OnMouseUp">
@@ -22,15 +32,17 @@
             </marker>
         </defs>
 
-        @foreach (var conn in Plan.Connections)
+        @foreach (var entry in BuildPipeEntries())
         {
-            if (!TryGetPortPoint(conn.FromId, conn.FromPort, true, out var p1) ||
-                !TryGetPortPoint(conn.ToId, conn.ToPort, false, out var p2))
-                continue;
-            var midX = (p1.X + p2.X) / 2;
-            <path class="fg-pipe"
-                  d="M @Fmt(p1.X) @Fmt(p1.Y) C @Fmt(midX) @Fmt(p1.Y), @Fmt(midX) @Fmt(p2.Y), @Fmt(p2.X) @Fmt(p2.Y)"
-                  marker-end="url(#fg-arrow)" />
+            var selected = _selectedConnectionIndex == entry.Index;
+            <path class="fg-pipe-hit @(selected ? "fg-pipe-hit-selected" : "")"
+                  d="@entry.Draw.Path"
+                  @onclick="() => OnPipeClick(entry.Index)"
+                  @onclick:stopPropagation="true" />
+            <path class="@entry.Draw.CssClass @(selected ? "fg-pipe-selected" : "")"
+                  d="@entry.Draw.Path"
+                  marker-end="url(#fg-arrow)"
+                  pointer-events="none" />
         }
 
         @for (var i = 0; i < Plan.Machines.Count; i++)
@@ -62,23 +74,37 @@
                     {
                         var port = inPorts[pi];
                         var py = PortY(pi, inPorts.Count, h);
+                        var inHint = GetPortFlowHint(m.Id, port.Name);
                         <circle class="fg-port fg-port-in @PortClass(m.Id, port.Name, false)"
                                 cx="0" cy="@Fmt(py)" r="5"
                                 @onclick="() => OnPortClick(m.Id, port.Name, false)"
                                 @onclick:stopPropagation="true">
-                            <title>@port.Name</title>
+                            <title>@GetPortTitle(port.Name, inHint)</title>
                         </circle>
+                        @if (!string.IsNullOrEmpty(inHint))
+                        {
+                            <foreignObject x="-58" y="@Fmt(py - 9)" width="54" height="18">
+                                <div xmlns="http://www.w3.org/1999/xhtml" class="fg-port-flow-hint">@inHint</div>
+                            </foreignObject>
+                        }
                     }
                     @for (var pi = 0; pi < outPorts.Count; pi++)
                     {
                         var port = outPorts[pi];
                         var py = PortY(pi, outPorts.Count, h);
+                        var outHint = GetPortFlowHint(m.Id, port.Name);
                         <circle class="fg-port fg-port-out @PortClass(m.Id, port.Name, true)"
                                 cx="@w" cy="@Fmt(py)" r="5"
                                 @onclick="() => OnPortClick(m.Id, port.Name, true)"
                                 @onclick:stopPropagation="true">
-                            <title>@port.Name</title>
+                            <title>@GetPortTitle(port.Name, outHint)</title>
                         </circle>
+                        @if (!string.IsNullOrEmpty(outHint))
+                        {
+                            <foreignObject x="@Fmt(w + 4)" y="@Fmt(py - 9)" width="54" height="18">
+                                <div xmlns="http://www.w3.org/1999/xhtml" class="fg-port-flow-hint">@outHint</div>
+                            </foreignObject>
+                        }
                     }
                 }
             </g>
@@ -110,16 +136,27 @@
     [Parameter]
     public EventCallback<(string FromId, string FromPort, string ToId, string ToPort)> ConnectionAdded { get; set; }
 
+    [Parameter]
+    public EventCallback<int> ConnectionRemoved { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SeaportPortFlowDto> SeaportPortFlows { get; set; } = Array.Empty<SeaportPortFlowDto>();
+
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
     private string _viewBox = "0 0 800 480";
     private string? _dragMachineId;
     private double _dragOffsetX;
     private double _dragOffsetY;
     private (string Id, string Port)? _pendingOut;
+    private int? _selectedConnectionIndex;
 
     protected override void OnParametersSet()
     {
         _machineMeta = MachineMeta.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+        _seaportPortByKey = SeaportPortFlows.ToDictionary(
+            p => PortFlowKey(p.MachineId, p.Port),
+            StringComparer.Ordinal);
         UpdateViewBox();
     }
 
@@ -131,14 +168,47 @@
             return;
         }
 
+        const double pipeMargin = 56;
         double maxX = 400, maxY = 300;
         for (var i = 0; i < Plan.Machines.Count; i++)
         {
             var (x, y) = PlanLayout.GetPosition(Plan.Machines[i], i);
-            maxX = Math.Max(maxX, x + MachineWidth + CanvasPad);
-            maxY = Math.Max(maxY, y + MachineHeight + CanvasPad);
+            maxX = Math.Max(maxX, x + MachineWidth + CanvasPad + pipeMargin);
+            maxY = Math.Max(maxY, y + MachineHeight + CanvasPad + pipeMargin);
         }
         _viewBox = $"0 0 {Fmt(maxX)} {Fmt(maxY)}";
+    }
+
+    private readonly record struct PipeEntry(int Index, PipeRouting.PipeDraw Draw);
+
+    private IReadOnlyList<PipeEntry> BuildPipeEntries()
+    {
+        var indexed = Plan.Connections.Select((c, i) => (Conn: c, Index: i)).ToList();
+        var pairTotals = indexed
+            .GroupBy(x => PipeRouting.PairKey(x.Conn.FromId, x.Conn.ToId))
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        var pairLane = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        var entries = new List<PipeEntry>();
+        foreach (var item in indexed.OrderBy(x => x.Conn.FromId, StringComparer.Ordinal)
+                     .ThenBy(x => x.Conn.FromPort, StringComparer.Ordinal))
+        {
+            if (!TryGetPortPoint(item.Conn.FromId, item.Conn.FromPort, true, out var p1) ||
+                !TryGetPortPoint(item.Conn.ToId, item.Conn.ToPort, false, out var p2))
+                continue;
+
+            var key = PipeRouting.PairKey(item.Conn.FromId, item.Conn.ToId);
+            var lane = pairLane.GetValueOrDefault(key);
+            pairLane[key] = lane + 1;
+            var laneCount = pairTotals[key];
+            var css = laneCount > 1
+                ? $"fg-pipe fg-pipe-loop fg-pipe-loop-{(lane % 2 == 0 ? "a" : "b")}"
+                : "fg-pipe";
+            var path = PipeRouting.BuildPath(p1, p2, lane, laneCount);
+            entries.Add(new PipeEntry(item.Index, new PipeRouting.PipeDraw(path, css)));
+        }
+
+        return entries;
     }
 
     private static double PortY(int index, int count, double height)
@@ -175,11 +245,39 @@
         return true;
     }
 
+    private static string PortFlowKey(string machineId, string port) => $"{machineId}\0{port}";
+
+    private string? GetPortFlowHint(string machineId, string portName)
+    {
+        if (!_seaportPortByKey.TryGetValue(PortFlowKey(machineId, portName), out var flow))
+            return null;
+
+        if (!string.IsNullOrEmpty(flow.ElementSymbol))
+        {
+            return flow.Direction == "in"
+                ? $"← {flow.ElementSymbol}"
+                : $"{flow.ElementSymbol} →";
+        }
+
+        return flow.IsConnected ? "kopplad" : null;
+    }
+
+    private static string GetPortTitle(string portName, string? hint) =>
+        string.IsNullOrEmpty(hint) ? portName : $"{portName}: {hint}";
+
     private string PortClass(string machineId, string portName, bool isOutput)
     {
+        var classes = new List<string>();
         if (_pendingOut is { } p && isOutput && p.Id == machineId && p.Port == portName)
-            return "fg-port-pending";
-        return "";
+            classes.Add("fg-port-pending");
+
+        var occupied = isOutput
+            ? Plan.Connections.Any(c => c.FromId == machineId && c.FromPort == portName)
+            : Plan.Connections.Any(c => c.ToId == machineId && c.ToPort == portName);
+        if (occupied)
+            classes.Add("fg-port-occupied");
+
+        return string.Join(' ', classes);
     }
 
     private void OnMachineMouseDown(MouseEventArgs e, string machineId)
@@ -219,10 +317,36 @@
         _dragMachineId = null;
     }
 
+    private void OnCanvasBackgroundClick()
+    {
+        _pendingOut = null;
+        _selectedConnectionIndex = null;
+    }
+
+    private void OnPipeClick(int connectionIndex)
+    {
+        if (ReadOnly)
+            return;
+        _pendingOut = null;
+        _selectedConnectionIndex = _selectedConnectionIndex == connectionIndex ? null : connectionIndex;
+    }
+
+    private void ClearPipeSelection() => _selectedConnectionIndex = null;
+
+    private async Task RemoveSelectedPipeAsync()
+    {
+        if (ReadOnly || _selectedConnectionIndex is not int idx)
+            return;
+        await ConnectionRemoved.InvokeAsync(idx);
+        _selectedConnectionIndex = null;
+    }
+
     private async Task OnPortClick(string machineId, string portName, bool isOutput)
     {
         if (ReadOnly)
             return;
+
+        _selectedConnectionIndex = null;
 
         if (isOutput)
         {

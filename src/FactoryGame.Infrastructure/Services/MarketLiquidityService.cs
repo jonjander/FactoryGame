@@ -17,7 +17,13 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         if (!_opts.Enabled)
             return;
 
-        var elementIds = await GetPooledElementIdsAsync(ct);
+        var elementIds = await GetElementsNeedingRefreshAsync(
+            await GetPooledElementIdsAsync(ct),
+            Math.Max(1, _opts.MaxElementsPerBackgroundRefresh),
+            ct);
+        if (elementIds.Count == 0)
+            return;
+
         await EnsureSystemPlayerAsync(ct);
         foreach (var elementId in elementIds)
             await EnsureLiquidityForElementAsync(elementId, ct);
@@ -37,17 +43,24 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         if (elementIds.Count == 0)
             return;
 
+        var toRefresh = await GetElementsNeedingRefreshAsync(elementIds, elementIds.Count, ct);
+        if (toRefresh.Count == 0)
+            return;
+
         await EnsureSystemPlayerAsync(ct);
-        foreach (var elementId in elementIds)
+        foreach (var elementId in toRefresh)
             await EnsureLiquidityForElementAsync(elementId, ct);
     }
 
-    public async Task EnsureLiquidityForElementAsync(int elementId, CancellationToken ct = default)
+    public async Task EnsureLiquidityForElementAsync(int elementId, CancellationToken ct = default, bool force = false)
     {
         if (!_opts.Enabled)
             return;
 
         if (!ElementCatalog.All.Any(e => e.Id == elementId))
+            return;
+
+        if (!force && !await NeedsLiquidityRefreshAsync(elementId, ct))
             return;
 
         var element = ElementCatalog.All.First(e => e.Id == elementId);
@@ -275,6 +288,53 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             .Select(s => s.ElementId)
             .Distinct()
             .ToListAsync(ct);
+
+    private async Task<List<int>> GetElementsNeedingRefreshAsync(
+        IReadOnlyList<int> candidateElementIds,
+        int maxCount,
+        CancellationToken ct)
+    {
+        if (candidateElementIds.Count == 0 || maxCount <= 0)
+            return [];
+
+        var result = new List<int>(Math.Min(maxCount, candidateElementIds.Count));
+        foreach (var elementId in candidateElementIds)
+        {
+            if (await NeedsLiquidityRefreshAsync(elementId, ct))
+                result.Add(elementId);
+            if (result.Count >= maxCount)
+                break;
+        }
+
+        return result;
+    }
+
+    private async Task<bool> NeedsLiquidityRefreshAsync(int elementId, CancellationToken ct)
+    {
+        var hasCandles = await db.MarketPriceCandles.AsNoTracking()
+            .AnyAsync(c => c.ElementId == elementId, ct);
+        if (!hasCandles)
+            return true;
+
+        var openSyntheticCount = await db.MarketOrders.AsNoTracking()
+            .CountAsync(
+                o => o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open,
+                ct);
+        if (openSyntheticCount < _opts.LevelsPerSide)
+            return true;
+
+        var cooldownCutoff = DateTimeOffset.UtcNow.AddMinutes(-Math.Max(1, _opts.ElementRefreshCooldownMinutes));
+        var syntheticCreatedAt = await db.MarketOrders.AsNoTracking()
+            .Where(o => o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open)
+            .Select(o => o.CreatedAt)
+            .ToListAsync(ct);
+
+        if (syntheticCreatedAt.Count == 0)
+            return true;
+
+        var newestSynthetic = syntheticCreatedAt.Max();
+        return newestSynthetic < cooldownCutoff;
+    }
 
     private Random CreateRng(int elementId, string salt)
     {

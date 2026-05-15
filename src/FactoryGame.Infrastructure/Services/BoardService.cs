@@ -291,6 +291,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             new SeaportFlowsDto(
                 report.IntoFactory.Select(MapFlow).ToList(),
                 report.OutOfFactory.Select(MapFlow).ToList()),
+            report.SeaportPorts.Select(MapPortFlow).ToList(),
             new ThroughputDto(report.TotalUnitsPerSecond, report.ThroughputIsEstimate, report.ThroughputNote),
             new ValueEstimateDto(report.EstimatedValuePerSecond, report.ValueIsEstimate, report.ValueNote),
             report.Issues.Select(i => new BoardIssueDto(i.Severity, i.Code, i.Message, i.MachineId)).ToList(),
@@ -301,6 +302,10 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
 
     private static SeaportFlowLineDto MapFlow(SeaportFlowLine f) =>
         new(f.MachineId, f.MachineType, f.Port, f.LinkedMachineId, f.LinkedPort, f.UnitsPerSecond, f.Description);
+
+    private static SeaportPortFlowDto MapPortFlow(SeaportPortFlowDetail p) =>
+        new(p.MachineId, p.MachineType, p.Port, p.Direction, p.IsConnected, p.LinkedMachineId, p.LinkedPort,
+            p.ElementId, p.ElementSymbol, p.Summary, p.IsEstimate);
 
     public async Task<BoardSnapshotDto?> GetSnapshotAsync(Guid playerId, Guid boardId, long? afterTick, CancellationToken ct)
     {

@@ -6,6 +6,7 @@ public sealed record BoardInfoDto(
     string Mode,
     long SimulationTick,
     SeaportFlowsDto Seaport,
+    IReadOnlyList<SeaportPortFlowDto> SeaportPorts,
     ThroughputDto Throughput,
     ValueEstimateDto Value,
     IReadOnlyList<BoardIssueDto> Issues,
@@ -25,6 +26,19 @@ public sealed record SeaportFlowLineDto(
     string? LinkedPort,
     double UnitsPerSecond,
     string Description);
+
+public sealed record SeaportPortFlowDto(
+    string MachineId,
+    string MachineType,
+    string Port,
+    string Direction,
+    bool IsConnected,
+    string? LinkedMachineId,
+    string? LinkedPort,
+    int? ElementId,
+    string? ElementSymbol,
+    string Summary,
+    bool IsEstimate);
 
 public sealed record ThroughputDto(
     double TotalUnitsPerSecond,

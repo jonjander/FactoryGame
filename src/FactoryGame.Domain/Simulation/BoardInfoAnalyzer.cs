@@ -119,9 +119,17 @@ public static class BoardInfoAnalyzer
             ? "Värde från senaste flöde × spotpris + maskinkapital (timprorata)."
             : "Värde = flödesuppskattning + installerade maskiner (timprorata).";
 
+        var seaportPorts = SeaportPortFlowAnalyzer.AnalyzePorts(
+            machines,
+            connections,
+            request.IsRunning,
+            request.RuntimeState,
+            request.LastSeaportDelta);
+
         return new BoardInfoReport(
             intoFactory,
             outOfFactory,
+            seaportPorts,
             totalUps,
             isEstimate,
             throughputNote,
@@ -376,6 +384,7 @@ public sealed record ConnectionInfo(string FromId, string FromPort, string ToId,
 public sealed record BoardInfoReport(
     IReadOnlyList<SeaportFlowLine> IntoFactory,
     IReadOnlyList<SeaportFlowLine> OutOfFactory,
+    IReadOnlyList<SeaportPortFlowDetail> SeaportPorts,
     double TotalUnitsPerSecond,
     bool ThroughputIsEstimate,
     string ThroughputNote,

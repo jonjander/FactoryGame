@@ -426,6 +426,204 @@ pre.fg-snapshot {
     opacity: 0.85;
 }
 
+.fg-pipe-loop {
+    stroke-width: 2.25;
+    opacity: 0.95;
+}
+
+.fg-pipe-loop:nth-of-type(odd) {
+    stroke: #5b9bd5;
+}
+
+.fg-pipe-loop:nth-of-type(even) {
+    stroke: #79c27a;
+}
+
+.fg-pipe-loop-a {
+    stroke: #5b9bd5;
+}
+
+.fg-pipe-loop-b {
+    stroke: #79c27a;
+}
+
+.fg-pipe-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.fg-pipe-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 14;
+    cursor: pointer;
+    pointer-events: stroke;
+}
+
+.fg-pipe-hit-selected {
+    stroke: rgba(240, 136, 62, 0.35);
+}
+
+.fg-pipe-selected {
+    stroke: #f0883e !important;
+    stroke-width: 3;
+    opacity: 1;
+}
+
+.fg-connection-list {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+}
+
+.fg-connection-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.35rem 0;
+    border-top: 1px solid var(--border, #30363d);
+}
+
+.fg-connection-list li:first-child {
+    border-top: none;
+}
+
+.fg-connection-label {
+    flex: 1 1 auto;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 0.9rem;
+}
+
+.fg-port-flow-hint {
+    font-size: 10px;
+    line-height: 1.2;
+    font-family: var(--mono, ui-monospace, monospace);
+    color: #e6edf3;
+    background: rgba(22, 27, 34, 0.92);
+    border: 1px solid #d29922;
+    border-radius: 3px;
+    padding: 1px 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fg-seaport-port-list {
+    list-style: none;
+    margin: 0.5rem 0 1rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.fg-seaport-port-list-compact .fg-seaport-port-card {
+    padding: 0.35rem 0.5rem;
+}
+
+.fg-seaport-port-card {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border, #30363d);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.fg-seaport-port-card.fg-seaport-port-idle {
+    border-style: dashed;
+    opacity: 0.85;
+}
+
+.fg-seaport-port-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.fg-seaport-element {
+    margin: 0.25rem 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.fg-seaport-port-summary {
+    margin: 0.25rem 0 0;
+    font-size: 0.92rem;
+}
+
+.fg-element-badge {
+    display: inline-block;
+    font-family: var(--mono, ui-monospace, monospace);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    background: #1f3d5c;
+    color: #79c0ff;
+    border: 1px solid #388bfd;
+}
+
+.fg-badge {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+}
+
+.fg-badge-muted {
+    background: #30363d;
+    color: #8b949e;
+}
+
+.fg-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.fg-modal {
+    max-width: 32rem;
+    width: 100%;
+    padding: 1.25rem 1.5rem;
+    border-radius: 8px;
+    background: var(--panel-bg, #161b22);
+    border: 1px solid var(--border, #30363d);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.fg-modal-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.1rem;
+}
+
+.fg-modal-message {
+    margin: 0 0 1.25rem;
+    line-height: 1.5;
+}
+
+.fg-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    justify-content: flex-end;
+}
+
+.fg-port-occupied {
+    stroke: #d29922;
+    stroke-width: 1.5;
+}
+
 .exchange-layout {
     display: grid;
     grid-template-columns: minmax(200px, 260px) 1fr;

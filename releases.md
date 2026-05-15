@@ -2,6 +2,17 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.6
+
+- **Fabrik — rör:** ta bort rör i canvas (klick + verktygsrad) och i listan under «Koppla rör»; slingrör med lane-offset och färger.
+- **Fabrik — koppling:** alla portar kan väljas; bekräftelsedialog vid byte av befintlig koppling (canvas + formulär).
+- **Fabrik — seaport in:** tydlig vy i fabrikinfo (element, källa, sammanfattning) och etikett `← E01` vid porten i canvas; upströms-/runtime-analys i API (`seaportPorts` på board info).
+- **Prestanda / börs:** syntetisk likviditet byggs inte om vid varje `GET /market/summary` (15 min cooldown); bakgrundsjobb begränsat. Börs-UI pollar var 60:e s. Fabrik-tick standard 2 s.
+
+## 0.2.5
+
+- **Prestanda / börs:** syntetisk likviditet byggs inte om vid varje `GET /market/summary` (15 min cooldown per ämne); bakgrundsjobb begränsat (max 25 ämnen/tick, var 15:e min). Djup (`/depth`) uppdaterar vid behov. Börs-UI pollar var 60:e s (tidigare 12 s). Fabrik-tick standard 2 s (tidigare 1 s) i appsettings.
+
 ## 0.2.4
 
 - **Inloggning:** gäst-`POST /v1/auth/guest` svarar snabbt igen (startpaket flyttat till `GET /v1/me/wallet` / pool / börs i stället för att blockera login).

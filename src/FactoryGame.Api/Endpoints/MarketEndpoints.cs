@@ -2,9 +2,11 @@ using FactoryGame.Contracts.Market;
 using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Market;
 using FactoryGame.Infrastructure.Data;
+using FactoryGame.Infrastructure.Options;
 using FactoryGame.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace FactoryGame.Api.Endpoints;
 
@@ -18,6 +20,7 @@ public static class MarketEndpoints
                 HttpContext http,
                 PlayerPoolBootstrapService poolBootstrap,
                 IServiceScopeFactory scopeFactory,
+                IOptions<MarketLiquidityOptions> liquidityOptions,
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
@@ -26,8 +29,9 @@ public static class MarketEndpoints
 
                 await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
 
-                await using (var scope = scopeFactory.CreateAsyncScope())
+                if (liquidityOptions.Value.RefreshOnSummaryRequest)
                 {
+                    await using var scope = scopeFactory.CreateAsyncScope();
                     var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
                     await liquidity.EnsureLiquidityForPlayerPoolAsync(playerId, ct);
                 }
@@ -52,11 +56,18 @@ public static class MarketEndpoints
         group.MapGet("/elements/{elementId:int}/depth", async Task<IResult> (
                 int elementId,
                 AppDbContext db,
+                IServiceScopeFactory scopeFactory,
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
                 if (!await IsTradeableElementAsync(elementId, db, ct))
                     return Results.NotFound();
+
+                await using (var scope = scopeFactory.CreateAsyncScope())
+                {
+                    var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
+                    await liquidity.EnsureLiquidityForElementAsync(elementId, ct);
+                }
 
                 var depth = await query.GetDepthAsync(elementId, ct);
                 var dto = new MarketDepthDto(

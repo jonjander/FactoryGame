@@ -236,7 +236,7 @@ else if (_summary.Count > 0)
         await Wallet.RefreshAsync();
         await RefreshAsync();
         _pollCts = new CancellationTokenSource();
-        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(12));
+        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(60));
         _ = PollLoopAsync(_pollCts.Token);
     }
 

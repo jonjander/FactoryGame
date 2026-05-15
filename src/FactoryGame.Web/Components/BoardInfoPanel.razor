@@ -22,6 +22,47 @@
         </div>
     </div>
 
+    @{
+        var seaportInPorts = (Info.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())
+            .Where(p => p.Direction == "in")
+            .OrderBy(p => p.MachineId, StringComparer.Ordinal)
+            .ToList();
+    }
+    @if (seaportInPorts.Count > 0)
+    {
+        <h5>Seaport — ingång «in» (fabrik → pool)</h5>
+        <ul class="fg-seaport-port-list">
+            @foreach (var port in seaportInPorts)
+            {
+                <li class="fg-seaport-port-card @(port.IsConnected ? "" : "fg-seaport-port-idle")">
+                    <div class="fg-seaport-port-header">
+                        <strong>@port.MachineId</strong>
+                        <span class="muted">@port.MachineType · port @port.Port</span>
+                        @if (port.IsEstimate)
+                        {
+                            <span class="fg-badge fg-badge-muted">uppskattning</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(port.ElementSymbol))
+                    {
+                        <p class="fg-seaport-element">
+                            <span class="fg-element-badge" title="Element @port.ElementId">@port.ElementSymbol</span>
+                            @if (port.LinkedMachineId != null)
+                            {
+                                <span class="muted">från @port.LinkedMachineId.@port.LinkedPort</span>
+                            }
+                        </p>
+                    }
+                    <p class="fg-seaport-port-summary">@port.Summary</p>
+                    @if (!port.IsConnected)
+                    {
+                        <p class="muted">Koppla t.ex. <code>boiler1.out</code> → <code>@(port.MachineId).in</code></p>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
     <h5>In från seaport (pool → fabrik)</h5>
     @if (Info.Seaport.IntoFactory.Count == 0)
     {
@@ -48,6 +89,30 @@
             @foreach (var line in Info.Seaport.OutOfFactory)
             {
                 <li><strong>@line.UnitsPerSecond.ToString("0.##")</strong>/s — @line.Description</li>
+            }
+        </ul>
+    }
+
+    @{
+        var seaportOutPorts = (Info.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())
+            .Where(p => p.Direction == "out")
+            .OrderBy(p => p.MachineId, StringComparer.Ordinal)
+            .ToList();
+    }
+    @if (seaportOutPorts.Count > 0)
+    {
+        <h5>Seaport — utgång «out» (pool → fabrik)</h5>
+        <ul class="fg-seaport-port-list fg-seaport-port-list-compact">
+            @foreach (var port in seaportOutPorts)
+            {
+                <li class="fg-seaport-port-card">
+                    <strong>@port.MachineId</strong>
+                    @if (!string.IsNullOrEmpty(port.ElementSymbol))
+                    {
+                        <span class="fg-element-badge">@port.ElementSymbol</span>
+                    }
+                    <span class="muted">@port.Summary</span>
+                </li>
             }
         </ul>
     }
