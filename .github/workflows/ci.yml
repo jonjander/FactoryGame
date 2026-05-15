@@ -1,5 +1,7 @@
 name: CI
 
+# Deploy smoke: verify GitHub → Azure webhook (2026-05-15)
+
 on:
   push:
     branches: [ main, master ]
