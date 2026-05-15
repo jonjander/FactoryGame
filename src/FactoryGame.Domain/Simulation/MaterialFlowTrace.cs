@@ -1,0 +1,179 @@
+using System.Text.Json;
+using FactoryGame.Domain.Content;
+using FactoryGame.Domain.Simulation.Processors;
+
+namespace FactoryGame.Domain.Simulation;
+
+internal static class MaterialFlowTrace
+{
+    internal static MaterialPacket? TryReadPacket(BoardLineState? runtime, string machineId, string port, bool isOutput)
+    {
+        if (runtime == null || !runtime.Machines.TryGetValue(machineId, out var machine))
+            return null;
+
+        var buffers = isOutput ? machine.OutputPorts : machine.InputPorts;
+        if (!buffers.TryGetValue(port, out var buffer))
+            return null;
+
+        return buffer.Snapshot().FirstOrDefault();
+    }
+
+    internal static (int? ElementId, string? ElementSymbol) TraceUpstream(
+        string machineId,
+        string portName,
+        IReadOnlyDictionary<string, MachineInfo> machineById,
+        IReadOnlyList<ConnectionInfo> connections,
+        BoardLineState? runtime,
+        HashSet<string>? visited = null)
+    {
+        visited ??= new HashSet<string>(StringComparer.Ordinal);
+        var key = $"{machineId}\0{portName}";
+        if (!visited.Add(key))
+            return (null, null);
+
+        var pkt = TryReadPacket(runtime, machineId, portName, isOutput: true)
+                  ?? TryReadPacket(runtime, machineId, portName, isOutput: false);
+        if (pkt != null)
+            return (pkt.ElementId, SymbolFor(pkt.ElementId));
+
+        if (!machineById.TryGetValue(machineId, out var machine))
+            return (null, null);
+
+        var settings = machine.Settings?.GetRawText();
+
+        if ((machine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+             || machine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+            && portName.Equals("out", StringComparison.OrdinalIgnoreCase))
+        {
+            var id = SeaportConnectorProcessor.ParseOutElementId(settings);
+            return id > 0 ? (id, SymbolFor(id)) : (null, null);
+        }
+
+        if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase)
+            && portName.StartsWith("out", StringComparison.OrdinalIgnoreCase))
+        {
+            var ids = ParseSorterOutElements(settings, portName);
+            if (ids.Count == 1)
+                return (ids[0], SymbolFor(ids[0]));
+            return (null, null);
+        }
+
+        var inPort = ResolveUpstreamInputPort(machine.Type, portName);
+        if (inPort == null)
+            return (null, null);
+
+        var connTo = connections.FirstOrDefault(c => c.ToId == machineId && c.ToPort == inPort);
+        if (connTo == null)
+            return (null, null);
+
+        return TraceUpstream(connTo.FromId, connTo.FromPort, machineById, connections, runtime, visited);
+    }
+
+    internal static (int? OutputId, string? OutputSymbol, string? TransformNote) PredictOutput(
+        MachineInfo machine,
+        string outPort,
+        int? inputElementId,
+        string? inputElementSymbol)
+    {
+        if (inputElementId == null)
+            return (null, null, null);
+
+        var inputEl = ElementCatalog.All.FirstOrDefault(e => e.Id == inputElementId.Value);
+        if (inputEl.Id != inputElementId.Value)
+            return (inputElementId, inputElementSymbol, null);
+
+        if (machine.Type.Equals("Boiler", StringComparison.OrdinalIgnoreCase))
+        {
+            var dna = DnaTransforms.Heat(inputEl.Dna);
+            return ResolveOutput(dna, inputElementSymbol, "värms i Boiler");
+        }
+
+        if (machine.Type.Equals("Heater", StringComparison.OrdinalIgnoreCase))
+        {
+            var dna = DnaTransforms.Heat(inputEl.Dna, 4);
+            return ResolveOutput(dna, inputElementSymbol, "värms i Heater");
+        }
+
+        if (machine.Type.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
+        {
+            var dna = DnaTransforms.Cool(inputEl.Dna);
+            return ResolveOutput(dna, inputElementSymbol, "kyls i Cooler");
+        }
+
+        if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
+        {
+            return (inputElementId, inputElementSymbol, "blandas i Mixer (kräver två ingångar)");
+        }
+
+        if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
+        {
+            var ids = ParseSorterOutElements(machine.Settings?.GetRawText(), outPort);
+            if (ids.Count == 1)
+                return (ids[0], SymbolFor(ids[0]), "sorteras ut");
+            if (ids.Count > 1)
+                return (null, null, $"sorter: {string.Join(", ", ids.Select(SymbolFor))}");
+        }
+
+        return (inputElementId, inputElementSymbol, null);
+    }
+
+    private static (int? OutputId, string? OutputSymbol, string? TransformNote) ResolveOutput(
+        long dna,
+        string? inputSymbol,
+        string transformNote)
+    {
+        var match = ElementCatalog.All.FirstOrDefault(e => e.Dna == dna);
+        if (match.Id > 0)
+            return (match.Id, match.Symbol, transformNote);
+
+        return (null, inputSymbol != null ? $"{inputSymbol}*" : null, $"{transformNote} (nytt DNA)");
+    }
+
+    private static string? ResolveUpstreamInputPort(string machineType, string outPort) =>
+        machineType switch
+        {
+            _ when machineType.Equals("Boiler", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Heater", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Cooler", StringComparison.OrdinalIgnoreCase) => "in",
+            _ when machineType.Equals("Mixer", StringComparison.OrdinalIgnoreCase) => "in1",
+            _ when machineType.Equals("Sorter", StringComparison.OrdinalIgnoreCase) => "in",
+            _ => null
+        };
+
+    private static List<int> ParseSorterOutElements(string? settingsJson, string outPort)
+    {
+        var portKey = outPort.ToLowerInvariant() switch
+        {
+            "out1" => "port1",
+            "out2" => "port2",
+            "out3" => "port3",
+            _ => null
+        };
+        if (portKey == null || string.IsNullOrEmpty(settingsJson))
+            return [];
+
+        try
+        {
+            using var doc = JsonDocument.Parse(settingsJson);
+            if (!doc.RootElement.TryGetProperty(portKey, out var arr) || arr.ValueKind != JsonValueKind.Array)
+                return [];
+            var ids = new List<int>();
+            foreach (var el in arr.EnumerateArray())
+            {
+                if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var id))
+                    ids.Add(id);
+            }
+            return ids;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    internal static string? SymbolFor(int elementId)
+    {
+        var el = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId);
+        return el.Id == elementId ? el.Symbol : null;
+    }
+}

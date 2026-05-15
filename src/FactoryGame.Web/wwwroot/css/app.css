@@ -570,6 +570,29 @@ pre.fg-snapshot {
     border: 1px solid #388bfd;
 }
 
+.fg-element-badge-out {
+    background: #2d4a22;
+    color: #79c27a;
+    border-color: #56a556;
+}
+
+.fg-seaport-pool-pick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin: 0.5rem 0;
+}
+
+.fg-seaport-pool-pick label {
+    min-width: 10rem;
+    font-family: var(--mono, ui-monospace, monospace);
+}
+
+.fg-seaport-pool-pick .fg-select {
+    min-width: 14rem;
+}
+
 .fg-badge {
     font-size: 0.75rem;
     padding: 0.1rem 0.35rem;

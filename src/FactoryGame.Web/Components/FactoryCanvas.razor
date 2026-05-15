@@ -74,7 +74,7 @@
                     {
                         var port = inPorts[pi];
                         var py = PortY(pi, inPorts.Count, h);
-                        var inHint = GetPortFlowHint(m.Id, port.Name);
+                        var inHint = GetPortFlowHint(m.Id, port.Name, isOutput: false);
                         <circle class="fg-port fg-port-in @PortClass(m.Id, port.Name, false)"
                                 cx="0" cy="@Fmt(py)" r="5"
                                 @onclick="() => OnPortClick(m.Id, port.Name, false)"
@@ -92,7 +92,7 @@
                     {
                         var port = outPorts[pi];
                         var py = PortY(pi, outPorts.Count, h);
-                        var outHint = GetPortFlowHint(m.Id, port.Name);
+                        var outHint = GetPortFlowHint(m.Id, port.Name, isOutput: true);
                         <circle class="fg-port fg-port-out @PortClass(m.Id, port.Name, true)"
                                 cx="@w" cy="@Fmt(py)" r="5"
                                 @onclick="() => OnPortClick(m.Id, port.Name, true)"
@@ -142,8 +142,12 @@
     [Parameter]
     public IReadOnlyList<SeaportPortFlowDto> SeaportPortFlows { get; set; } = Array.Empty<SeaportPortFlowDto>();
 
+    [Parameter]
+    public IReadOnlyList<MachinePortFlowDto> MachinePortFlows { get; set; } = Array.Empty<MachinePortFlowDto>();
+
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
+    private Dictionary<string, MachinePortFlowDto> _machinePortByKey = new(StringComparer.Ordinal);
     private string _viewBox = "0 0 800 480";
     private string? _dragMachineId;
     private double _dragOffsetX;
@@ -155,6 +159,9 @@
     {
         _machineMeta = MachineMeta.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
         _seaportPortByKey = SeaportPortFlows.ToDictionary(
+            p => PortFlowKey(p.MachineId, p.Port),
+            StringComparer.Ordinal);
+        _machinePortByKey = MachinePortFlows.ToDictionary(
             p => PortFlowKey(p.MachineId, p.Port),
             StringComparer.Ordinal);
         UpdateViewBox();
@@ -247,19 +254,40 @@
 
     private static string PortFlowKey(string machineId, string port) => $"{machineId}\0{port}";
 
-    private string? GetPortFlowHint(string machineId, string portName)
+    private string? GetPortFlowHint(string machineId, string portName, bool isOutput)
     {
-        if (!_seaportPortByKey.TryGetValue(PortFlowKey(machineId, portName), out var flow))
-            return null;
-
-        if (!string.IsNullOrEmpty(flow.ElementSymbol))
+        if (isOutput && _machinePortByKey.TryGetValue(PortFlowKey(machineId, portName), out var outFlow))
         {
-            return flow.Direction == "in"
-                ? $"← {flow.ElementSymbol}"
-                : $"{flow.ElementSymbol} →";
+            if (outFlow.IsPoolSource && !string.IsNullOrEmpty(outFlow.OutputElementSymbol))
+                return $"{outFlow.OutputElementSymbol} →";
+
+            if (!string.IsNullOrEmpty(outFlow.InputElementSymbol)
+                && !string.IsNullOrEmpty(outFlow.OutputElementSymbol)
+                && outFlow.InputElementSymbol != outFlow.OutputElementSymbol)
+                return $"{outFlow.InputElementSymbol}→{outFlow.OutputElementSymbol}";
+
+            if (!string.IsNullOrEmpty(outFlow.OutputElementSymbol))
+                return $"{outFlow.OutputElementSymbol} →";
         }
 
-        return flow.IsConnected ? "kopplad" : null;
+        if (!isOutput)
+        {
+            var conn = Plan.Connections.FirstOrDefault(c =>
+                c.ToId == machineId && c.ToPort == portName);
+            if (conn != null
+                && _machinePortByKey.TryGetValue(PortFlowKey(conn.FromId, conn.FromPort), out var src)
+                && !string.IsNullOrEmpty(src.OutputElementSymbol))
+                return $"← {src.OutputElementSymbol}";
+        }
+
+        if (_seaportPortByKey.TryGetValue(PortFlowKey(machineId, portName), out var sea)
+            && !string.IsNullOrEmpty(sea.ElementSymbol))
+            return sea.Direction == "in" ? $"← {sea.ElementSymbol}" : $"{sea.ElementSymbol} →";
+
+        return Plan.Connections.Any(c =>
+            (c.FromId == machineId && c.FromPort == portName) || (c.ToId == machineId && c.ToPort == portName))
+            ? "kopplad"
+            : null;
     }
 
     private static string GetPortTitle(string portName, string? hint) =>

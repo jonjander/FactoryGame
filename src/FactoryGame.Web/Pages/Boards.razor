@@ -3,6 +3,7 @@
 @using FactoryGame.Contracts.Boards
 @using FactoryGame.Contracts.Machines
 @using FactoryGame.Web.Components
+@using FactoryGame.Web.Models
 @implements IDisposable
 @inject HttpClient Http
 @inject OfflineCommandQueue Queue
@@ -103,9 +104,34 @@
                                MachineMeta="_machineMeta"
                                LatestKeyframe="_latestKeyframe"
                                SeaportPortFlows="@(_boardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
+                               MachinePortFlows="@(_boardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
                                PlanChanged="OnCanvasPlanChangedAsync"
                                ConnectionAdded="OnCanvasConnectionAddedAsync"
                                ConnectionRemoved="OnCanvasConnectionRemovedAsync" />
+            </div>
+        }
+
+        @if (GetSeaportOutMachines().Count > 0)
+        {
+            <div class="panel fg-sub">
+                <h4>Seaport — grundämne från pool (utgång «out»)</h4>
+                <p class="muted">Välj vilket grundämne som matas ut från poolen in i fabriken. Visas som <strong>E01 →</strong> vid porten i canvas.</p>
+                @foreach (var sea in GetSeaportOutMachines())
+                {
+                    <div class="fg-seaport-pool-pick">
+                        <label for="sea-el-@sea.Id">@sea.Id (@sea.Type)</label>
+                        <select id="sea-el-@sea.Id"
+                                class="fg-select"
+                                disabled="@(_busy || IsSelectedBoardRunning())"
+                                value="@GetSeaportOutElementId(sea.Id)"
+                                @onchange="e => OnSeaportOutElementChangedAsync(sea.Id, e)">
+                            @foreach (var el in _elements)
+                            {
+                                <option value="@el.Id">@el.Symbol — @el.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
             </div>
         }
 
@@ -253,6 +279,7 @@
     private List<MachineStoreItemDto> _connectors = new();
     private List<PlayerMachineStockDto> _inventory = new();
     private readonly Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
+    private List<ElementContentItem> _elements = [];
 
     private sealed class MachineStorePayload
     {
@@ -269,6 +296,7 @@
         await Wallet.RefreshAsync();
         await LoadMachineStoreAsync();
         await LoadInventoryAsync();
+        await EnsureElementsAsync();
         StartPollingIfRunning();
     }
 
@@ -818,6 +846,47 @@
 
     private IReadOnlyList<MachineDto> GetPlanMachines() =>
         TryDeserializePlan(out var plan) ? plan.Machines : Array.Empty<MachineDto>();
+
+    private IReadOnlyList<MachineDto> GetSeaportOutMachines() =>
+        GetPlanMachines().Where(m =>
+            m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+            || m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private int GetSeaportOutElementId(string machineId)
+    {
+        var m = GetPlanMachines().FirstOrDefault(x => x.Id == machineId);
+        return m == null ? 1 : PlanMachineSettings.GetOutElementId(m);
+    }
+
+    private async Task OnSeaportOutElementChangedAsync(string machineId, ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var elementId) || elementId <= 0)
+            return;
+        if (!TryDeserializePlan(out var plan))
+            return;
+
+        var machines = plan.Machines.Select(m =>
+            m.Id == machineId ? PlanMachineSettings.WithOutElementId(m, elementId) : m).ToList();
+        _planJson = SerializePlan(new BoardPlanDto(machines, plan.Connections));
+        _saveHint = $"Seaport {machineId}: ut-element {elementId} (ej sparat).";
+        await SyncBoardInfoFromEditorAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EnsureElementsAsync()
+    {
+        if (_elements.Count > 0)
+            return;
+        try
+        {
+            var items = await Http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=sv", JsonRelaxed);
+            _elements = items ?? [];
+        }
+        catch
+        {
+            _elements = [];
+        }
+    }
 
     private IReadOnlyList<ConnectionDto> GetPlanConnections() =>
         TryDeserializePlan(out var plan) ? plan.Connections : Array.Empty<ConnectionDto>();

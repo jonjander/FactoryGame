@@ -126,10 +126,17 @@ public static class BoardInfoAnalyzer
             request.RuntimeState,
             request.LastSeaportDelta);
 
+        var machinePortFlows = MachinePortFlowAnalyzer.Analyze(
+            machines,
+            connections,
+            request.IsRunning,
+            request.RuntimeState);
+
         return new BoardInfoReport(
             intoFactory,
             outOfFactory,
             seaportPorts,
+            machinePortFlows,
             totalUps,
             isEstimate,
             throughputNote,
@@ -385,6 +392,7 @@ public sealed record BoardInfoReport(
     IReadOnlyList<SeaportFlowLine> IntoFactory,
     IReadOnlyList<SeaportFlowLine> OutOfFactory,
     IReadOnlyList<SeaportPortFlowDetail> SeaportPorts,
+    IReadOnlyList<MachinePortFlowDetail> MachinePortFlows,
     double TotalUnitsPerSecond,
     bool ThroughputIsEstimate,
     string ThroughputNote,

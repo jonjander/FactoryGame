@@ -102,16 +102,73 @@
     @if (seaportOutPorts.Count > 0)
     {
         <h5>Seaport — utgång «out» (pool → fabrik)</h5>
-        <ul class="fg-seaport-port-list fg-seaport-port-list-compact">
+        <p class="muted">Grundämnet väljs ovanför canvas under «Seaport — grundämne från pool» (planfält <code>outElementId</code>).</p>
+        <ul class="fg-seaport-port-list">
             @foreach (var port in seaportOutPorts)
             {
                 <li class="fg-seaport-port-card">
-                    <strong>@port.MachineId</strong>
+                    <div class="fg-seaport-port-header">
+                        <strong>@port.MachineId</strong>
+                        <span class="muted">@port.MachineType · port @port.Port</span>
+                    </div>
                     @if (!string.IsNullOrEmpty(port.ElementSymbol))
                     {
-                        <span class="fg-element-badge">@port.ElementSymbol</span>
+                        <p class="fg-seaport-element">
+                            <span class="fg-element-badge">@port.ElementSymbol</span>
+                            <span class="muted">från pool</span>
+                            @if (port.LinkedMachineId != null)
+                            {
+                                <span class="muted">→ @port.LinkedMachineId.@port.LinkedPort</span>
+                            }
+                        </p>
                     }
-                    <span class="muted">@port.Summary</span>
+                    <p class="fg-seaport-port-summary">@port.Summary</p>
+                </li>
+            }
+        </ul>
+    }
+
+    @{
+        var machineFlows = (Info.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())
+            .Where(f => !f.IsPoolSource)
+            .OrderBy(f => f.MachineId, StringComparer.Ordinal)
+            .ThenBy(f => f.Port, StringComparer.Ordinal)
+            .ToList();
+    }
+    @if (machineFlows.Count > 0)
+    {
+        <h5>Maskiner — resultat (in → ut)</h5>
+        <ul class="fg-seaport-port-list">
+            @foreach (var flow in machineFlows)
+            {
+                <li class="fg-seaport-port-card">
+                    <div class="fg-seaport-port-header">
+                        <strong>@flow.MachineId.@flow.Port</strong>
+                        <span class="muted">@flow.MachineType</span>
+                        @if (flow.IsEstimate) { <span class="fg-badge fg-badge-muted">uppskattning</span> }
+                    </div>
+                    @if (!string.IsNullOrEmpty(flow.InputElementSymbol) || !string.IsNullOrEmpty(flow.OutputElementSymbol))
+                    {
+                        <p class="fg-seaport-element">
+                            @if (!string.IsNullOrEmpty(flow.InputElementSymbol))
+                            {
+                                <span class="fg-element-badge">@flow.InputElementSymbol</span>
+                            }
+                            @if (!string.IsNullOrEmpty(flow.InputElementSymbol) && !string.IsNullOrEmpty(flow.OutputElementSymbol))
+                            {
+                                <span>→</span>
+                            }
+                            @if (!string.IsNullOrEmpty(flow.OutputElementSymbol))
+                            {
+                                <span class="fg-element-badge fg-element-badge-out">@flow.OutputElementSymbol</span>
+                            }
+                            @if (!string.IsNullOrEmpty(flow.TransformNote))
+                            {
+                                <span class="muted">(@flow.TransformNote)</span>
+                            }
+                        </p>
+                    }
+                    <p class="fg-seaport-port-summary">@flow.Summary</p>
                 </li>
             }
         </ul>
