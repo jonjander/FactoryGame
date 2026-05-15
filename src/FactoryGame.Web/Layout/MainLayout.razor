@@ -15,7 +15,17 @@
             <a href="/wiki">Wiki</a>
             <a href="/cli">CLI</a>
         </nav>
-        <span class="session">@(string.IsNullOrEmpty(Tokens.BearerToken) ? "Ej inloggad" : "Inloggad")</span>
+        <span class="session">
+            @(string.IsNullOrEmpty(Tokens.BearerToken) ? "Ej inloggad" : "Inloggad")
+            @if (!string.IsNullOrEmpty(Tokens.BearerToken))
+            {
+                <button type="button" class="secondary session-action" @onclick="LogoutAsync">Logga ut</button>
+            }
+            else
+            {
+                <a class="session-action" href="/">Logga in</a>
+            }
+        </span>
     </header>
     <main class="content">
         @Body
@@ -38,6 +48,12 @@
     }
 
     private void OnAuthChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task LogoutAsync()
+    {
+        await Tokens.ClearAsync();
+        Nav.NavigateTo("/");
+    }
 
     private async Task HardReloadClientAsync()
     {

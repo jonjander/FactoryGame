@@ -29,8 +29,26 @@
     protected override async Task OnInitializedAsync()
     {
         await Tokens.LoadAsync();
-        if (!string.IsNullOrEmpty(Tokens.BearerToken))
-            Nav.NavigateTo("/exchange");
+        if (string.IsNullOrEmpty(Tokens.BearerToken))
+            return;
+
+        try
+        {
+            var res = await Http.GetAsync("/v1/me/wallet");
+            if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await Tokens.ClearAsync();
+                _error = "Tidigare session är inte längre giltig. Logga in som gäst igen.";
+                return;
+            }
+
+            if (res.IsSuccessStatusCode)
+                Nav.NavigateTo("/exchange");
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex, Http.BaseAddress);
+        }
     }
 
     private async Task LoginAsync()

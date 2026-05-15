@@ -23,4 +23,6 @@ public sealed class TokenStore(BrowserStorage storage)
             await storage.SetAsync(StorageKey, token, ct);
         Changed?.Invoke();
     }
+
+    public Task ClearAsync(CancellationToken ct = default) => SetTokenAsync(null, ct);
 }

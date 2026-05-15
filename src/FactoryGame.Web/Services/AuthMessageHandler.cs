@@ -1,13 +1,21 @@
+using System.Net;
 using System.Net.Http.Headers;
 
 namespace FactoryGame.Web.Services;
 
 public sealed class AuthMessageHandler(TokenStore tokens) : DelegatingHandler
 {
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(tokens.BearerToken))
+        var hadToken = !string.IsNullOrEmpty(tokens.BearerToken);
+        if (hadToken)
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.BearerToken);
-        return base.SendAsync(request, cancellationToken);
+
+        var response = await base.SendAsync(request, cancellationToken);
+
+        if (hadToken && response.StatusCode == HttpStatusCode.Unauthorized)
+            await tokens.SetTokenAsync(null, cancellationToken);
+
+        return response;
     }
 }

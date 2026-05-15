@@ -2,6 +2,11 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.1.9
+
+- Webbklient: **Logga ut** i toppraden; ogiltig sparad session rensas automatiskt vid **401** och vid start på Home (undviker «Inloggad» med trasig token efter deploy).
+- Tydligare feltext vid **401** (inte längre felaktigt «Kan inte ansluta till API»).
+
 ## 0.1.8
 
 - Webbklient **Fabrik** (`/boards`): maskinbutik med priser (t.ex. **Liquid boiler** / `Boiler` för 4000), **maskinlager** efter köp, **placering på plan** via API, **GET plan** från server vid val av plan, rör-UI med **dropdowns** för maskiner och **lediga** in/ut-portar, knappar för **Seaport in/out**-kopplingar.
