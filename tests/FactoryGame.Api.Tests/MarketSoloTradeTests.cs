@@ -38,5 +38,11 @@ public sealed class MarketSoloTradeTests : IClassFixture<ApiWebApplicationFixtur
         var orderBody = await buy.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(orderBody);
         Assert.Equal("Filled", orderBody.Status, ignoreCase: true);
+        Assert.Equal(1, orderBody.QuantityFilled);
+
+        var trades = await client.GetFromJsonAsync<List<MarketTradeDto>>(
+            $"/v1/market/trades?elementId={elementId}&limit=10");
+        Assert.NotNull(trades);
+        Assert.Contains(trades, t => t.Quantity == 1 && t.Price == depth.BestAsk!.Value);
     }
 }

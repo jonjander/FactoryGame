@@ -97,20 +97,46 @@ public sealed class MarketQueryService(AppDbContext db)
             .ToList();
     }
 
-    public async Task<IReadOnlyList<MarketTradeRow>> GetRecentTradesAsync(int? elementId, int limit, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MarketTradeRow>> GetRecentTradesAsync(
+        int? elementId,
+        int limit,
+        bool includeSynthetic = false,
+        Guid? highlightPlayerId = null,
+        CancellationToken ct = default)
     {
         var take = Math.Clamp(limit, 1, 200);
         var q = db.TradeExecutions.AsNoTracking();
         if (elementId is { } e)
             q = q.Where(t => t.ElementId == e);
+        if (!includeSynthetic)
+            q = q.Where(t => !t.IsSynthetic);
 
         var rows = await q.ToListAsync(ct);
-        return rows
-            .OrderByDescending(t => t.CreatedAt)
-            .Take(take)
-            .Select(t => new MarketTradeRow(t.Id, t.ElementId, t.Price, t.Quantity, t.CreatedAt))
+        var ordered = rows
+            .OrderByDescending(t => t.CreatedAt.UtcDateTime.Ticks)
+            .ThenByDescending(t => t.Id)
             .ToList();
+
+        if (highlightPlayerId is { } playerId)
+        {
+            var mine = ordered
+                .Where(t => t.BuyerPlayerId == playerId || t.SellerPlayerId == playerId)
+                .Take(take)
+                .ToList();
+            if (mine.Count >= take)
+                return MapTrades(mine);
+
+            var rest = ordered
+                .Where(t => t.BuyerPlayerId != playerId && t.SellerPlayerId != playerId)
+                .Take(take - mine.Count);
+            return MapTrades(mine.Concat(rest));
+        }
+
+        return MapTrades(ordered.Take(take));
     }
+
+    private static IReadOnlyList<MarketTradeRow> MapTrades(IEnumerable<TradeExecutionEntity> rows) =>
+        rows.Select(t => new MarketTradeRow(t.Id, t.ElementId, t.Price, t.Quantity, t.CreatedAt)).ToList();
 }
 
 public sealed record MarketElementSummary(

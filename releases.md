@@ -2,6 +2,13 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.7
+
+- **Börs — avslut:** «Senaste avslut» visar spelarhandel (syntetisk seed döljs); rad «Nyss» efter fylld order; stabilare omladdning av trade-lista.
+- **Börs — innehav:** tabell «Ditt innehav (pool)» med antal per grundämne; tydlig «Du äger X st» vid valt ämne.
+- **Börs — order:** förhandsvisning om direktmatchning; snabbknappar köp till ask / ask+0,01 / sälj till bid; lista «Dina öppna order»; tydlig feedback vid fylld/delvis/öppen order (inkl. varför ingen match).
+- **API:** `GET /v1/market/orders/mine`; `PlaceOrder`-svar med `quantityFilled` och `averageFillPrice`. Klienten hämtar djup före order så motpart finns vid matchning.
+
 ## 0.2.6
 
 - **Fabrik — rör:** ta bort rör i canvas (klick + verktygsrad) och i listan under «Koppla rör»; slingrör med lane-offset och färger.

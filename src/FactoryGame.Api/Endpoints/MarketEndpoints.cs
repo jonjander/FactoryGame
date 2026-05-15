@@ -123,6 +123,36 @@ public static class MarketEndpoints
             .WithName("PlaceOrder")
             .WithOpenApi();
 
+        group.MapGet("/orders/mine", async Task<IResult> (
+                HttpContext http,
+                int? elementId,
+                AppDbContext db,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+
+                var q = db.MarketOrders.AsNoTracking()
+                    .Where(o => o.PlayerId == playerId && !o.IsSynthetic && o.Status == OrderStatus.Open && o.QuantityRemaining > 0);
+                if (elementId is { } e)
+                    q = q.Where(o => o.ElementId == e);
+
+                var list = await q
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new MyOpenOrderDto(
+                        o.Id,
+                        o.ElementId,
+                        o.Side.ToString(),
+                        o.LimitPrice ?? 0m,
+                        o.QuantityRemaining,
+                        o.OriginalQuantity,
+                        o.CreatedAt))
+                    .ToListAsync(ct);
+                return Results.Ok(list);
+            })
+            .WithName("MyOpenOrders")
+            .WithOpenApi();
+
         group.MapGet("/orders/open", async Task<IResult> (int? elementId, AppDbContext db, CancellationToken ct) =>
             {
                 var q = db.MarketOrders.AsNoTracking().Where(o => o.Status == OrderStatus.Open);
@@ -152,10 +182,16 @@ public static class MarketEndpoints
         group.MapGet("/trades", async Task<IResult> (
                 int? elementId,
                 int? limit,
+                bool? includeSynthetic,
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
-                var rows = await query.GetRecentTradesAsync(elementId, limit ?? 100, ct);
+                var rows = await query.GetRecentTradesAsync(
+                    elementId,
+                    limit ?? 50,
+                    includeSynthetic ?? false,
+                    highlightPlayerId: null,
+                    ct);
                 var dtos = rows.Select(t => new MarketTradeDto(t.Id, t.ElementId, t.Price, t.Quantity, t.CreatedAt)).ToList();
                 return Results.Ok(dtos);
             })

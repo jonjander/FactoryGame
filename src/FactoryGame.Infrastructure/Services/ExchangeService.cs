@@ -31,7 +31,16 @@ public sealed class ExchangeService(AppDbContext db)
                 o => o.PlayerId == playerId && o.IdempotencyKey == request.IdempotencyKey,
                 cancellationToken);
             if (existing != null)
-                return new PlaceOrderResponse(existing.Id, existing.QuantityRemaining, existing.Status.ToString());
+            {
+                var filled = existing.OriginalQuantity - existing.QuantityRemaining;
+                return new PlaceOrderResponse(
+                    existing.Id,
+                    existing.QuantityRemaining,
+                    existing.Status.ToString(),
+                    filled,
+                    await GetAverageFillPriceAsync(existing.Id, cancellationToken),
+                    existing.OriginalQuantity);
+            }
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -75,7 +84,16 @@ public sealed class ExchangeService(AppDbContext db)
 
             var updated = await db.MarketOrders.AsNoTracking()
                 .FirstAsync(o => o.Id == order.Id, cancellationToken);
-            return new PlaceOrderResponse(updated.Id, updated.QuantityRemaining, updated.Status.ToString());
+            var quantityFilled = updated.OriginalQuantity - updated.QuantityRemaining;
+            return new PlaceOrderResponse(
+                updated.Id,
+                updated.QuantityRemaining,
+                updated.Status.ToString(),
+                quantityFilled,
+                quantityFilled > 0
+                    ? await GetAverageFillPriceAsync(updated.Id, cancellationToken)
+                    : null,
+                updated.OriginalQuantity);
         }
         catch
         {
@@ -167,7 +185,8 @@ public sealed class ExchangeService(AppDbContext db)
             SellerPlayerId = sell.PlayerId,
             BuyOrderId = buy.Id,
             SellOrderId = sell.Id,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow,
+            IsSynthetic = buy.IsSynthetic && sell.IsSynthetic
         });
 
         db.EconomyTransactions.Add(new EconomyTransactionEntity
@@ -226,6 +245,22 @@ public sealed class ExchangeService(AppDbContext db)
             toStack.Quantity += qty;
 
         toPool.UsedVolume += qty * VolumePerUnit;
+    }
+
+    private async Task<decimal?> GetAverageFillPriceAsync(Guid orderId, CancellationToken ct)
+    {
+        var trades = await db.TradeExecutions.AsNoTracking()
+            .Where(t => t.BuyOrderId == orderId || t.SellOrderId == orderId)
+            .Select(t => new { t.Price, t.Quantity })
+            .ToListAsync(ct);
+        if (trades.Count == 0)
+            return null;
+
+        var totalQty = trades.Sum(t => t.Quantity);
+        if (totalQty == 0)
+            return null;
+
+        return trades.Sum(t => t.Price * t.Quantity) / totalQty;
     }
 
     public async Task<long> GetPoolQuantityAsync(Guid playerId, int elementId, CancellationToken ct) =>

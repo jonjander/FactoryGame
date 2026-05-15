@@ -857,3 +857,95 @@ pre.fg-snapshot {
 .exchange-trades h4 {
     margin-top: 0;
 }
+
+.exchange-holdings {
+    margin-bottom: 1rem;
+}
+
+.exchange-holdings-intro {
+    margin: 0 0 0.65rem;
+    font-size: 0.85rem;
+}
+
+.exchange-holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.exchange-holdings-table th,
+.exchange-holdings-table td {
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #30363d;
+}
+
+.exchange-holdings-table tbody tr {
+    cursor: pointer;
+}
+
+.exchange-holdings-table tbody tr:hover {
+    background: #161b22;
+}
+
+.exchange-holdings-table tbody tr.selected {
+    background: #1c2d41;
+}
+
+.exchange-owned {
+    margin: 0.15rem 0 0;
+    font-size: 0.95rem;
+}
+
+.exchange-market-prices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: 0.85rem;
+}
+
+.exchange-market-prices .price-ask {
+    color: #f85149;
+}
+
+.exchange-match-preview {
+    margin: 0.35rem 0 0.65rem;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.85rem;
+    background: #161b22;
+    border-radius: 6px;
+    border-left: 3px solid #58a6ff;
+    line-height: 1.4;
+}
+
+.exchange-quick-prices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.65rem;
+}
+
+.exchange-quick-prices button {
+    font-size: 0.8rem;
+}
+
+.exchange-open-orders {
+    margin: 1rem 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #30363d;
+}
+
+.exchange-open-orders h4 {
+    margin-top: 0;
+}
+
+.exchange-trades-hint {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+}
+
+.exchange-trades-table tr.trade-just-filled td {
+    background: rgba(63, 185, 80, 0.15);
+    color: #3fb950;
+    font-weight: 600;
+}

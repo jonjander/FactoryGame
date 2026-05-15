@@ -96,7 +96,8 @@ public sealed class PlayerSessionMiddleware(RequestDelegate next)
             return true;
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/market"))
         {
-            if (path.StartsWithSegments("/v1/market/summary"))
+            if (path.StartsWithSegments("/v1/market/summary")
+                || path.StartsWithSegments("/v1/market/orders/mine"))
                 return false;
             return true;
         }
