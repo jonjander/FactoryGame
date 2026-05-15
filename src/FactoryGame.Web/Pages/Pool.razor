@@ -1,22 +1,93 @@
 @page "/pool"
+@using System.Net.Http.Json
+@using FactoryGame.Contracts.Pool
+@using FactoryGame.Web.Models
 @inject HttpClient Http
+@inject TokenStore Tokens
 
 <PageTitle>Pool</PageTitle>
 
-<div class="panel">
+<ElementDeepAnalysisModal Visible="_analysisVisible"
+                          Element="_analysisElement"
+                          OnClose="CloseAnalysisAsync" />
+
+<div class="panel pool-header">
     <h2>Seaport-pool</h2>
-    <button type="button" class="secondary" @onclick="LoadAsync" disabled="@_busy">Hämta</button>
+    <p class="muted">Ditt materialager för fabrik och börs. Värden baseras på senaste marknadspris.</p>
+    <div class="pool-header-actions">
+        <button type="button" class="secondary" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+        @if (_overview is not null)
+        {
+            <span class="pool-stat muted">Volym: <strong>@_overview.UsedVolume</strong> / @_overview.MaxVolume</span>
+            <span class="pool-stat pool-stat-total">Totalt uppskattat värde: <strong>@_overview.TotalEstimatedValue.ToString("0.##")</strong></span>
+        }
+    </div>
     @if (!string.IsNullOrEmpty(_error))
     {
         <p class="error">@_error</p>
     }
-    <pre style="white-space:pre-wrap;font-size:0.85rem;margin-top:0.75rem;">@_json</pre>
 </div>
+
+@if (string.IsNullOrEmpty(Tokens.BearerToken))
+{
+    <div class="panel">
+        <p class="muted">Du måste <a href="/">logga in som gäst</a> för att se poolen.</p>
+    </div>
+}
+else if (_overview is null && !_busy)
+{
+    <div class="panel"><p class="muted">Kunde inte läsa poolen.</p></div>
+}
+else if (_overview is { Stacks.Count: 0 } && !_busy)
+{
+    <div class="panel">
+        <p class="muted">Inget material i poolen. Öppna sidan igen efter inloggning om du nyss skapade konto — startpaket läggs i poolen automatiskt.</p>
+    </div>
+}
+else if (_overview is not null)
+{
+    <div class="panel pool-holdings">
+        <h3>Innehav</h3>
+        <table class="pool-holdings-table">
+            <thead>
+                <tr>
+                    <th>Ämne</th>
+                    <th>Antal</th>
+                    <th>Marknadsvärde/enhet</th>
+                    <th>Radvärde</th>
+                    <th>Börs-rank</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _overview.Stacks.OrderBy(s => s.DisplayName))
+                {
+                    <tr>
+                        <td class="pool-name-cell">
+                            <span class="fg-element-badge">@row.Symbol</span>
+                            <span>@row.DisplayName</span>
+                        </td>
+                        <td><strong>@row.Quantity</strong></td>
+                        <td class="pool-num">@row.LastPrice.ToString("0.##")</td>
+                        <td class="pool-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
+                        <td class="pool-rank">#@row.PriceRank <span class="muted">av @row.CatalogSize</span></td>
+                        <td class="pool-actions">
+                            <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row.ElementId)">Info</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @code {
     private bool _busy;
     private string? _error;
-    private string _json = "";
+    private PoolOverviewDto? _overview;
+    private List<ElementContentItem> _elements = [];
+    private bool _analysisVisible;
+    private ElementContentItem? _analysisElement;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -26,18 +97,54 @@
         _error = null;
         try
         {
-            var res = await Http.GetAsync("/v1/me/pool");
-            _json = await res.Content.ReadAsStringAsync();
+            if (string.IsNullOrEmpty(Tokens.BearerToken))
+            {
+                _overview = null;
+                return;
+            }
+
+            await EnsureElementsAsync();
+            var res = await Http.GetAsync("/v1/me/pool/view");
             if (!res.IsSuccessStatusCode)
-                _error = "Kunde inte läsa pool (är du inloggad?)";
+            {
+                _error = res.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    ? "Kunde inte läsa pool (är du inloggad?)"
+                    : "Kunde inte läsa pool.";
+                _overview = null;
+                return;
+            }
+
+            _overview = await res.Content.ReadFromJsonAsync<PoolOverviewDto>();
         }
         catch (Exception ex)
         {
             _error = ApiConnectionErrors.Format(ex);
+            _overview = null;
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    private async Task EnsureElementsAsync()
+    {
+        if (_elements.Count > 0)
+            return;
+
+        var items = await Http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=sv");
+        _elements = items ?? [];
+    }
+
+    private void OpenAnalysisAsync(int elementId)
+    {
+        _analysisElement = _elements.FirstOrDefault(e => e.Id == elementId);
+        _analysisVisible = _analysisElement != null;
+    }
+
+    private Task CloseAnalysisAsync()
+    {
+        _analysisVisible = false;
+        return Task.CompletedTask;
     }
 }

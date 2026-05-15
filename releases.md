@@ -2,6 +2,13 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.8
+
+- **Pool:** inventarievy med namn, antal, marknads- och radvärde, global börs-rank (pris), totalt uppskattat värde och volym — ersätter JSON-dump.
+- **Djupanalys:** Info-modal med DNA-uppbyggnad, egenskapstext och wiki-länk.
+- **API:** `GET /v1/me/pool/view` (sammansatt pool + priser + rank).
+- **Wiki:** elementkort överst vid `?elementId=` från pool-länken.
+
 ## 0.2.7
 
 - **Börs — avslut:** «Senaste avslut» visar spelarhandel (syntetisk seed döljs); rad «Nyss» efter fylld order; stabilare omladdning av trade-lista.

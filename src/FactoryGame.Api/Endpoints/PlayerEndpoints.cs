@@ -108,6 +108,30 @@ public static class PlayerEndpoints
             .WithName("GetMyPool")
             .WithOpenApi();
 
+        group.MapGet("/me/pool/view", async Task<IResult> (
+                HttpContext http,
+                PlayerPoolBootstrapService poolBootstrap,
+                MarketQueryService query,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+
+                await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
+
+                var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
+                if (string.IsNullOrEmpty(locale))
+                    locale = "sv";
+
+                var overview = await query.GetPoolOverviewAsync(playerId, locale, ct);
+                if (overview == null)
+                    return Results.NotFound();
+
+                return Results.Ok(overview);
+            })
+            .WithName("GetMyPoolView")
+            .WithOpenApi();
+
         group.MapGet("/me/transactions", async Task<IResult> (HttpContext http, AppDbContext db, CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)

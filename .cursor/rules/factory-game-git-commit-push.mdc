@@ -1,9 +1,9 @@
 ---
-description: Efter större kod-/repoändringar — commit ska alltid innehålla Version; pusha till origin.
+description: Efter leverans — commit med Version; push till origin är standard (inte valfritt).
 alwaysApply: true
 ---
 
-# Git: commit och push efter större ändringar
+# Git: commit och push efter leverans
 
 ## KRITISKT — versionsnummer i varje commit
 
@@ -16,9 +16,9 @@ När en **större ändring** är klar (t.ex. ny funktion, beteendeförändring, 
 3. **Commit-meddelande — versionsnummer alltid med:** Läs **`Version`** i `Directory.Build.props` innan du committar. Meddelandet ska **alltid** innehålla den semver-strängen:
    - **Normalfall (ingen ny release-only commit):** `<Version>` + blanksteg + kort beskrivning, t.ex. `0.1.5 docs: uppdatera Azure-skill`, `0.1.5 fix: swagger middleware order`. Inga commits utan versionsprefix.
    - **Release enligt factory-game-version-and-tags:** när commiten *enbart* levererar ny appversion (höjd `Version` + `releases.md` + tagg) får meddelandet vara **exakt** `<Version>` utan extra text — det räknas som versionsnummer i meddelandet.
-4. **Push** till `origin` på aktuell branch (`git push`), såvida användaren uttryckligen bett om att *inte* pusha eller arbetskopian saknar remote/behörighet — då rapportera status och lämna commit lokalt.
-5. Om leveransen innebär ny **appversion**: följ **factory-game-version-and-tags** (bump av `Version`, `releases.md`, tag `v{Version}`, push av tagg, levererad version i chatten).
+4. **Push (obligatoriskt som standard):** Efter varje commit som del av en leverans ska agenten **alltid** köra `git push` till `origin` på aktuell branch. Push är **inte** valfritt bara för att användaren inte nämnt det — repo-ägaren förväntar sig att ändringar når remote. **Undantag endast** om användaren uttryckligen bett om att *inte* pusha, eller push misslyckas (auth/konflikt) — då rapportera status och nästa steg; lämna inte commit lokalt utan att säga till.
+5. Om leveransen innebär ny **appversion**: följ **factory-game-version-and-tags** (bump av `Version`, `releases.md`, tag `v{Version}`, **push av tagg**, levererad version i chatten).
 
-**Räknas inte** som "större": stavfix i en kommentar, en rad formatering, eller ren utforskning utan bestående kodändring — då räcker det ofta att vänta eller batcha.
+**Räknas inte** som leverans som kräver commit+push: stavfix i en kommentar, en rad formatering, eller ren utforskning utan bestående kodändring — då räcker det ofta att vänta eller batcha.
 
 Om `git push` misslyckas (konflikt, auth): rapportera felet och föreslå nästa steg (pull/rebase, credential, etc.) utan att gissa lösenord eller tokens.

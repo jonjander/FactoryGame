@@ -1,3 +1,4 @@
+using FactoryGame.Contracts.Pool;
 using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Market;
 using FactoryGame.Domain.Names;
@@ -28,23 +29,7 @@ public sealed class MarketQueryService(AppDbContext db)
         {
             var element = ElementCatalog.All.First(e => e.Id == elementId);
             var depth = await GetDepthAsync(elementId, ct);
-            var candles = (await db.MarketPriceCandles.AsNoTracking()
-                .Where(c => c.ElementId == elementId)
-                .ToListAsync(ct))
-                .OrderByDescending(c => c.BucketStart)
-                .Take(2)
-                .ToList();
-
-            var lastPrice = candles.FirstOrDefault()?.Close
-                ?? depth.BestAsk
-                ?? depth.BestBid
-                ?? ElementReferencePrice.Compute(element.Dna);
-
-            decimal? changePct = null;
-            if (candles.Count >= 2 && candles[1].Close > 0)
-            {
-                changePct = Math.Round((lastPrice - candles[1].Close) / candles[1].Close * 100m, 2);
-            }
+            var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(elementId, element.Dna, ct);
 
             var stack = stacks.First(s => s.ElementId == elementId);
             summaries.Add(new MarketElementSummary(
@@ -58,6 +43,99 @@ public sealed class MarketQueryService(AppDbContext db)
         }
 
         return summaries.OrderBy(s => s.ElementId).ToList();
+    }
+
+    public async Task<PoolOverviewDto?> GetPoolOverviewAsync(
+        Guid playerId,
+        string locale,
+        CancellationToken ct = default)
+    {
+        var pool = await db.InventoryPools.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.PlayerId == playerId, ct);
+        if (pool == null)
+            return null;
+
+        var stacks = await db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId == playerId && s.Quantity > 0)
+            .OrderBy(s => s.ElementId)
+            .ToListAsync(ct);
+
+        var ranks = await GetGlobalPriceRanksAsync(ct);
+        var catalogSize = ElementCatalog.All.Count;
+        var stackViews = new List<PoolStackViewDto>();
+        decimal totalValue = 0;
+
+        foreach (var stack in stacks)
+        {
+            var element = ElementCatalog.All.First(e => e.Id == stack.ElementId);
+            var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(stack.ElementId, element.Dna, ct);
+            var lineValue = Math.Round(lastPrice * stack.Quantity, 2);
+            totalValue += lineValue;
+            ranks.TryGetValue(stack.ElementId, out var priceRank);
+
+            stackViews.Add(new PoolStackViewDto(
+                stack.ElementId,
+                element.Symbol,
+                ElementNameGenerator.Generate(element.Dna, locale),
+                stack.Quantity,
+                stack.VolumePerUnit,
+                lastPrice,
+                lineValue,
+                priceRank > 0 ? priceRank : catalogSize,
+                catalogSize,
+                changePct));
+        }
+
+        return new PoolOverviewDto(
+            pool.MaxVolume,
+            pool.UsedVolume,
+            totalValue,
+            stackViews);
+    }
+
+    public async Task<IReadOnlyDictionary<int, int>> GetGlobalPriceRanksAsync(CancellationToken ct = default)
+    {
+        var prices = new List<(int ElementId, decimal Price)>();
+        foreach (var element in ElementCatalog.All)
+        {
+            var (price, _) = await GetLastPriceAndChangeAsync(element.Id, element.Dna, ct);
+            prices.Add((element.Id, price));
+        }
+
+        var ranked = prices
+            .OrderByDescending(p => p.Price)
+            .ThenBy(p => p.ElementId)
+            .Select((p, index) => (p.ElementId, Rank: index + 1))
+            .ToList();
+
+        return ranked.ToDictionary(x => x.ElementId, x => x.Rank);
+    }
+
+    public async Task<(decimal LastPrice, decimal? ChangePercent24h)> GetLastPriceAndChangeAsync(
+        int elementId,
+        long dna,
+        CancellationToken ct = default)
+    {
+        var depth = await GetDepthAsync(elementId, ct);
+        var candles = (await db.MarketPriceCandles.AsNoTracking()
+            .Where(c => c.ElementId == elementId)
+            .ToListAsync(ct))
+            .OrderByDescending(c => c.BucketStart)
+            .Take(2)
+            .ToList();
+
+        var lastPrice = candles.FirstOrDefault()?.Close
+            ?? depth.BestAsk
+            ?? depth.BestBid
+            ?? ElementReferencePrice.Compute(dna);
+
+        decimal? changePct = null;
+        if (candles.Count >= 2 && candles[1].Close > 0)
+        {
+            changePct = Math.Round((lastPrice - candles[1].Close) / candles[1].Close * 100m, 2);
+        }
+
+        return (lastPrice, changePct);
     }
 
     public async Task<MarketDepthSnapshot> GetDepthAsync(int elementId, CancellationToken ct = default)

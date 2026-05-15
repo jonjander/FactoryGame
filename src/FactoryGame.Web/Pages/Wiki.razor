@@ -1,5 +1,8 @@
 @page "/wiki"
+@using System.Net.Http.Json
+@using FactoryGame.Web.Models
 @inject HttpClient Http
+@inject NavigationManager Nav
 
 <PageTitle>Wiki</PageTitle>
 
@@ -10,6 +13,19 @@
     {
         <p class="error">@_error</p>
     }
+
+    @if (_highlightElement is not null)
+    {
+        <div class="wiki-element-card">
+            <h3>
+                <span class="fg-element-badge">@_highlightElement.Symbol</span>
+                @_highlightElement.DisplayName
+            </h3>
+            <p class="muted">Element @_highlightElement.Id · DNA: 0x@_highlightElement.Dna.ToString("X16")</p>
+            <p class="muted">Visas eftersom du öppnade wiki från pool-analys. Fullständig wiki-UI kommer senare.</p>
+        </div>
+    }
+
     <pre style="white-space:pre-wrap;font-size:0.85rem;margin-top:0.75rem;">@_json</pre>
 </div>
 
@@ -17,6 +33,7 @@
     private bool _busy;
     private string? _error;
     private string _json = "";
+    private WikiElementItem? _highlightElement;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -24,12 +41,22 @@
     {
         _busy = true;
         _error = null;
+        _highlightElement = null;
         try
         {
-            var res = await Http.GetAsync("/v1/content/wiki");
+            var res = await Http.GetAsync("/v1/content/wiki?locale=sv");
             _json = await res.Content.ReadAsStringAsync();
             if (!res.IsSuccessStatusCode)
+            {
                 _error = _json;
+                return;
+            }
+
+            var wiki = await res.Content.ReadFromJsonAsync<WikiContentResponse>();
+            if (wiki != null && TryGetHighlightId(out var elementId))
+            {
+                _highlightElement = wiki.Elements.FirstOrDefault(e => e.Id == elementId);
+            }
         }
         catch (Exception ex)
         {
@@ -39,5 +66,25 @@
         {
             _busy = false;
         }
+    }
+
+    private bool TryGetHighlightId(out int elementId)
+    {
+        elementId = 0;
+        var query = Nav.ToAbsoluteUri(Nav.Uri).Query;
+        if (string.IsNullOrEmpty(query))
+            return false;
+
+        foreach (var part in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length == 2
+                && kv[0].Equals("elementId", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(Uri.UnescapeDataString(kv[1]), out elementId)
+                && elementId > 0)
+                return true;
+        }
+
+        return false;
     }
 }

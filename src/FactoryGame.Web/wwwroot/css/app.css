@@ -949,3 +949,215 @@ pre.fg-snapshot {
     color: #3fb950;
     font-weight: 600;
 }
+
+/* Pool inventory */
+.pool-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.pool-stat {
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.pool-stat-total {
+    color: #e6edf3;
+}
+
+.pool-holdings h3 {
+    margin-top: 0;
+}
+
+.pool-holdings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.pool-holdings-table th,
+.pool-holdings-table td {
+    padding: 0.45rem 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #30363d;
+    vertical-align: middle;
+}
+
+.pool-holdings-table th:last-child,
+.pool-holdings-table td.pool-actions {
+    text-align: right;
+}
+
+.pool-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pool-num,
+.pool-rank {
+    font-variant-numeric: tabular-nums;
+}
+
+.pool-info-btn {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.65rem;
+}
+
+.fg-modal-wide {
+    max-width: 42rem;
+    max-height: min(90vh, 720px);
+    overflow-y: auto;
+}
+
+.pool-analysis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.pool-analysis-header .fg-modal-title {
+    margin-bottom: 0.25rem;
+}
+
+.pool-analysis-subtitle {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.pool-analysis-close {
+    flex-shrink: 0;
+    padding: 0.2rem 0.55rem;
+    line-height: 1.2;
+}
+
+.pool-analysis-narrative {
+    line-height: 1.55;
+    margin: 0 0 1rem;
+}
+
+.pool-analysis-section-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: #8b949e;
+}
+
+.pool-dna-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.35rem;
+    min-height: 7rem;
+    padding: 0.5rem 0.25rem 0;
+    margin-bottom: 0.35rem;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+}
+
+.pool-dna-band {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.pool-dna-bar-wrap {
+    width: 100%;
+    max-width: 2.25rem;
+    height: 5.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.pool-dna-bar {
+    width: 70%;
+    min-height: 4px;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, #58a6ff, #1f6feb);
+}
+
+.pool-dna-label {
+    font-size: 0.65rem;
+    color: #8b949e;
+    text-align: center;
+}
+
+.pool-dna-value {
+    font-size: 0.65rem;
+    text-align: center;
+}
+
+.pool-dna-hex {
+    font-size: 0.75rem;
+    margin: 0 0 1rem;
+    word-break: break-all;
+}
+
+.pool-props-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+}
+
+.pool-props-grid dt {
+    color: #8b949e;
+    margin: 0;
+}
+
+.pool-props-grid dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.pool-analysis-footer {
+    justify-content: space-between;
+}
+
+.button-link {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    background: #238636;
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.button-link:hover {
+    background: #2ea043;
+    color: #fff;
+}
+
+.wiki-element-card {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #58a6ff;
+    border-radius: 6px;
+    background: #1c2d41;
+}
+
+.wiki-element-card h3 {
+    margin: 0 0 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.wiki-element-card p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+}

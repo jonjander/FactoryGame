@@ -1,0 +1,96 @@
+@using FactoryGame.Web.Models
+@using FactoryGame.Web.Services
+
+@if (Visible && Element is not null)
+{
+    <div class="fg-modal-backdrop" @onclick="CloseAsync">
+        <div class="fg-modal fg-modal-wide pool-analysis-modal" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="pool-analysis-title">
+            <div class="pool-analysis-header">
+                <div>
+                    <h3 id="pool-analysis-title" class="fg-modal-title">@Element.Name</h3>
+                    <p class="muted pool-analysis-subtitle">
+                        <span class="fg-element-badge">@Element.Symbol</span>
+                        Element @Element.Id
+                    </p>
+                </div>
+                <button type="button" class="secondary pool-analysis-close" @onclick="CloseAsync" aria-label="Stäng">✕</button>
+            </div>
+
+            <p class="pool-analysis-narrative">@ElementPropertyNarrator.Describe(Element)</p>
+
+            <h4 class="pool-analysis-section-title">DNA-uppbyggnad</h4>
+            <div class="pool-dna-chart" aria-label="DNA-band">
+                @foreach (var band in GetDnaBands(Element))
+                {
+                    <div class="pool-dna-band">
+                        <div class="pool-dna-bar-wrap">
+                            <div class="pool-dna-bar" style="height: @(band.Percent)%"></div>
+                        </div>
+                        <span class="pool-dna-label">@band.Label</span>
+                        <span class="pool-dna-value muted">@band.ValueText</span>
+                    </div>
+                }
+            </div>
+            <p class="muted pool-dna-hex">DNA: 0x@Element.Dna.ToString("X16")</p>
+
+            <h4 class="pool-analysis-section-title">Egenskaper</h4>
+            <dl class="pool-props-grid">
+                <dt>Fas</dt><dd>@Element.Decoded.Phase</dd>
+                <dt>Explosivitet</dt><dd>@Element.Decoded.Explosivity %</dd>
+                <dt>Brandfarlighet</dt><dd>@Element.Decoded.Flammability %</dd>
+                <dt>Toxicitet</dt><dd>@Element.Decoded.Toxicity %</dd>
+                <dt>Kokpunkt</dt><dd>@Element.Decoded.BoilingPoint</dd>
+                <dt>Fryspunkt</dt><dd>@Element.Decoded.FreezePoint</dd>
+                <dt>Familj</dt><dd>@Element.Decoded.FamilyId</dd>
+            </dl>
+
+            <div class="fg-modal-actions pool-analysis-footer">
+                <a class="button-link" href="/wiki?elementId=@Element.Id">Öppna i wiki</a>
+                <button type="button" class="secondary" @onclick="CloseAsync">Stäng</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public ElementContentItem? Element { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    private static IReadOnlyList<DnaBand> GetDnaBands(ElementContentItem element)
+    {
+        var d = element.Decoded;
+        return
+        [
+            Band("Fas", PhasePercent(d.Phase), d.Phase),
+            Band("Explosiv", d.Explosivity, $"{d.Explosivity}%"),
+            Band("Brand", d.Flammability, $"{d.Flammability}%"),
+            Band("Toxisk", d.Toxicity, $"{d.Toxicity}%"),
+            Band("Kok", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString()),
+            Band("Frys", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString()),
+            Band("Familj", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString())
+        ];
+    }
+
+    private static int PhasePercent(string phase) => phase switch
+    {
+        "Liquid" => 55,
+        "Gas" => 90,
+        _ => 25
+    };
+
+    private static int NormalizeBucket(int value, int max = 4095) =>
+        max <= 0 ? 0 : Math.Clamp((int)Math.Round(value * 100.0 / max), 4, 100);
+
+    private static DnaBand Band(string label, int percent, string valueText) =>
+        new(label, Math.Clamp(percent, 4, 100), valueText);
+
+    private sealed record DnaBand(string Label, int Percent, string ValueText);
+}
