@@ -4,7 +4,7 @@ using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
 using FactoryGame.Infrastructure.Options;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FactoryGame.Infrastructure.Services;
@@ -12,7 +12,7 @@ namespace FactoryGame.Infrastructure.Services;
 public sealed class GuestAuthService(
     AppDbContext db,
     IOptions<GameEconomyOptions> economyOptions,
-    IServiceScopeFactory scopeFactory)
+    ILogger<GuestAuthService> logger)
 {
     private readonly GameEconomyOptions _economy = economyOptions.Value;
 
@@ -55,7 +55,9 @@ public sealed class GuestAuthService(
             });
         }
 
-        if (isNewPlayer)
+        await EnsureInventoryPoolAsync(player, isNewPlayer, cancellationToken);
+
+        if (isNewPlayer || db.ChangeTracker.HasChanges())
             await db.SaveChangesAsync(cancellationToken);
 
         var token = CreateSessionToken();
@@ -69,13 +71,26 @@ public sealed class GuestAuthService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        await using (var scope = scopeFactory.CreateAsyncScope())
-        {
-            var bootstrap = scope.ServiceProvider.GetRequiredService<PlayerPoolBootstrapService>();
-            await bootstrap.EnsureStarterPoolAsync(player.Id, cancellationToken);
-        }
-
+        // Starter pool is granted on first authenticated call (wallet / market) so login stays fast.
         return new GuestAuthResult(player.Id, token);
+    }
+
+    private async Task EnsureInventoryPoolAsync(PlayerEntity player, bool isNewPlayer, CancellationToken ct)
+    {
+        if (isNewPlayer && player.Pool != null)
+            return;
+
+        var pool = await db.InventoryPools.FirstOrDefaultAsync(p => p.PlayerId == player.Id, ct);
+        if (pool != null)
+            return;
+
+        logger.LogWarning("Player {PlayerId} missing inventory pool; creating one.", player.Id);
+        db.InventoryPools.Add(new InventoryPoolEntity
+        {
+            PlayerId = player.Id,
+            MaxVolume = _economy.PoolMaxVolume,
+            UsedVolume = 0
+        });
     }
 
     private static string CreateSessionToken()

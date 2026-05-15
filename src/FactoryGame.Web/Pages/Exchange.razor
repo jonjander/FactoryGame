@@ -1,6 +1,12 @@
 @page "/exchange"
+@using System.Globalization
+@using System.Net.Http.Json
+@using System.Text.Json
 @using FactoryGame.Contracts.Market
 @inject HttpClient Http
+@inject TokenStore Tokens
+@inject WalletState Wallet
+@inject SnackbarService Snackbar
 @implements IDisposable
 
 <PageTitle>Börs</PageTitle>
@@ -8,17 +14,29 @@
 <div class="exchange-header panel">
     <h2>Börs</h2>
     <p class="muted">Handla grundämnen i din pool. Marknaden fylls på automatiskt när det saknas motpart.</p>
-    <button type="button" class="secondary" @onclick="RefreshAsync" disabled="@_busy">Uppdatera</button>
+  <div class="exchange-header-actions">
+        <button type="button" class="secondary" @onclick="RefreshAsync" disabled="@(_busy || _placing)">Uppdatera</button>
+        @if (Wallet.Cash is { } cash)
+        {
+            <span class="muted exchange-wallet-hint">Kassa: <strong>@cash.ToString("0.##")</strong></span>
+        }
+    </div>
     @if (!string.IsNullOrEmpty(_error))
     {
         <p class="error">@_error</p>
     }
 </div>
 
-@if (_summary.Count == 0 && !_busy)
+@if (string.IsNullOrEmpty(Tokens.BearerToken))
 {
     <div class="panel">
-        <p class="muted">Inga material i poolen att handla. Köp eller producera grundämnen först.</p>
+        <p class="muted">Du måste <a href="/">logga in som gäst</a> för att lägga order.</p>
+    </div>
+}
+else if (_summary.Count == 0 && !_busy)
+{
+    <div class="panel">
+        <p class="muted">Inga material i poolen att handla. Öppna sidan igen efter inloggning om du nyss skapade konto — startpaket läggs i poolen automatiskt.</p>
     </div>
 }
 else if (_summary.Count > 0)
@@ -109,21 +127,52 @@ else if (_summary.Count > 0)
 
                 <div class="exchange-order panel-inner">
                     <h4>Lägg order</h4>
-                    <div class="exchange-order-fields">
-                        <label>Sida</label>
-                        <select @bind="_side">
-                            <option value="buy">Köp</option>
-                            <option value="sell">Sälj</option>
-                        </select>
-                        <label>Limitpris</label>
-                        <input type="number" step="0.01" @bind="_price" />
-                        <label>Kvantitet</label>
-                        <input type="number" @bind="_qty" />
-                        <button type="button" @onclick="PlaceAsync" disabled="@_busy">Skicka</button>
-                    </div>
-                    @if (!string.IsNullOrEmpty(_orderResult))
+                    <p class="muted exchange-order-hint">
+                        @if (_side == "sell")
+                        {
+                            <span>Säljer från pool: <strong>@_selected.PoolQuantity</strong> st tillgängliga.</span>
+                        }
+                        else
+                        {
+                            <span>Köp kostar upp till <strong>@EstimatedCost.ToString("0.##")</strong> (limit × antal).</span>
+                        }
+                    </p>
+
+                    @if (!string.IsNullOrEmpty(_orderFeedback))
                     {
-                        <pre class="exchange-order-result">@_orderResult</pre>
+                        <div class="exchange-feedback @(_orderFeedbackKind switch { "ok" => "exchange-feedback-ok", "warn" => "exchange-feedback-warn", _ => "exchange-feedback-error" })">
+                            @_orderFeedback
+                        </div>
+                    }
+
+                    <form class="exchange-order-fields" @onsubmit="PlaceAsync" @onsubmit:preventDefault="true">
+                        <div>
+                            <label for="ex-side">Sida</label>
+                            <select id="ex-side" @bind="_side" @bind:after="OnSideChanged">
+                                <option value="buy">Köp</option>
+                                <option value="sell">Sälj</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="ex-price">Limitpris</label>
+                            <input id="ex-price" type="number" step="0.01" min="0.01"
+                                   @bind="_price" @bind:culture="CultureInfo.InvariantCulture" />
+                        </div>
+                        <div>
+                            <label for="ex-qty">Kvantitet</label>
+                            <input id="ex-qty" type="number" step="1" min="1"
+                                   @bind="_qty" @bind:culture="CultureInfo.InvariantCulture" />
+                        </div>
+                        <div class="exchange-order-submit">
+                            <button type="submit" disabled="@(_busy || _placing || !CanSubmit)">
+                                @(_placing ? "Skickar order…" : "Skicka order")
+                            </button>
+                        </div>
+                    </form>
+
+                    @if (!string.IsNullOrEmpty(_orderDetails))
+                    {
+                        <p class="muted exchange-order-details">@_orderDetails</p>
                     }
                 </div>
 
@@ -132,6 +181,10 @@ else if (_summary.Count > 0)
                     <table class="exchange-trades-table">
                         <thead><tr><th>Tid</th><th>Pris</th><th>Volym</th></tr></thead>
                         <tbody>
+                            @if (_trades.Count == 0)
+                            {
+                                <tr><td colspan="3" class="muted">Inga avslut ännu.</td></tr>
+                            }
                             @foreach (var t in _trades)
                             {
                                 <tr>
@@ -149,10 +202,14 @@ else if (_summary.Count > 0)
 }
 
 @code {
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
     private const int ChartWidth = 320;
     private const int ChartHeight = 80;
 
     private bool _busy;
+    private bool _placing;
     private string? _error;
     private readonly List<MarketElementSummaryDto> _summary = new();
     private readonly List<MarketDepthLevelDto> _depthLevels = new();
@@ -163,12 +220,20 @@ else if (_summary.Count > 0)
     private string _side = "buy";
     private decimal _price = 10m;
     private long _qty = 1;
-    private string _orderResult = "";
+    private string _orderFeedback = "";
+    private string _orderFeedbackKind = "";
+    private string _orderDetails = "";
     private PeriodicTimer? _pollTimer;
     private CancellationTokenSource? _pollCts;
 
+    private bool CanSubmit =>
+        _selectedId > 0 && _price > 0 && _qty > 0 && !_placing && string.IsNullOrEmpty(Tokens.BearerToken) == false;
+
+    private decimal EstimatedCost => _price > 0 && _qty > 0 ? _price * _qty : 0;
+
     protected override async Task OnInitializedAsync()
     {
+        await Wallet.RefreshAsync();
         await RefreshAsync();
         _pollCts = new CancellationTokenSource();
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(12));
@@ -188,19 +253,28 @@ else if (_summary.Count > 0)
 
     private async Task RefreshAsync()
     {
+        if (_placing) return;
+
         _busy = true;
         _error = null;
         try
         {
+            if (string.IsNullOrEmpty(Tokens.BearerToken))
+            {
+                _summary.Clear();
+                return;
+            }
+
             var summaryRes = await Http.GetAsync("/v1/market/summary");
             if (summaryRes.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                _error = "Logga in för att handla.";
+                _error = "Sessionen har gått ut. Logga in igen från startsidan.";
+                _summary.Clear();
                 return;
             }
 
             summaryRes.EnsureSuccessStatusCode();
-            var items = await summaryRes.Content.ReadFromJsonAsync<List<MarketElementSummaryDto>>();
+            var items = await summaryRes.Content.ReadFromJsonAsync<List<MarketElementSummaryDto>>(JsonOpts);
             _summary.Clear();
             if (items != null)
                 _summary.AddRange(items);
@@ -213,6 +287,7 @@ else if (_summary.Count > 0)
 
             _selected = _summary.FirstOrDefault(s => s.ElementId == _selectedId);
             await LoadElementDetailAsync(_selectedId);
+            await Wallet.RefreshAsync();
         }
         catch (Exception ex)
         {
@@ -228,6 +303,8 @@ else if (_summary.Count > 0)
     {
         _selectedId = elementId;
         _selected = _summary.FirstOrDefault(s => s.ElementId == elementId);
+        _orderFeedback = "";
+        _orderDetails = "";
         await LoadElementDetailAsync(elementId);
     }
 
@@ -235,9 +312,9 @@ else if (_summary.Count > 0)
     {
         try
         {
-            var depthTask = Http.GetFromJsonAsync<MarketDepthDto>($"/v1/market/elements/{elementId}/depth");
-            var histTask = Http.GetFromJsonAsync<List<MarketCandleDto>>($"/v1/market/elements/{elementId}/history?points=48");
-            var tradesTask = Http.GetFromJsonAsync<List<MarketTradeDto>>($"/v1/market/trades?elementId={elementId}&limit=20");
+            var depthTask = Http.GetFromJsonAsync<MarketDepthDto>($"/v1/market/elements/{elementId}/depth", JsonOpts);
+            var histTask = Http.GetFromJsonAsync<List<MarketCandleDto>>($"/v1/market/elements/{elementId}/history?points=48", JsonOpts);
+            var tradesTask = Http.GetFromJsonAsync<List<MarketTradeDto>>($"/v1/market/trades?elementId={elementId}&limit=20", JsonOpts);
             await Task.WhenAll(depthTask!, histTask!, tradesTask!);
 
             _depthLevels.Clear();
@@ -252,11 +329,7 @@ else if (_summary.Count > 0)
             if (tradesTask?.Result != null)
                 _trades.AddRange(tradesTask.Result);
 
-            var sel = _summary.FirstOrDefault(s => s.ElementId == elementId);
-            if (sel?.BestAsk is { } ask && _side == "buy")
-                _price = ask;
-            else if (sel?.BestBid is { } bid && _side == "sell")
-                _price = bid;
+            ApplySuggestedPrice();
         }
         catch (Exception ex)
         {
@@ -264,7 +337,24 @@ else if (_summary.Count > 0)
         }
     }
 
-    private void PickPrice(decimal price) => _price = price;
+    private void OnSideChanged() => ApplySuggestedPrice();
+
+    private void ApplySuggestedPrice()
+    {
+        var sel = _summary.FirstOrDefault(s => s.ElementId == _selectedId);
+        if (sel == null) return;
+
+        if (_side.Equals("buy", StringComparison.OrdinalIgnoreCase) && sel.BestAsk is { } ask)
+            _price = ask;
+        else if (_side.Equals("sell", StringComparison.OrdinalIgnoreCase) && sel.BestBid is { } bid)
+            _price = bid;
+    }
+
+    private void PickPrice(decimal price)
+    {
+        _price = price;
+        _orderFeedback = "";
+    }
 
     private string ChartPoints
     {
@@ -281,7 +371,7 @@ else if (_summary.Count > 0)
             {
                 var x = 2 + i * step;
                 var y = ChartHeight - 2 - (double)((_history[i].Close - min) / range) * (ChartHeight - 4);
-                parts.Add($"{x:F1},{y:F1}");
+                parts.Add($"{x.ToString(Invariant)},{y.ToString(Invariant)}");
             }
             return string.Join(" ", parts);
         }
@@ -289,23 +379,111 @@ else if (_summary.Count > 0)
 
     private async Task PlaceAsync()
     {
-        _busy = true;
-        _orderResult = "";
+        if (!CanSubmit)
+        {
+            _orderFeedbackKind = "error";
+            _orderFeedback = "Kontrollera pris och kvantitet (måste vara > 0).";
+            return;
+        }
+
+        if (_side.Equals("sell", StringComparison.OrdinalIgnoreCase) && _selected is { } sel && _qty > sel.PoolQuantity)
+        {
+            _orderFeedbackKind = "error";
+            _orderFeedback = $"Du har bara {sel.PoolQuantity} st i poolen — sänk kvantiteten.";
+            Snackbar.Show(_orderFeedback, SnackbarKind.Error);
+            return;
+        }
+
+        _placing = true;
+        _orderFeedback = "";
+        _orderDetails = "";
+        _error = null;
+
         try
         {
             var res = await Http.PostAsJsonAsync("/v1/market/orders",
                 new PlaceOrderRequest(_selectedId, _side, _price, _qty, $"web-{Guid.NewGuid():N}"));
-            _orderResult = await res.Content.ReadAsStringAsync();
-            await RefreshAsync();
+
+            var body = await res.Content.ReadAsStringAsync();
+
+            if (res.IsSuccessStatusCode)
+            {
+                var order = JsonSerializer.Deserialize<PlaceOrderResponse>(body, JsonOpts);
+                if (order != null)
+                {
+                    var status = order.Status;
+                    var remaining = order.QuantityRemaining;
+                    _orderFeedbackKind = status.Equals("Filled", StringComparison.OrdinalIgnoreCase) ? "ok"
+                        : status.Equals("Open", StringComparison.OrdinalIgnoreCase) ? "warn"
+                        : "warn";
+                    _orderFeedback = status.Equals("Filled", StringComparison.OrdinalIgnoreCase)
+                        ? $"Order fylld — {(_side == "buy" ? "köp" : "sälj")} {_qty} st till {_price:0.##}."
+                        : status.Equals("Open", StringComparison.OrdinalIgnoreCase)
+                            ? $"Order öppen på börsen — {remaining} st kvar att fylla."
+                            : $"Order {status.ToLowerInvariant()} — {remaining} st kvar.";
+                    _orderDetails = $"Order-id: {order.OrderId:N}";
+                    Snackbar.Show(
+                        status.Equals("Filled", StringComparison.OrdinalIgnoreCase) ? "Order fylld" : "Order skickad",
+                        status.Equals("Filled", StringComparison.OrdinalIgnoreCase) ? SnackbarKind.Success : SnackbarKind.Info);
+                }
+                else
+                {
+                    _orderFeedbackKind = "ok";
+                    _orderFeedback = "Order skickad till servern.";
+                    Snackbar.Show("Order skickad", SnackbarKind.Success);
+                }
+
+                try
+                {
+                    await RefreshAsync();
+                }
+                catch
+                {
+                    // Behåll orderbekräftelse även om uppdatering misslyckas.
+                }
+            }
+            else
+            {
+                _orderFeedbackKind = "error";
+                _orderFeedback = ParseApiError(body, (int)res.StatusCode);
+                Snackbar.Show(_orderFeedback, SnackbarKind.Error);
+            }
         }
         catch (Exception ex)
         {
-            _orderResult = ApiConnectionErrors.Format(ex);
+            _orderFeedbackKind = "error";
+            _orderFeedback = ApiConnectionErrors.Format(ex);
+            Snackbar.Show(_orderFeedback, SnackbarKind.Error);
         }
         finally
         {
-            _busy = false;
+            _placing = false;
         }
+    }
+
+    private static string ParseApiError(string body, int statusCode)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+            return statusCode switch
+            {
+                401 => "Ej inloggad — logga in igen.",
+                409 => "Ordern kunde inte läggas (t.ex. för lite i pool eller full pool).",
+                400 => "Ogiltig order.",
+                _ => $"Servern svarade med fel ({statusCode})."
+            };
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("error", out var err))
+                return err.GetString() ?? body;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        return body.Length > 200 ? body[..200] + "…" : body;
     }
 
     public void Dispose()

@@ -69,6 +69,8 @@ public sealed class MarketLiquidityTests : IClassFixture<ApiWebApplicationFixtur
         var body = await auth.Content.ReadFromJsonAsync<GuestAuthResponse>();
         Assert.NotNull(body);
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
+        var wallet = await client.GetAsync("/v1/me/wallet");
+        wallet.EnsureSuccessStatusCode();
         return client;
     }
 }

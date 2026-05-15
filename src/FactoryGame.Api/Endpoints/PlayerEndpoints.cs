@@ -45,10 +45,16 @@ public static class PlayerEndpoints
             .WithName("PurchaseMachine")
             .WithOpenApi();
 
-        group.MapGet("/me/wallet", async Task<IResult> (HttpContext http, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/me/wallet", async Task<IResult> (
+                HttpContext http,
+                AppDbContext db,
+                PlayerPoolBootstrapService poolBootstrap,
+                CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
                     return Results.Unauthorized();
+
+                await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
 
                 var balance = await db.PlayerBalances.AsNoTracking()
                     .FirstOrDefaultAsync(b => b.PlayerId == playerId, ct);
@@ -70,10 +76,16 @@ public static class PlayerEndpoints
             .WithName("GetMyWallet")
             .WithOpenApi();
 
-        group.MapGet("/me/pool", async Task<IResult> (HttpContext http, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/me/pool", async Task<IResult> (
+                HttpContext http,
+                AppDbContext db,
+                PlayerPoolBootstrapService poolBootstrap,
+                CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
                     return Results.Unauthorized();
+
+                await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
 
                 var pool = await db.InventoryPools.AsNoTracking()
                     .FirstOrDefaultAsync(p => p.PlayerId == playerId, ct);

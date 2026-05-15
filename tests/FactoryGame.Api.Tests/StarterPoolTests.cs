@@ -23,6 +23,9 @@ public sealed class StarterPoolTests : IClassFixture<ApiWebApplicationFixture>
         Assert.NotNull(body);
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
 
+        var walletRes = await client.GetAsync("/v1/me/wallet");
+        walletRes.EnsureSuccessStatusCode();
+
         var poolRes = await client.GetAsync("/v1/me/pool");
         poolRes.EnsureSuccessStatusCode();
 

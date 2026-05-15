@@ -2,6 +2,16 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.4
+
+- **Inloggning:** gäst-`POST /v1/auth/guest` svarar snabbt igen (startpaket flyttat till `GET /v1/me/wallet` / pool / börs i stället för att blockera login).
+- **Klient:** tydlig status «Loggar in…» / «Kontaktar servern…»; bättre felmeddelanden; ingen Bearer-header på gäst-login.
+- **Äldre spelare:** saknad inventory-pool skapas vid inloggning.
+
+## 0.2.3
+
+- **Börs / order:** tydlig feedback vid «Skicka order» — laddningstext, färgad status (fylld/öppen/fel), snackbar, kassa i sidhuvud, validering (pool/kvantitet), uppskattad köpkostnad; fel från API visas på svenska i stället för dold JSON.
+
 ## 0.2.2
 
 - **Startmaterial i pool:** nya spelare (och befintliga utan tidigare startpaket) får **5 grundämnen** (id 1–5), **25 st** vardera, vid gästinloggning eller första besök på börsen.
