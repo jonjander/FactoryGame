@@ -2,6 +2,11 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.10
+
+- **Börs — fix 500:** likviditetsuppdatering kraschade på tom spelar-orderbok (`Max()`/`Min()`); bulk-avbryt syntetiska ordrar; djup returneras även om likviditet misslyckas.
+- **Klient:** tydligare fel vid HTTP 500 (inte «kan inte ansluta»); order försöker även om djup-anropet faller.
+
 ## 0.2.9
 
 - **Klient — API-URL:** `ApiTarget` (Auto / LocalDev / Azure / …), `ApiEndpointResolver`, VS-profiler «UI → lokal API» och «UI → Azure API» (`FactoryGameApiTarget`).

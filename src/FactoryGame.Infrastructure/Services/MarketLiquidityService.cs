@@ -73,14 +73,12 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             .Where(o => o.ElementId == elementId && o.Status == OrderStatus.Open && !o.IsSynthetic && o.QuantityRemaining > 0)
             .ToListAsync(ct);
 
-        var syntheticOpen = await db.MarketOrders
+        await db.MarketOrders
             .Where(o => o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open)
-            .ToListAsync(ct);
-        foreach (var o in syntheticOpen)
-            o.Status = OrderStatus.Cancelled;
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, OrderStatus.Cancelled), ct);
 
-        var bestBid = playerOrders.Where(o => o.Side == OrderSide.Buy).Select(o => o.LimitPrice).Max();
-        var bestAsk = playerOrders.Where(o => o.Side == OrderSide.Sell).Select(o => o.LimitPrice).Min();
+        var bestBid = BestBid(playerOrders);
+        var bestAsk = BestAsk(playerOrders);
         var playerBidQty = playerOrders.Where(o => o.Side == OrderSide.Buy).Sum(o => o.QuantityRemaining);
         var playerAskQty = playerOrders.Where(o => o.Side == OrderSide.Sell).Sum(o => o.QuantityRemaining);
 
@@ -145,6 +143,32 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
     {
         var span = (int)Math.Max(1, capQty - _opts.MinLotSize + 1);
         return _opts.MinLotSize + rng.Next(span);
+    }
+
+    private static decimal? BestBid(IReadOnlyList<MarketOrderEntity> playerOrders)
+    {
+        decimal? best = null;
+        foreach (var o in playerOrders)
+        {
+            if (o.Side != OrderSide.Buy || o.LimitPrice is not { } price)
+                continue;
+            best = best is null || price > best ? price : best;
+        }
+
+        return best;
+    }
+
+    private static decimal? BestAsk(IReadOnlyList<MarketOrderEntity> playerOrders)
+    {
+        decimal? best = null;
+        foreach (var o in playerOrders)
+        {
+            if (o.Side != OrderSide.Sell || o.LimitPrice is not { } price)
+                continue;
+            best = best is null || price < best ? price : best;
+        }
+
+        return best;
     }
 
     private static decimal ComputeMid(decimal referenceMid, decimal? bestBid, decimal? bestAsk)

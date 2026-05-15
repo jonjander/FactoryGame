@@ -583,8 +583,14 @@ else if (_summary.Count > 0)
 
         try
         {
-            // Säkerställ orderdjup (och syntetisk motpart) innan order matchas.
-            await Http.GetAsync($"/v1/market/elements/{_selectedId}/depth");
+            try
+            {
+                await Http.GetAsync($"/v1/market/elements/{_selectedId}/depth");
+            }
+            catch
+            {
+                // Försök lägga order ändå — djup kan ha misslyckats utan att matchning är omöjlig.
+            }
 
             var res = await Http.PostAsJsonAsync("/v1/market/orders",
                 new PlaceOrderRequest(_selectedId, _side, _price, _qty, $"web-{Guid.NewGuid():N}"));

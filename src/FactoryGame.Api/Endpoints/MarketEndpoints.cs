@@ -63,10 +63,15 @@ public static class MarketEndpoints
                 if (!await IsTradeableElementAsync(elementId, db, ct))
                     return Results.NotFound();
 
-                await using (var scope = scopeFactory.CreateAsyncScope())
+                try
                 {
+                    await using var scope = scopeFactory.CreateAsyncScope();
                     var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
                     await liquidity.EnsureLiquidityForElementAsync(elementId, ct);
+                }
+                catch
+                {
+                    // Returnera befintligt djup även om syntetisk likviditet inte kunde uppdateras.
                 }
 
                 var depth = await query.GetDepthAsync(elementId, ct);

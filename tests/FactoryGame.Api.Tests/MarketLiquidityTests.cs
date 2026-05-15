@@ -35,6 +35,19 @@ public sealed class MarketLiquidityTests : IClassFixture<ApiWebApplicationFixtur
     }
 
     [Fact]
+    public async Task Depth_refresh_does_not_fail_when_no_player_orders_exist()
+    {
+        await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+        var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
+        const int elementId = 3;
+        await liquidity.EnsureLiquidityForElementAsync(elementId);
+
+        var client = _fixture.Factory.CreateClient();
+        var depth = await client.GetAsync($"/v1/market/elements/{elementId}/depth");
+        Assert.Equal(HttpStatusCode.OK, depth.StatusCode);
+    }
+
+    [Fact]
     public async Task Synthetic_sells_are_worse_than_player_ask_when_both_exist()
     {
         var seller = await CreateAuthenticatedClientAsync("synth-seller-" + Guid.NewGuid().ToString("N"));

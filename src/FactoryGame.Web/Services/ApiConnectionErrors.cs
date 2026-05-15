@@ -69,15 +69,21 @@ public static class ApiConnectionErrors
 
     private static bool LooksLikeTransportFailure(Exception ex, string text)
     {
-        if (ex is HttpRequestException { StatusCode: { } code } &&
-            code is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return false;
+        if (ex is HttpRequestException { StatusCode: { } code })
+        {
+            if (code is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return false;
+            if ((int)code >= 500)
+                return false;
+        }
 
         if (ex is HttpRequestException hre && hre.StatusCode is null &&
             text.Contains("401", StringComparison.Ordinal))
             return false;
 
-        if (ex is HttpRequestException)
+        if (ex is HttpRequestException { StatusCode: null })
+            return true;
+        if (ex is HttpRequestException { StatusCode: { } c } && (int)c < 500)
             return true;
         if (text.Contains("Load failed", StringComparison.OrdinalIgnoreCase))
             return true;
