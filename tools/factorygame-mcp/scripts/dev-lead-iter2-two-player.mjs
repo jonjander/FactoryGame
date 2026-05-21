@@ -18,6 +18,7 @@ async function api(path, { method = "GET", token, body } = {}) {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30_000),
   });
   const text = await res.text();
   let json = null;
@@ -115,29 +116,21 @@ else {
   else note("playerB did not fill against playerA sell — matchning eller pris");
 }
 
-// Player B: buy element for factory, machines, liquid separator plan
-const depthB = await api(`/v1/market/elements/${ELEMENT_LIQUID}/depth`);
-if (depthB.json?.bestAsk) {
-  await api("/v1/market/orders", {
+// Player B: factory (reuse depth from P2P — avoids extra round-trip after heavy matching)
+console.error("--- playerB factory ---");
+if (depth.json?.bestAsk) {
+  const factoryBuy = await api("/v1/market/orders", {
     method: "POST",
     token: playerB.token,
     body: {
       elementId: ELEMENT_LIQUID,
       side: "buy",
-      limitPrice: depthB.json.bestAsk + 2,
+      limitPrice: depth.json.bestAsk + 2,
       quantity: 30,
       idempotencyKey: `iter2-b-factory-buy-${Date.now()}`,
     },
   });
-}
-
-for (const type of ["SeaportConnector", "LiquidSeparator"]) {
-  const p = await api("/v1/me/machine-inventory/purchase", {
-    method: "POST",
-    token: playerB.token,
-    body: { machineType: type },
-  });
-  if (!ok(p.status)) note(`purchase ${type}: ${p.status} ${p.text}`);
+  console.error("factory buy", factoryBuy.status, factoryBuy.json?.status);
 }
 
 const board = await api("/v1/boards", {
@@ -168,13 +161,17 @@ console.error("preview cycle", preview.json?.planHasCycle, "connections", previe
 
 const start = await api(`/v1/boards/${boardId}/start`, { method: "POST", token: playerB.token });
 if (!ok(start.status)) note(`board start: ${start.status} ${start.text}`);
-for (let i = 0; i < 10; i++) {
-  await sleep(500);
+let factoryRunning = false;
+for (let i = 0; i < 8; i++) {
+  await sleep(1000);
   const kf = await api(`/v1/boards/${boardId}/keyframes/latest`, { token: playerB.token });
-  if (kf.json?.mode === "Running" && i % 5 === 4) {
-    console.error(`poll ${i}: tick=${kf.json?.tick} Running`);
+  if (kf.json?.mode === "Running") {
+    factoryRunning = true;
+    console.error(`poll ${i}: Running`);
+    break;
   }
 }
+if (!factoryRunning) note("separator board never reached Running");
 const info = await api(`/v1/boards/${boardId}/info`, { token: playerB.token });
 console.error("board info", info.json?.mode, "seaport out", info.json?.seaport?.outOfFactory?.length);
 await api(`/v1/boards/${boardId}/stop`, { method: "POST", token: playerB.token });

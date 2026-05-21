@@ -9,7 +9,8 @@
     "smoke:local": "npm run build && node scripts/smoke-local.mjs",
     "playtest": "npm run build && node scripts/playtest-flow.mjs",
     "playtest:local": "npm run build && node scripts/playtest-local.mjs",
-    "iter2:local": "npm run build && node scripts/dev-lead-iter2-two-player.mjs"
+    "iter2:local": "npm run build && node scripts/dev-lead-iter2-two-player.mjs",
+    "iter3:local": "npm run build && node scripts/dev-lead-iter3-separator.mjs"
   },
   "keywords": [],
   "author": "",

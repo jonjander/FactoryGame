@@ -2,6 +2,11 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.17
+
+- **Dev-lead loop:** `npm run iter3:local` (liquid separator → Running); `iter2:local` stabilare (fetch-timeout, färre API-rundor efter P2P).
+- **MCP-skript:** `dev-lead-iter3-separator.mjs`; iter2 återanvänder börsdjup och verifierar Running + seaport out.
+
 ## 0.2.16
 
 - **Börs — bootstrap:** alla katalog-element (t.ex. E07) kan handlas via `GET .../depth` utan att någon spelare redan har dem i pool (syntetisk likviditet).
