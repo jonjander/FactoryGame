@@ -4,6 +4,10 @@ obj/
 out/
 artifacts/
 
+# Local publish scratch (e.g. dotnet publish -o ./_publish_test2)
+/_publish*/
+/publish/
+
 # Visual Studio / MSBuild
 .vs/
 *.user

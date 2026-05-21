@@ -11,7 +11,10 @@ public static class SimulationPlanMapper
             plan.Machines.Select(m => new SimulationMachine(
                 m.Id,
                 m.Type,
-                m.Settings.HasValue ? m.Settings.Value.GetRawText() : null)).ToList(),
+                MapSettings(m.Settings))).ToList(),
             plan.Connections.Select(c => new SimulationConnection(
                 c.FromId, c.FromPort, c.ToId, c.ToPort)).ToList());
+
+    private static string? MapSettings(JsonElement? settings) =>
+        settings is { } s ? JsonSerializer.Serialize(s) : null;
 }

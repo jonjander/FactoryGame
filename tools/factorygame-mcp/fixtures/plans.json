@@ -1,0 +1,49 @@
+{
+  "minimalLoop": {
+    "description": "SeaportConnector + Boiler loop. Uses starter pool only (elements 1-5).",
+    "requiresMarketBuy": false,
+    "plan": {
+      "machines": [
+        { "id": "seaportconnector1", "type": "SeaportConnector" },
+        { "id": "boiler1", "type": "Boiler" }
+      ],
+      "connections": [
+        {
+          "fromId": "seaportconnector1",
+          "fromPort": "out",
+          "toId": "boiler1",
+          "toPort": "in"
+        },
+        {
+          "fromId": "boiler1",
+          "fromPort": "out",
+          "toId": "seaportconnector1",
+          "toPort": "in"
+        }
+      ]
+    }
+  },
+  "liquidSeparatorFlow": {
+    "description": "Seaport -> LiquidSeparator -> Seaport. Set outElementId to a liquid element (often requires market buy for non-starter elements).",
+    "requiresMarketBuy": true,
+    "plan": {
+      "machines": [
+        {
+          "id": "sea1",
+          "type": "SeaportConnector",
+          "settings": { "outElementId": 6 }
+        },
+        {
+          "id": "sep1",
+          "type": "LiquidSeparator",
+          "settings": { "cutFreeze": 2048 }
+        }
+      ],
+      "connections": [
+        { "fromId": "sea1", "fromPort": "out", "toId": "sep1", "toPort": "in" },
+        { "fromId": "sep1", "fromPort": "out1", "toId": "sea1", "toPort": "in" },
+        { "fromId": "sep1", "fromPort": "out2", "toId": "sea1", "toPort": "in" }
+      ]
+    }
+  }
+}

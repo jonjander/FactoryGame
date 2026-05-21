@@ -5,6 +5,10 @@ export type PlayerAuthArgs = {
   apiKey?: string | undefined;
 };
 
+export type FetchOptions = {
+  locale?: string | undefined;
+};
+
 function resolvePlayerHeaders(args: PlayerAuthArgs): Record<string, string> {
   const apiKey = args.apiKey?.trim() || process.env.FACTORYGAME_API_KEY?.trim();
   const session =
@@ -14,13 +18,20 @@ function resolvePlayerHeaders(args: PlayerAuthArgs): Record<string, string> {
   return {};
 }
 
+function applyLocale(headers: Record<string, string>, options?: FetchOptions): void {
+  const locale = options?.locale?.trim();
+  if (locale) headers["Accept-Language"] = locale;
+}
+
 export async function fetchPublic(
   method: string,
   pathAndQuery: string,
-  body?: unknown
+  body?: unknown,
+  options?: FetchOptions
 ): Promise<{ ok: boolean; status: number; bodyText: string; json: unknown }> {
   const url = `${getBaseUrl()}${pathAndQuery}`;
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { Accept: "application/json" };
+  applyLocale(headers, options);
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(url, {
     method,
@@ -41,7 +52,8 @@ export async function fetchPlayer(
   method: string,
   pathAndQuery: string,
   auth: PlayerAuthArgs,
-  body?: unknown
+  body?: unknown,
+  options?: FetchOptions
 ): Promise<{ ok: boolean; status: number; bodyText: string; json: unknown }> {
   const playerHeaders = resolvePlayerHeaders(auth);
   if (Object.keys(playerHeaders).length === 0) {
@@ -54,7 +66,8 @@ export async function fetchPlayer(
     };
   }
   const url = `${getBaseUrl()}${pathAndQuery}`;
-  const headers: Record<string, string> = { ...playerHeaders };
+  const headers: Record<string, string> = { ...playerHeaders, Accept: "application/json" };
+  applyLocale(headers, options);
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(url, {
     method,

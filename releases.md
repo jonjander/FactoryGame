@@ -2,6 +2,16 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.14
+
+- **MCP — lokal utveckling:** andra MCP-server `factorygame-local` i `.cursor/mcp.json` (`http://localhost:5176`); `npm run smoke:local` och `npm run playtest:local` med health-wait.
+
+## 0.2.13
+
+- **MCP — GUI-paritet:** 11 nya verktyg (maskinbutik, pool/view, maskinlager, börs-summary/djup/historik/mine, plan läs/preview, place-from-stock).
+- **MCP — playtest:** `npm run playtest` (E2E mot Azure), utökad `npm run smoke`, fixtures `tools/factorygame-mcp/fixtures/plans.json`.
+- **Skills/agenter:** uppdaterad `factory-game-mcp-server`, `factory-game-playtester`.
+
 ## 0.2.12
 
 - **Fabrik — simulering:** Destilator, Liquid separator, Condenser, Crystallizer, Melter; utökad Mixer (fattig/ostabil blandning).

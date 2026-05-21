@@ -471,7 +471,38 @@ public sealed class BoardTickEngineTests
         Assert.Empty(order);
     }
 
+    [Fact]
+    public void Advance_Seaport_liquid_separator_loop_withdraws_from_pool()
+    {
+        const int elementId = 7;
+        var pool = new TrackingPool();
+        var plan = new SimulationPlan(
+            [
+                new SimulationMachine("sea1", "SeaportConnector", """{"outElementId":7}"""),
+                new SimulationMachine("sep1", "LiquidSeparator", """{"cutFreeze":2048}""")
+            ],
+            [
+                new SimulationConnection("sea1", "out", "sep1", "in"),
+                new SimulationConnection("sep1", "out1", "sea1", "in"),
+                new SimulationConnection("sep1", "out2", "sea1", "in")
+            ]);
+
+        var state = BoardTickEngine.CreateInitialState(plan);
+        var result = BoardTickEngine.Advance(plan, state, 1, 1m, pool);
+
+        Assert.Equal(1m, result.SeaportDelta.WithdrawnFromPool[elementId]);
+
+        var result2 = BoardTickEngine.Advance(plan, result.State, 2, 1m, pool);
+        Assert.True(result2.SeaportDelta.DepositedToPool.GetValueOrDefault(elementId) > 0);
+    }
+
     private sealed class FakePool : ISeaportPoolSink
+    {
+        public bool TryWithdraw(int elementId, decimal quantity) => true;
+        public bool TryDeposit(int elementId, long dna, decimal quantity) => true;
+    }
+
+    private sealed class TrackingPool : ISeaportPoolSink
     {
         public bool TryWithdraw(int elementId, decimal quantity) => true;
         public bool TryDeposit(int elementId, long dna, decimal quantity) => true;

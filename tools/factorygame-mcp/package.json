@@ -5,7 +5,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "smoke": "npm run build && node scripts/mcp-smoke.mjs"
+    "smoke": "npm run build && node scripts/mcp-smoke.mjs",
+    "smoke:local": "npm run build && node scripts/smoke-local.mjs",
+    "playtest": "npm run build && node scripts/playtest-flow.mjs",
+    "playtest:local": "npm run build && node scripts/playtest-local.mjs"
   },
   "keywords": [],
   "author": "",

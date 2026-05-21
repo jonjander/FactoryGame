@@ -96,12 +96,12 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 ## 8. Headless API / MCP (`mcp-playtest`)
 
 - **Syfte:** Köra spelflöden via Cursor MCP (`factorygame`) mot HTTP-API:t utan PWA — auth, boards, börs, plånbok, innehåll, admin/diagnostik enligt verktyg i `tools/factorygame-mcp/`.
-- **Cursor:** `generalPurpose` (eller manuell agent i chatten med MCP aktiverat).
-- **Skills:** `factory-game-mcp-playtest` (komplettera med `factory-game-azure-test` för bas-URL och Azure-normer).
+- **Cursor:** Subagent **`factory-game-playtester`** (`.cursor/agents/`) eller `generalPurpose` med MCP aktiverat.
+- **Skills:** `factory-game-mcp-server` (verktyg och begränsningar), `factory-game-mcp-playtest` (flöden), `factory-game-azure-test` (bas-URL).
 
 **Uppstartsprompt:**
 
-> Läs `.cursor/skills/factory-game-mcp-playtest/SKILL.md` och vid behov `KRAVSPEC.md`. Använd MCP-verktygen mot `FACTORYGAME_BASE_URL` (standard i `.cursor/mcp.json`). Kör `npm run build` i `tools/factorygame-mcp/` om verktyg saknas. Rapportera HTTP-status och korta svarutdrag; checka inte in tokens. Ändra inte kravdok om inte uttryckligen bett.
+> Använd subagenten `factory-game-playtester` eller läs `.cursor/skills/factory-game-mcp-server/SKILL.md` + `KRAVSPEC.md`. Kör MCP-verktyg mot Azure; `npm run build`, `npm run smoke` och `npm run playtest` i `tools/factorygame-mcp/`. Rapportera HTTP-status, kravparitet och MCP-gap; checka inte in tokens.
 
 ---
 
@@ -114,6 +114,13 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 | Börs & seaport | `.cursor/skills/factory-game-bors-seaport/` |
 | Webklient | `.cursor/skills/factory-game-web-klient/` |
 | Azure test-API | `.cursor/skills/factory-game-azure-test/` |
+| MCP-server (verktyg, begränsningar) | `.cursor/skills/factory-game-mcp-server/` |
 | MCP headless playtest | `.cursor/skills/factory-game-mcp-playtest/` |
+
+## Subagenter (projekt)
+
+| Subagent | Fil |
+|----------|-----|
+| Playtester (MCP, krav, GUI-paritet) | `.cursor/agents/factory-game-playtester.md` |
 
 Aktivera en skill explicit i chatten (t.ex. `@factory-game-server-sim`) eller nämna den i delegeringsprompten.

@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FactoryGame.Api\FactoryGame.Api.csproj" />
     <ProjectReference Include="..\..\src\FactoryGame.Contracts\FactoryGame.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\FactoryGame.Domain\FactoryGame.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

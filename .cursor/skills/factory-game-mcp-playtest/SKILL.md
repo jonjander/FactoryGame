@@ -1,10 +1,10 @@
 ---
 name: factory-game-mcp-playtest
 description: >-
-  Headless FactoryGame playtesting via the factorygame MCP server (stdio): guest
-  auth, boards, market, player, content, admin, diagnostics. Use when driving the
+  Headless FactoryGame playtesting via the factorygame MCP server: guest auth,
+  boards, market, player, content, admin, diagnostics. Use when driving the
   hosted API from Cursor without the PWA, or when validating flows tool-by-tool.
-  Pair with factory-game-azure-test for base URL and Azure verification norms.
+  Pair with factory-game-mcp-server (tools/limits) and factory-game-azure-test.
 disable-model-invocation: true
 ---
 
@@ -12,51 +12,34 @@ disable-model-invocation: true
 
 ## Syfte
 
-Projektets MCP-server (`factorygame` i `.cursor/mcp.json`) exponerar verktyg som mappar 1:1 mot HTTP-API:t under `/v1` (plus diagnostik). Samma auktoritet och regler som i `KRAVSPEC.md`; Swagger (`/swagger/v1/swagger.json` på värd) är schemasanningskälla.
+Kör spelflöden via MCP (`factorygame`) mot `/v1` utan PWA. Teknisk referens: **`@factory-game-mcp-server`**.
 
-## Innan du kör verktyg
+## Snabbstart
 
-1. **Bygg MCP-paketet** efter git pull: `npm install` och `npm run build` i `tools/factorygame-mcp/`.
-2. **Valfri MCP-rök:** `npm run smoke` i samma katalog (bygger och kör stdio-klient mot `dist/index.js` + Azure).
-3. **Starta om Cursor** efter ändringar i `.cursor/mcp.json` eller miljövariabler för MCP.
-3. **Bas-URL:** sätts med `FACTORYGAME_BASE_URL` (MCP `env` i `.cursor/mcp.json` sätter dev-Azure som standard). Övrigt: se `@factory-game-azure-test`.
+1. `npm install` + `npm run build` i `tools/factorygame-mcp/`.
+2. **Azure:** `npm run smoke` / `npm run playtest`
+3. **Lokal:** starta API (`dotnet run --project src/FactoryGame.Api --launch-profile http`), sedan `npm run smoke:local` / `npm run playtest:local`
+4. Cursor: aktivera `factorygame-local` i MCP för lokal utveckling (se `@factory-game-mcp-server`).
+5. Starta om Cursor efter MCP/env-ändringar.
 
-## Autentisering
+**Fixtures:** `tools/factorygame-mcp/fixtures/plans.json` (`minimalLoop`, `liquidSeparatorFlow`).
 
-- **Gäst:** anropa `guest_auth` med `deviceKey` → använd `sessionToken` i efterföljande verktyg via argumentet `sessionToken` eller sätt processmiljön `FACTORYGAME_SESSION_TOKEN` (t.ex. i MCP-serverns `env` i Cursor-inställningar, eller valfri `envFile` — se `tools/factorygame-mcp/.env.example`).
-- **API-nyckel:** header motsvar `X-Api-Key`; i MCP använd argument `apiKey` eller miljö `FACTORYGAME_API_KEY` (API-nyckel slår före bearer om båda finns).
-- **Admin:** verktygen `admin_*` läser **endast** `FACTORYGAME_ADMIN_TOKEN` från miljö. **Checka aldrig in** admin-token, API-nycklar eller sessionstoken i repo eller i spårbara tool-argument i loggar.
+## Typiska flöden
 
-## Verktygsöversikt (kort)
+**Fabrik:** `guest_auth` → `boards_create` → `boards_save_plan` → `boards_info_preview` → `boards_get_plan` → `boards_start` → `boards_keyframes` → `boards_info` → `boards_stop`
 
-| Verktyg | HTTP |
-|--------|------|
-| `guest_auth` | `POST /v1/auth/guest` |
-| `content_list_elements` | `GET /v1/content/elements` |
-| `content_wiki` | `GET /v1/content/wiki` |
-| `market_open_orders` | `GET /v1/market/orders/open` |
-| `market_recent_trades` | `GET /v1/market/trades` |
-| `market_place_order` | `POST /v1/market/orders` |
-| `player_wallet` | `GET /v1/me/wallet` |
-| `player_pool` | `GET /v1/me/pool` |
-| `player_transactions` | `GET /v1/me/transactions` |
-| `boards_create` | `POST /v1/boards` |
-| `boards_list` | `GET /v1/boards` |
-| `boards_save_plan` | `PUT /v1/boards/{id}/plan` |
-| `boards_start` / `boards_stop` | `POST .../start` · `POST .../stop` |
-| `boards_snapshot` | `GET .../snapshot` |
-| `admin_list_players` | `GET /v1/admin/players` |
-| `admin_create_api_key` | `POST /v1/admin/api-keys` |
-| `diagnostics_recent_logs` | `GET /diagnostics/recent-logs` |
+**Maskinlager:** `content_machine_store` → `player_machine_purchase` → `player_machine_inventory` → `boards_place_from_stock` → `boards_get_plan`
 
-Typiskt headless-flöde: `guest_auth` → `boards_list` / `boards_create` → `boards_save_plan` → `boards_start` → upprepa `boards_snapshot`.
+**Ekonomi:** `guest_auth` → `player_wallet` → `player_pool_view` → `player_transactions`
 
-## MCP vs andra metoder
+**Börs:** `market_summary` → `market_element_depth` → `market_place_order` → `market_orders_mine`
 
-- **MCP:** strukturerade verktyg i Cursor, bra för iterativ playtest och subagenter.
-- **WebFetch / curl:** snabba engångsanrop; samma HTTP.
-- **Smoke-skript:** se `factory-game-azure-test` (`Smoke-AzureApi.ps1`).
+**Felsökning:** `diagnostics_recent_logs` efter Azure-test.
 
-## Driftverifiering
+## Delegering
 
-Repo-ägaren verifierar mot Azure enligt `.cursor/rules/factory-game-team.mdc`. Agenten kör `dotnet build` / `dotnet test` i Cursor; använd **inte** MCP som ersättning för kravgranskning i `KRAVSPEC.md`.
+Strukturerad kravvalidering: subagent **`factory-game-playtester`**.
+
+## Drift
+
+Repo-ägaren verifierar i Azure enligt `.cursor/rules/factory-game-team.mdc`. MCP ersätter inte kravgranskning i `KRAVSPEC.md`.
