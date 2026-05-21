@@ -142,8 +142,9 @@ public static class MarketEndpoints
                 if (elementId is { } e)
                     q = q.Where(o => o.ElementId == e);
 
-                var list = await q
-                    .OrderByDescending(o => o.CreatedAt)
+                var rows = await q.ToListAsync(ct);
+                var list = rows
+                    .OrderByDescending(o => o.CreatedAt.UtcDateTime.Ticks)
                     .Select(o => new MyOpenOrderDto(
                         o.Id,
                         o.ElementId,
@@ -152,7 +153,7 @@ public static class MarketEndpoints
                         o.QuantityRemaining,
                         o.OriginalQuantity,
                         o.CreatedAt))
-                    .ToListAsync(ct);
+                    .ToList();
                 return Results.Ok(list);
             })
             .WithName("MyOpenOrders")

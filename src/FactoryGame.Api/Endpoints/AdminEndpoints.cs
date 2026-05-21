@@ -26,11 +26,12 @@ public static class AdminEndpoints
                     return Results.BadRequest(new { error = ex.Message });
                 }
 
-                var players = await db.Players.AsNoTracking()
-                    .OrderByDescending(p => p.CreatedAt)
-                    .Select(p => new { p.Id, p.CreatedAt })
+                var rows = await db.Players.AsNoTracking().ToListAsync(ct);
+                var players = rows
+                    .OrderByDescending(p => p.CreatedAt.UtcDateTime.Ticks)
                     .Take(200)
-                    .ToListAsync(ct);
+                    .Select(p => new { p.Id, p.CreatedAt })
+                    .ToList();
                 return Results.Ok(players);
             })
             .WithName("AdminListPlayers")

@@ -105,7 +105,19 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 
 ---
 
-## 8. Headless API / MCP (`mcp-playtest`)
+## 8. Test- & utvecklingsledare (`dev-lead`)
+
+- **Syfte:** Orkestrera lokal build → API → MCP-spelloopar → findings → fix → omstart; gradvis avancerade scenarier, balansnoteringar, backlog för stora ändringar.
+- **Cursor:** Subagent **`factory-game-dev-lead`** (`.cursor/agents/`) eller `generalPurpose` med `@factory-game-dev-lead`.
+- **Skills:** `factory-game-dev-lead`, `factory-game-mcp-playtest`, `factory-game-mcp-server`; delegera xUnit till `factory-game-tester`, krav-MCP till `factory-game-playtester`.
+
+**Uppstartsprompt:**
+
+> Kör lokal loop enligt `@factory-game-dev-lead`: `dotnet run` (http-profil), `factorygame-local`, `npm run playtest:local`. Iterera minimal fabrik → ekonomi → börs; fixa buggar direkt; dokumentera större punkter i `docs/dev-lead-backlog.md`. Håll dig till localhost (ägaren synkar Azure manuellt).
+
+---
+
+## 9. Headless API / MCP (`mcp-playtest`)
 
 - **Syfte:** Köra spelflöden via Cursor MCP (`factorygame`) mot HTTP-API:t utan PWA — auth, boards, börs, plånbok, innehåll, admin/diagnostik enligt verktyg i `tools/factorygame-mcp/`.
 - **Cursor:** Subagent **`factory-game-playtester`** (`.cursor/agents/`) eller `generalPurpose` med MCP aktiverat.
@@ -129,11 +141,13 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 | MCP-server (verktyg, begränsningar) | `.cursor/skills/factory-game-mcp-server/` |
 | MCP headless playtest | `.cursor/skills/factory-game-mcp-playtest/` |
 | xUnit-tester (Domain/Api) | `.cursor/skills/factory-game-tester/` |
+| Dev-lead (lokal utvecklingsloop) | `.cursor/skills/factory-game-dev-lead/` |
 
 ## Subagenter (projekt)
 
 | Subagent | Fil |
 |----------|-----|
+| Dev-lead (lokal test/utv-loop) | `.cursor/agents/factory-game-dev-lead.md` |
 | Playtester (MCP, krav, GUI-paritet) | `.cursor/agents/factory-game-playtester.md` |
 | Tester (xUnit, skapa & felsök) | `.cursor/agents/factory-game-tester.md` |
 

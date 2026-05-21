@@ -2,6 +2,12 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.15
+
+- **API — SQLite:** `GET /v1/market/orders/mine`, `GET /v1/me/transactions` och admin-spelarlista sorterar `DateTimeOffset` i minnet (fixar 500 på SQLite).
+- **Test:** `MarketMyOrdersTests`; `npm run playtest:local` inkluderar `market_orders_mine` utan fel.
+- **Dev-lead:** subagent `factory-game-dev-lead`, skill `factory-game-dev-lead`, `docs/dev-lead-backlog.md`, skript `dev-lead-economy-iter.mjs`; `AGENTS.md` uppdaterad.
+
 ## 0.2.14
 
 - **MCP — lokal utveckling:** andra MCP-server `factorygame-local` i `.cursor/mcp.json` (`http://localhost:5176`); `npm run smoke:local` och `npm run playtest:local` med health-wait.

@@ -139,7 +139,9 @@ public static class PlayerEndpoints
 
                 var rows = await db.EconomyTransactions.AsNoTracking()
                     .Where(t => t.PlayerId == playerId)
-                    .OrderByDescending(t => t.CreatedAt)
+                    .ToListAsync(ct);
+                var list = rows
+                    .OrderByDescending(t => t.CreatedAt.UtcDateTime.Ticks)
                     .Take(100)
                     .Select(t => new
                     {
@@ -149,9 +151,9 @@ public static class PlayerEndpoints
                         t.CreatedAt,
                         t.Metadata
                     })
-                    .ToListAsync(ct);
+                    .ToList();
 
-                return Results.Ok(rows);
+                return Results.Ok(list);
             })
             .WithName("GetMyTransactions")
             .WithOpenApi();
