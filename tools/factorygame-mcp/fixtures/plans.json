@@ -31,7 +31,7 @@
         {
           "id": "sea1",
           "type": "SeaportConnector",
-          "settings": { "outElementId": 6 }
+          "settings": { "outElementId": 7 }
         },
         {
           "id": "sep1",

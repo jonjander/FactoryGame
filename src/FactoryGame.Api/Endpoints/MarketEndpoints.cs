@@ -60,7 +60,7 @@ public static class MarketEndpoints
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
-                if (!await IsTradeableElementAsync(elementId, db, ct))
+                if (!IsTradeableElement(elementId))
                     return Results.NotFound();
 
                 try
@@ -92,7 +92,7 @@ public static class MarketEndpoints
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
-                if (!await IsTradeableElementAsync(elementId, db, ct))
+                if (!IsTradeableElement(elementId))
                     return Results.NotFound();
 
                 var history = await query.GetHistoryAsync(elementId, points ?? 48, ct);
@@ -205,14 +205,6 @@ public static class MarketEndpoints
             .WithOpenApi();
     }
 
-    private static async Task<bool> IsTradeableElementAsync(int elementId, AppDbContext db, CancellationToken ct)
-    {
-        if (!ElementCatalog.All.Any(e => e.Id == elementId))
-            return false;
-
-        return await db.PoolStacks.AnyAsync(s => s.ElementId == elementId && s.Quantity > 0, ct)
-            || await db.MarketPriceCandles.AnyAsync(c => c.ElementId == elementId, ct)
-            || await db.MarketOrders.AnyAsync(
-                o => o.ElementId == elementId && o.Status == OrderStatus.Open, ct);
-    }
+    private static bool IsTradeableElement(int elementId) =>
+        ElementCatalog.All.Any(e => e.Id == elementId);
 }

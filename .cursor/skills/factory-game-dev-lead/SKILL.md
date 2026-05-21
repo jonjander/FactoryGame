@@ -21,6 +21,7 @@ cd tools/factorygame-mcp
 npm install
 npm run smoke:local
 npm run playtest:local
+npm run iter2:local
 ```
 
 Cursor: MCP-server **`factorygame-local`** i `.cursor/mcp.json`.

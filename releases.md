@@ -2,6 +2,13 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.16
+
+- **Börs — bootstrap:** alla katalog-element (t.ex. E07) kan handlas via `GET .../depth` utan att någon spelare redan har dem i pool (syntetisk likviditet).
+- **Dev:** `appsettings.Development.json` — snabbare sim (1 s), `BaseIncome` var 1 min, börs uppdateras vid `market/summary`, ingen likviditets-cooldown.
+- **Tester:** `MarketTradeableBootstrapTests`, `TwoPlayerMarketTests` (P2P-matchning).
+- **MCP:** `npm run iter2:local`, `dev-lead-iter2-two-player.mjs`; fixture `liquidSeparatorFlow` använder element 7.
+
 ## 0.2.15
 
 - **API — SQLite:** `GET /v1/market/orders/mine`, `GET /v1/me/transactions` och admin-spelarlista sorterar `DateTimeOffset` i minnet (fixar 500 på SQLite).
