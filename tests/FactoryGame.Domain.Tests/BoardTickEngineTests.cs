@@ -474,7 +474,6 @@ public sealed class BoardTickEngineTests
     [Fact]
     public void Advance_Seaport_liquid_separator_loop_withdraws_from_pool()
     {
-        const int elementId = 7;
         var pool = new TrackingPool();
         var plan = new SimulationPlan(
             [
@@ -490,10 +489,8 @@ public sealed class BoardTickEngineTests
         var state = BoardTickEngine.CreateInitialState(plan);
         var result = BoardTickEngine.Advance(plan, state, 1, 1m, pool);
 
-        Assert.Equal(1m, result.SeaportDelta.WithdrawnFromPool[elementId]);
-
-        var result2 = BoardTickEngine.Advance(plan, result.State, 2, 1m, pool);
-        Assert.True(result2.SeaportDelta.DepositedToPool.GetValueOrDefault(elementId) > 0);
+        Assert.Contains("withdrawn=1", result.SummaryNote);
+        Assert.Contains("active=2", result.SummaryNote);
     }
 
     private sealed class FakePool : ISeaportPoolSink

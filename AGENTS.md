@@ -74,11 +74,23 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 ## 6. Build, test, CI (`build`)
 
 - **Syfte:** `dotnet build/test`, fixa kompileringsfel efter ändringar.
-- **Cursor:** `shell`.
+- **Cursor:** `shell` eller subagent **`factory-game-tester`** för xUnit-specifikt arbete.
 
 **Uppstartsprompt:**
 
-> Kör build och tester i `FactoryGame`-roten **i Cursor**; rapportera fel och föreslå minimal fix. Be inte repo-ägaren köra lokalt — driftverifiering sker mot Azure enligt `.cursor/rules/factory-game-team.mdc` / `@factory-game-azure-test`.
+> Kör build och tester i `FactoryGame`-roten **i Cursor**; rapportera fel och föreslå minimal fix. Be inte repo-ägaren köra lokalt — driftverifiering sker mot Azure enligt `.cursor/rules/factory-game-team.mdc` / `@factory-game-azure-test`. För nya eller trasiga xUnit-tester: delegera till `factory-game-tester` och `@factory-game-tester`.
+
+---
+
+## 6b. xUnit-tester (`tester`)
+
+- **Syfte:** Skapa meningsfulla Domain/Api-tester, felsöka fallerande eller flaky tester, hålla testmönster konsekventa.
+- **Cursor:** Subagent **`factory-game-tester`** (`.cursor/agents/`) eller `shell` + skill.
+- **Skills:** `factory-game-tester` (inte samma som MCP-playtest).
+
+**Uppstartsprompt:**
+
+> Använd subagenten `factory-game-tester` eller `@factory-game-tester`. Läs befintliga tester under `tests/`. Skapa endast värdefulla tester; kör `dotnet test` med filter; fixa rotorsak vid failure. MCP-playtest är separat (`factory-game-playtester`).
 
 ---
 
@@ -116,11 +128,13 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 | Azure test-API | `.cursor/skills/factory-game-azure-test/` |
 | MCP-server (verktyg, begränsningar) | `.cursor/skills/factory-game-mcp-server/` |
 | MCP headless playtest | `.cursor/skills/factory-game-mcp-playtest/` |
+| xUnit-tester (Domain/Api) | `.cursor/skills/factory-game-tester/` |
 
 ## Subagenter (projekt)
 
 | Subagent | Fil |
 |----------|-----|
 | Playtester (MCP, krav, GUI-paritet) | `.cursor/agents/factory-game-playtester.md` |
+| Tester (xUnit, skapa & felsök) | `.cursor/agents/factory-game-tester.md` |
 
 Aktivera en skill explicit i chatten (t.ex. `@factory-game-server-sim`) eller nämna den i delegeringsprompten.

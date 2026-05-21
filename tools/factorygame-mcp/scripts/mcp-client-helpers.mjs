@@ -32,11 +32,25 @@ export function parseToolJson(result) {
   }
 }
 
+export function getRequestTimeoutMs() {
+  const raw = process.env.MCP_REQUEST_TIMEOUT_MS?.trim();
+  if (raw) return Number(raw);
+  const base = process.env.FACTORYGAME_BASE_URL?.trim() || defaultBaseUrl;
+  if (/localhost|127\.0\.0\.1/.test(base)) return 180_000;
+  return 60_000;
+}
+
+function requestOptions() {
+  return { timeout: getRequestTimeoutMs() };
+}
+
 export async function createMcpClient(name) {
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const root = join(__dirname, "..");
   const entry = join(root, "dist", "index.js");
   assert(existsSync(entry), "Missing dist/index.js — run: npm run build");
+
+  const baseUrl = process.env.FACTORYGAME_BASE_URL?.trim() || defaultBaseUrl;
 
   const transport = new StdioClientTransport({
     command: "node",
@@ -44,7 +58,7 @@ export async function createMcpClient(name) {
     cwd: root,
     env: {
       ...process.env,
-      FACTORYGAME_BASE_URL: defaultBaseUrl,
+      FACTORYGAME_BASE_URL: baseUrl,
     },
     stderr: "inherit",
   });
@@ -55,10 +69,11 @@ export async function createMcpClient(name) {
 }
 
 export async function guestAuth(client, label) {
-  const auth = await client.callTool({
-    name: "guest_auth",
-    arguments: { deviceKey: `${label}-${Date.now()}` },
-  });
+  const auth = await client.callTool(
+    { name: "guest_auth", arguments: { deviceKey: `${label}-${Date.now()}` } },
+    undefined,
+    requestOptions()
+  );
   const { json } = parseToolJson(auth);
   assert(json?.sessionToken, "guest_auth missing sessionToken");
   return json.sessionToken;
@@ -72,7 +87,11 @@ export async function callOk(client, name, args, retries = 2) {
   let lastError;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const result = await client.callTool({ name, arguments: args });
+      const result = await client.callTool(
+        { name, arguments: args },
+        undefined,
+        requestOptions()
+      );
       return parseToolJson(result);
     } catch (err) {
       lastError = err;
@@ -83,7 +102,7 @@ export async function callOk(client, name, args, retries = 2) {
 }
 
 export async function callToolRaw(client, name, args) {
-  return client.callTool({ name, arguments: args });
+  return client.callTool({ name, arguments: args }, undefined, requestOptions());
 }
 
 export function parseToolResult(result) {
