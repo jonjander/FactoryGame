@@ -19,8 +19,8 @@ public sealed class MachinePortFlowAnalyzerTests
 
         Assert.Equal("sea1", poolOut.MachineId);
         Assert.Equal("out", poolOut.Port);
-        Assert.Equal(1, poolOut.OutputElementId);
-        Assert.Equal("E01", poolOut.OutputElementSymbol);
+        Assert.Null(poolOut.OutputElementId);
+        Assert.Null(poolOut.OutputElementSymbol);
         Assert.Contains("Pool", poolOut.Summary, StringComparison.Ordinal);
     }
 
@@ -29,7 +29,7 @@ public sealed class MachinePortFlowAnalyzerTests
     {
         var machines = new[]
         {
-            new MachineInfo("sea1", "SeaportConnector", null),
+            new MachineInfo("sea1", "SeaportConnector", System.Text.Json.JsonSerializer.SerializeToElement(new { outElementId = 1 })),
             new MachineInfo("b1", "Boiler", null)
         };
         var connections = new[]

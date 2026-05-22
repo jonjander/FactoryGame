@@ -25,8 +25,8 @@ public sealed class SeaportPortFlowAnalyzerTests
         Assert.True(seaportIn.IsConnected);
         Assert.Equal("boiler1", seaportIn.LinkedMachineId);
         Assert.Equal("out", seaportIn.LinkedPort);
-        Assert.Equal(1, seaportIn.ElementId);
-        Assert.Equal("E01", seaportIn.ElementSymbol);
+        Assert.Null(seaportIn.ElementId);
+        Assert.Null(seaportIn.ElementSymbol);
         Assert.Contains("boiler1.out", seaportIn.Summary, StringComparison.Ordinal);
     }
 

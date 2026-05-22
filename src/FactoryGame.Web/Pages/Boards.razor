@@ -2,6 +2,7 @@
 @using System.Text.Json
 @using FactoryGame.Contracts.Boards
 @using FactoryGame.Contracts.Machines
+@using FactoryGame.Contracts.Pool
 @using FactoryGame.Web.Components
 @using FactoryGame.Web.Models
 @implements IDisposable
@@ -18,6 +19,10 @@
                ConfirmLabel="Ja, byt koppling"
                OnConfirm="OnConfirmDialogYesAsync"
                OnCancel="OnConfirmDialogNoAsync" />
+
+<MachineStoreInfoModal Visible="_storeInfoVisible"
+                       Item="_storeInfoItem"
+                       OnClose="CloseStoreInfo" />
 
 <div class="panel">
     <h2>Spelplaner</h2>
@@ -57,7 +62,10 @@
                     <tr>
                         <td>@item.DisplayName <span class="muted">(@item.Type)</span></td>
                         <td>@item.Price.ToString("0.##")</td>
-                        <td><button type="button" class="secondary" @onclick="async () => await PurchaseAsync(item.Type)" disabled="@_busy">Köp</button></td>
+                        <td>
+                            <button type="button" class="secondary" @onclick="() => ShowStoreInfo(item)">Info</button>
+                            <button type="button" class="secondary" @onclick="async () => await PurchaseAsync(item.Type)" disabled="@_busy">Köp</button>
+                        </td>
                     </tr>
                 }
                 </tbody>
@@ -92,6 +100,18 @@
 
         @if (_boardInfo != null)
         {
+            <div class="fg-board-mode-banner @GetBoardModeCss()">
+                @if (IsSelectedBoardRunning())
+                {
+                    <span class="fg-status-pill fg-status-running">Kör</span>
+                    <span class="muted">tick @_boardInfo.SimulationTick — redigering låst tills du stoppar</span>
+                }
+                else
+                {
+                    <span class="fg-status-pill fg-status-stopped">Stoppad</span>
+                    <span class="muted">Redigera plan, spara och starta simulering</span>
+                }
+            </div>
             <BoardInfoPanel Info="_boardInfo" />
         }
 
@@ -99,17 +119,22 @@
         {
             <div class="panel fg-sub fg-factory-view">
                 <h4>Fabrik (visuell)</h4>
-                <FactoryCanvas Plan="canvasPlan"
+                <FactoryCanvas @key="_planJson"
+                               Plan="canvasPlan"
                                ReadOnly="@IsSelectedBoardRunning()"
+                               IsFactoryRunning="@IsSelectedBoardRunning()"
+                               UnitsPerSecond="@GetEstimatedUnitsPerSecond()"
                                MachineMeta="_machineMeta"
                                LatestKeyframe="_latestKeyframe"
                                SeaportPortFlows="@(_boardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
                                MachinePortFlows="@(_boardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
+                               BoardIssues="@(_boardInfo?.Issues ?? Array.Empty<BoardIssueDto>())"
                                SelectedMachineId="_settingsMachineId"
                                SelectedMachineIdChanged="OnCanvasMachineSelectedAsync"
                                PlanChanged="OnCanvasPlanChangedAsync"
                                ConnectionAdded="OnCanvasConnectionAddedAsync"
-                               ConnectionRemoved="OnCanvasConnectionRemovedAsync" />
+                               ConnectionRemoved="OnCanvasConnectionRemovedAsync"
+                               MachineRemoved="OnCanvasMachineRemovedAsync" />
             </div>
         }
 
@@ -133,6 +158,10 @@
             <MachineSettingsPanel Machine="@GetSettingsMachine()"
                                   Disabled="@(_busy || IsSelectedBoardRunning())"
                                   Elements="_elements"
+                                  OwnedPoolElementIds="_ownedPoolElementIds"
+                                  PlanMachines="@GetPlanMachines()"
+                                  PlanConnections="@GetPlanConnections()"
+                                  MachineMeta="_machineMeta"
                                   MachineChanged="OnMachineSettingsChangedAsync" />
         }
 
@@ -220,7 +249,7 @@
                             <button type="button"
                                     class="secondary"
                                     disabled="@(_busy || IsSelectedBoardRunning())"
-                                    @onclick="() => RemoveConnectionAtAsync(connIndex)">
+                                    @onclick="@(async () => await RemoveConnectionAtAsync(connIndex))">
                                 Ta bort
                             </button>
                         </li>
@@ -231,10 +260,22 @@
 
         <h4>Plan (JSON)</h4>
         <textarea class="fg-json" rows="14" @bind="_planJson" @bind:event="oninput"></textarea>
-        <div class="fg-toolbar">
-            <button type="button" @onclick="SavePlanAsync" disabled="@_busy">Spara</button>
-            <button type="button" class="secondary" @onclick="StartAsync" disabled="@_busy">Start</button>
-            <button type="button" class="secondary" @onclick="StopAsync" disabled="@_busy">Stopp</button>
+        <div class="fg-toolbar fg-sim-controls">
+            <button type="button" @onclick="SavePlanAsync" disabled="@(_busy || IsSelectedBoardRunning())">Spara</button>
+            <button type="button"
+                    class="@(IsSelectedBoardRunning() ? "secondary fg-btn-disabled-visual" : "")"
+                    @onclick="StartAsync"
+                    disabled="@(_busy || IsSelectedBoardRunning())"
+                    title="@(IsSelectedBoardRunning() ? "Fabriken kör redan" : "Starta simulering")">
+                Start
+            </button>
+            <button type="button"
+                    class="@(!IsSelectedBoardRunning() ? "secondary fg-btn-disabled-visual" : "")"
+                    @onclick="StopAsync"
+                    disabled="@(_busy || !IsSelectedBoardRunning())"
+                    title="@(!IsSelectedBoardRunning() ? "Fabriken är redan stoppad" : "Stoppa simulering")">
+                Stopp
+            </button>
             <button type="button" class="secondary" @onclick="SnapshotAsync" disabled="@_busy">Snapshot</button>
         </div>
         @if (!string.IsNullOrEmpty(_saveHint))
@@ -282,6 +323,9 @@
     private readonly Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private List<ElementContentItem> _elements = [];
     private string _settingsMachineId = "";
+    private HashSet<int> _ownedPoolElementIds = [];
+    private bool _storeInfoVisible;
+    private MachineStoreItemDto? _storeInfoItem;
 
     private sealed class MachineStorePayload
     {
@@ -299,6 +343,7 @@
         await LoadMachineStoreAsync();
         await LoadInventoryAsync();
         await EnsureElementsAsync();
+        await LoadPoolOwnershipAsync();
         StartPollingIfRunning();
     }
 
@@ -343,6 +388,7 @@
             {
                 await LoadBoardInfoAsync();
                 await LoadLatestKeyframeAsync(boardId);
+                await LoadPoolOwnershipAsync();
                 await LoadBoardsAsync();
                 await InvokeAsync(StateHasChanged);
             }
@@ -377,6 +423,62 @@
         await TryApplyConnectionAsync(pipe.FromId, pipe.FromPort, pipe.ToId, pipe.ToPort);
 
     private Task OnCanvasConnectionRemovedAsync(int index) => RemoveConnectionAtAsync(index);
+
+    private async Task OnCanvasMachineRemovedAsync(string machineId)
+    {
+        if (IsSelectedBoardRunning() || string.IsNullOrWhiteSpace(machineId))
+            return;
+        if (!TryDeserializePlan(out var plan))
+            return;
+
+        var machines = plan.Machines.Where(m => !m.Id.Equals(machineId, StringComparison.Ordinal)).ToList();
+        if (machines.Count == plan.Machines.Count)
+            return;
+
+        var connections = plan.Connections
+            .Where(c => c.FromId != machineId && c.ToId != machineId)
+            .ToList();
+        _planJson = SerializePlan(new BoardPlanDto(machines, connections));
+        _settingsMachineId = "";
+        _saveHint = $"Maskin {machineId} borttagen (ej sparat).";
+        Snackbar.Show($"Maskin {machineId} borttagen — spara planen.", SnackbarKind.Info);
+        await SyncBoardInfoFromEditorAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ShowStoreInfo(MachineStoreItemDto item)
+    {
+        _storeInfoItem = item;
+        _storeInfoVisible = true;
+    }
+
+    private void CloseStoreInfo()
+    {
+        _storeInfoVisible = false;
+        _storeInfoItem = null;
+    }
+
+    private string GetBoardModeCss() =>
+        IsSelectedBoardRunning() ? "fg-board-mode-running" : "fg-board-mode-stopped";
+
+    private double GetEstimatedUnitsPerSecond() =>
+        _boardInfo?.Throughput.TotalUnitsPerSecond ?? 0;
+
+    private async Task LoadPoolOwnershipAsync()
+    {
+        try
+        {
+            var view = await Http.GetFromJsonAsync<PoolOverviewDto>("/v1/me/pool/view", JsonRelaxed);
+            _ownedPoolElementIds = view?.Stacks
+                .Where(s => s.Quantity > 0)
+                .Select(s => s.ElementId)
+                .ToHashSet() ?? [];
+        }
+        catch
+        {
+            _ownedPoolElementIds = [];
+        }
+    }
 
     private async Task RemoveConnectionAtAsync(int index)
     {
@@ -573,6 +675,7 @@
         await ReloadPlanUiAsync();
         await LoadBoardInfoAsync();
         await LoadLatestKeyframeAsync(id);
+        await LoadPoolOwnershipAsync();
         StartPollingIfRunning();
     }
 
@@ -1025,10 +1128,14 @@
             var res = await Http.PostAsync($"/v1/boards/{id}/start", null);
             if (!res.IsSuccessStatusCode)
                 _error = await res.Content.ReadAsStringAsync();
-            await LoadBoardsAsync();
-            await LoadBoardInfoAsync();
-            await LoadLatestKeyframeAsync(id);
-            StartPollingIfRunning();
+            else
+            {
+                Snackbar.Show("Fabriken startar…");
+                await LoadBoardsAsync();
+                await LoadBoardInfoAsync();
+                await LoadLatestKeyframeAsync(id);
+                StartPollingIfRunning();
+            }
         }
         finally
         {
@@ -1046,8 +1153,12 @@
             var res = await Http.PostAsync($"/v1/boards/{id}/stop", null);
             if (!res.IsSuccessStatusCode)
                 _error = await res.Content.ReadAsStringAsync();
-            await LoadBoardsAsync();
-            StartPollingIfRunning();
+            else
+            {
+                Snackbar.Show("Fabriken stoppad — du kan redigera planen.");
+                await LoadBoardsAsync();
+                StartPollingIfRunning();
+            }
         }
         finally
         {

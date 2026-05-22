@@ -1,0 +1,108 @@
+@using FactoryGame.Contracts.Machines
+
+@if (Visible && Item != null)
+{
+    <div class="fg-modal-backdrop" @onclick="CloseAsync">
+        <div class="fg-modal fg-modal-wide fg-machine-info-modal" @onclick:stopPropagation="true" role="dialog" aria-modal="true">
+            <div class="pool-analysis-header">
+                <div>
+                    <h3 class="fg-modal-title">@Item.DisplayName</h3>
+                    <p class="muted pool-analysis-subtitle">@Item.Type · @FormatPorts(Item)</p>
+                </div>
+                <button type="button" class="secondary pool-analysis-close" @onclick="CloseAsync" aria-label="Stäng">✕</button>
+            </div>
+
+            <div class="fg-machine-info-icon" aria-hidden="true">
+                @((MarkupString)BuildIconSvg(Item.Type))
+            </div>
+
+            <p class="fg-machine-info-summary">@GetSummary(Item.Type)</p>
+
+            <h4 class="pool-analysis-section-title">Tips</h4>
+            <ul class="fg-machine-info-tips">
+                @foreach (var tip in GetTips(Item.Type))
+                {
+                    <li>@tip</li>
+                }
+            </ul>
+
+            <div class="fg-modal-actions">
+                <button type="button" class="secondary" @onclick="CloseAsync">Stäng</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public MachineStoreItemDto? Item { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    private static string FormatPorts(MachineStoreItemDto item)
+    {
+        var ins = item.Ports.Count(p => p.Direction == "in");
+        var outs = item.Ports.Count(p => p.Direction == "out");
+        return $"{ins} in · {outs} ut";
+    }
+
+    private static string GetSummary(string type) => type switch
+    {
+        "Boiler" => "Höjer temperaturen i materialets DNA — vätskor blir varmare och kan förberedas för separation.",
+        "Heater" => "Ökar energi/temperaturband deterministiskt. Undvik högt explosiva ämnen.",
+        "Cooler" => "Sänker energi/temperatur. Giftiga ämnen kan blockera kylning.",
+        "Condenser" => "Omvandlar gas till vätska genom att sänka kokpunktsbandet.",
+        "Crystallizer" => "Fryser ostabil vätska till fast form via fryspunktsband.",
+        "Melter" => "Smälter fast material till vätska via kokpunktsband.",
+        "Mixer" => "Blandar två ingångar. Låg intensitet = kompakt DNA; hög intensitet = ostabil/volatil DNA för destillation.",
+        "Destilator" => "Separerar vätska/gas i två fraktioner utifrån kokpunkt och reflux-inställningar.",
+        "LiquidSeparator" => "Delar vätska i två utgångar vid valt cut.",
+        "Sorter" => "Dirigerar konfigurerade grundämnen till port 1–3; övrigt går till rest-port.",
+        "SeaportConnector" => "Kopplar fabriken till din seaport-pool: ut från pool (out), in till pool (in).",
+        _ => "Maskin i fabriken — koppla rör till in/ut-portar enligt schema."
+    };
+
+    private static IReadOnlyList<string> GetTips(string type) => type switch
+    {
+        "Boiler" => ["Kräver vätskefas.", "Koppla seaport out → boiler in för startloop.", "Justera värme efter önskad process."],
+        "Destilator" => ["Kräver vätske- eller gasfas — inte fast.", "Använd Mixer på hög intensitet för volatil DNA.", "Ställ kok-cut och reflux efter fraktioner."],
+        "Mixer" => ["Två ingångar (in1, in2).", "Balanserad ratio ger förutsägbar blandning.", "Hög intensitet → bättre destillation downstream."],
+        "Sorter" => ["Välj unika grundämnen på port 1–3.", "Kontrollera att downstream-maskiner tål ämnets DNA.", "Rest-port fångar allt omatchat."],
+        "SeaportConnector" => ["Välj ut-element från det du faktiskt har i poolen.", "Standard är inget utflöde tills du väljer grundämne.", "Koppla in till pool för att lagra produktion."],
+        "LiquidSeparator" => ["Endast vätskor.", "Cut styr var gränsen går mellan ut1 och ut2."],
+        _ => ["Placera från maskinlager med unikt id.", "Spara planen efter kopplingar och inställningar.", "Starta fabriken när seaport och loop är kopplade."]
+    };
+
+    private static string BuildIconSvg(string type)
+    {
+        var (body, accent) = type switch
+        {
+            "Boiler" or "Heater" => ("#5c2a1a", "#f0883e"),
+            "Cooler" or "Condenser" or "Crystallizer" => ("#1a3d5c", "#58a6ff"),
+            "Mixer" => ("#3d2a5c", "#bc8cff"),
+            "Destilator" or "LiquidSeparator" => ("#2a4a22", "#79c27a"),
+            "Sorter" => ("#4a4222", "#d29922"),
+            "SeaportConnector" or "SeaportIn" or "SeaportOut" => ("#1a3d3d", "#39d353"),
+            _ => ("#21262d", "#8b949e")
+        };
+
+        return $"""
+            <svg viewBox="0 0 120 72" xmlns="http://www.w3.org/2000/svg" class="fg-machine-info-icon-svg">
+              <rect x="8" y="12" width="104" height="48" rx="8" fill="{body}" stroke="{accent}" stroke-width="2"/>
+              <circle cx="8" cy="36" r="5" fill="#238636"/>
+              <circle cx="112" cy="28" r="5" fill="#1f6feb"/>
+              <circle cx="112" cy="44" r="5" fill="#1f6feb"/>
+              <text x="60" y="42" text-anchor="middle" fill="#e6edf3" font-size="11" font-family="system-ui,sans-serif">{Escape(type.Length > 10 ? type[..10] : type)}</text>
+            </svg>
+            """;
+    }
+
+    private static string Escape(string s) =>
+        s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+}

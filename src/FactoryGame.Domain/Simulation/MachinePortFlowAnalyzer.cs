@@ -41,8 +41,8 @@ public static class MachinePortFlowAnalyzer
                 if (isPoolSource)
                 {
                     var poolId = SeaportConnectorProcessor.ParseOutElementId(machine.Settings?.GetRawText());
-                    outputId = poolId > 0 ? poolId : 1;
-                    outputSymbol = MaterialFlowTrace.SymbolFor(outputId.Value);
+                    outputId = poolId > 0 ? poolId : null;
+                    outputSymbol = outputId != null ? MaterialFlowTrace.SymbolFor(outputId.Value) : null;
                     inputId = null;
                     inputSymbol = null;
                     transformNote = "från pool";

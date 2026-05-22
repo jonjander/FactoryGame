@@ -2,6 +2,12 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.18
+
+- **Fabrik — UX:** seaport OUT default «(ingenting)»; pool-filter på OUT; tydligare start/stop och låsta inställningar vid körning.
+- **Fabrik — canvas:** drag-and-drop rör, ta bort maskin/rör, körstatus (flöde/blockering), tooltips på rör och maskiner.
+- **Fabrik — vägledning:** actionable blockeringsmeddelanden; DNA-varningar vid olämpligt ämne; info-dialog med ikon i maskinbutiken.
+
 ## 0.2.17
 
 - **Dev-lead loop:** `npm run iter3:local` (liquid separator → Running); `iter2:local` stabilare (fetch-timeout, färre API-rundor efter P2P).

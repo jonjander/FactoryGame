@@ -259,7 +259,8 @@ public static class BoardInfoAnalyzer
 
                 issues.Add(BoardIssue.Error(
                     "dna_incompatible",
-                    $"Maskin {downstream.Id} ({downstream.Type}) blockeras av element {element.Symbol} (id {elementId}) från sorter {sorter.Id}: {reason}",
+                    MachineBlockedGuidance.FormatSorterIssue(
+                        downstream.Id, downstream.Type, element.Symbol, elementId, sorter.Id, reason),
                     downstream.Id));
             }
         }
@@ -296,7 +297,7 @@ public static class BoardInfoAnalyzer
             {
                 issues.Add(BoardIssue.Error(
                     "machine_blocked",
-                    $"Maskin {m.MachineId} ({m.MachineType}) är blockerad: {m.BlockedReason}",
+                    MachineBlockedGuidance.FormatBlockedIssue(m.MachineId, m.MachineType, m.BlockedReason),
                     m.MachineId));
             }
         }

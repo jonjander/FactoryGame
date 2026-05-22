@@ -576,6 +576,190 @@ pre.fg-snapshot {
     border-color: #56a556;
 }
 
+.fg-machine-settings-locked {
+    position: relative;
+    opacity: 0.72;
+    border-style: dashed;
+}
+
+.fg-settings-locked-banner {
+    margin: 0 0 0.75rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 6px;
+    background: rgba(210, 153, 34, 0.12);
+    border: 1px solid #d29922;
+    color: #e3b341;
+    font-size: 0.88rem;
+}
+
+.fg-select-locked {
+    cursor: not-allowed;
+    color: #8b949e;
+    background: #161b22;
+    border-style: dashed;
+}
+
+.fg-setting-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.fg-setting-warning {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #d29922;
+    line-height: 1.35;
+}
+
+.fg-board-mode-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+}
+
+.fg-board-mode-running {
+    background: rgba(63, 185, 80, 0.08);
+    border-color: #238636;
+}
+
+.fg-board-mode-stopped {
+    background: rgba(139, 148, 158, 0.08);
+}
+
+.fg-status-pill {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.fg-status-running {
+    background: #238636;
+    color: #fff;
+}
+
+.fg-status-stopped {
+    background: #30363d;
+    color: #c9d1d9;
+}
+
+.fg-sim-controls button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.fg-sim-controls button:not(:disabled).fg-btn-disabled-visual {
+    opacity: 0.45;
+}
+
+.fg-factory-running-banner {
+    color: #3fb950;
+}
+
+.fg-machine-running .fg-machine-body {
+    stroke: #3fb950;
+    stroke-width: 2;
+}
+
+.fg-machine-blocked .fg-machine-body {
+    stroke: #f85149;
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+}
+
+.fg-machine-flow-pulse {
+    fill: none;
+    stroke: #3fb950;
+    stroke-width: 1;
+    opacity: 0.35;
+    animation: fg-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes fg-pulse {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 0.55; }
+}
+
+.fg-machine-status-dot {
+    color: #3fb950;
+    font-size: 8px;
+    margin-left: 2px;
+}
+
+.fg-machine-status-blocked {
+    color: #f85149;
+}
+
+.fg-port-flowing {
+    animation: fg-port-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes fg-port-pulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.45); }
+}
+
+.fg-pipe-flowing {
+    stroke: #79c27a !important;
+    animation: fg-pipe-dash 1.5s linear infinite;
+    stroke-dasharray: 6 4;
+}
+
+@keyframes fg-pipe-dash {
+    to { stroke-dashoffset: -20; }
+}
+
+.fg-pipe-drag-preview {
+    stroke: #f0883e;
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+.fg-btn-danger {
+    border-color: #f85149 !important;
+    color: #ffb4af !important;
+}
+
+.fg-machine-info-modal .fg-machine-info-icon {
+    display: flex;
+    justify-content: center;
+    margin: 0.5rem 0 1rem;
+}
+
+.fg-machine-info-icon-svg {
+    width: min(100%, 200px);
+    height: auto;
+}
+
+.fg-machine-info-summary {
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+}
+
+.fg-machine-info-tips {
+    margin: 0 0 1rem;
+    padding-left: 1.25rem;
+    line-height: 1.45;
+    font-size: 0.9rem;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .fg-seaport-pool-pick {
     display: flex;
     flex-wrap: wrap;

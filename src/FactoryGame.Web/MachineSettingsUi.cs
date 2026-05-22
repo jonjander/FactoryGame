@@ -131,13 +131,18 @@ public static class MachineSettingsUi
 
     public static IReadOnlyList<MachineSettingOption> ElementOptions(
         IReadOnlyList<Models.ElementContentItem> elements,
-        bool allowEmpty)
+        bool allowEmpty,
+        IReadOnlySet<int>? ownedElementIds = null)
     {
         var list = new List<MachineSettingOption>();
         if (allowEmpty)
-            list.Add(new(0, "—"));
+            list.Add(new(0, "(ingenting)"));
         foreach (var el in elements.OrderBy(e => e.Id))
+        {
+            if (ownedElementIds != null && !ownedElementIds.Contains(el.Id))
+                continue;
             list.Add(new(el.Id, $"{el.Symbol} — {el.Name}"));
+        }
         return list;
     }
 }

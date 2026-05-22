@@ -1,13 +1,14 @@
 @using FactoryGame.Contracts.Boards
+@using FactoryGame.Contracts.Machines
 @using FactoryGame.Web.Models
 
 @if (_machine != null && _fields.Count > 0)
 {
-    <div class="panel fg-sub fg-machine-settings">
+    <div class="panel fg-sub fg-machine-settings @(Disabled ? "fg-machine-settings-locked" : "")">
         <h4>Inställningar — @_machine.Id <span class="muted">(@_machine.Type)</span></h4>
         @if (Disabled)
         {
-            <p class="muted">Planen körs — inställningar kan endast ändras i redigeringsläge.</p>
+            <p class="fg-settings-locked-banner">Planen körs — stoppa fabriken för att ändra inställningar.</p>
         }
         @foreach (var field in _fields)
         {
@@ -15,21 +16,27 @@
                 <label for="@SettingInputId(field)">@field.Label</label>
                 @if (MachineSettingsUi.UsesElementPicker(field))
                 {
-                    <select id="@SettingInputId(field)"
-                            class="fg-select"
-                            disabled="@Disabled"
-                            value="@GetElementPickerValue(field)"
-                            @onchange="e => OnElementFieldChanged(field, e)">
-                        @foreach (var opt in GetElementOptions(field))
+                    <div class="fg-setting-control">
+                        <select id="@SettingInputId(field)"
+                                class="fg-select @(Disabled ? "fg-select-locked" : "")"
+                                disabled="@Disabled"
+                                value="@GetElementPickerValue(field)"
+                                @onchange="e => OnElementFieldChanged(field, e)">
+                            @foreach (var opt in GetElementOptions(field))
+                            {
+                                <option value="@opt.Value">@opt.Label</option>
+                            }
+                        </select>
+                        @foreach (var warn in GetWarnings(field))
                         {
-                            <option value="@opt.Value">@opt.Label</option>
+                            <p class="fg-setting-warning">@warn</p>
                         }
-                    </select>
+                    </div>
                 }
                 else
                 {
                     <select id="@SettingInputId(field)"
-                            class="fg-select"
+                            class="fg-select @(Disabled ? "fg-select-locked" : "")"
                             disabled="@Disabled"
                             value="@GetNumericValue(field)"
                             @onchange="e => OnNumericFieldChanged(field, e)">
@@ -55,7 +62,22 @@
     public IReadOnlyList<ElementContentItem> Elements { get; set; } = Array.Empty<ElementContentItem>();
 
     [Parameter]
+    public IReadOnlySet<int> OwnedPoolElementIds { get; set; } = EmptyIntSet;
+
+    [Parameter]
+    public IReadOnlyList<MachineDto> PlanMachines { get; set; } = Array.Empty<MachineDto>();
+
+    [Parameter]
+    public IReadOnlyList<ConnectionDto> PlanConnections { get; set; } = Array.Empty<ConnectionDto>();
+
+    [Parameter]
+    public IReadOnlyDictionary<string, MachineStoreItemDto> MachineMeta { get; set; } =
+        new Dictionary<string, MachineStoreItemDto>(StringComparer.OrdinalIgnoreCase);
+
+    [Parameter]
     public EventCallback<MachineDto> MachineChanged { get; set; }
+
+    private static readonly HashSet<int> EmptyIntSet = [];
 
     private MachineDto? _machine;
     private IReadOnlyList<MachineSettingField> _fields = Array.Empty<MachineSettingField>();
@@ -93,8 +115,30 @@
         };
     }
 
-    private IReadOnlyList<MachineSettingOption> GetElementOptions(MachineSettingField field) =>
-        MachineSettingsUi.ElementOptions(Elements, allowEmpty: field.JsonKey is "port1" or "port2" or "port3");
+    private IReadOnlyList<MachineSettingOption> GetElementOptions(MachineSettingField field)
+    {
+        var allowEmpty = field.JsonKey is "port1" or "port2" or "port3" or "outElementId";
+        var poolOnly = field.JsonKey == "outElementId";
+        return MachineSettingsUi.ElementOptions(
+            Elements,
+            allowEmpty,
+            poolOnly ? OwnedPoolElementIds : null);
+    }
+
+    private IReadOnlyList<string> GetWarnings(MachineSettingField field)
+    {
+        if (_machine == null || Disabled)
+            return Array.Empty<string>();
+        var elementId = GetElementPickerValue(field);
+        return MachineSettingsWarnings.GetElementWarnings(
+            _machine,
+            field.JsonKey,
+            elementId,
+            Elements,
+            PlanMachines,
+            PlanConnections,
+            MachineMeta);
+    }
 
     private async Task OnNumericFieldChanged(MachineSettingField field, ChangeEventArgs e)
     {

@@ -15,7 +15,7 @@ internal static class PlanMachineSettings
     }
 
     public static int GetOutElementId(MachineDto machine) =>
-        GetInt(machine, "outElementId", 1);
+        GetInt(machine, "outElementId", 0);
 
     public static int GetSorterPortElement(MachineDto machine, string portKey)
     {

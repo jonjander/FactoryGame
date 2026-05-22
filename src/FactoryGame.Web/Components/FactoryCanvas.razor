@@ -4,7 +4,7 @@
 <div class="fg-factory-canvas-wrap">
     @if (!ReadOnly)
     {
-        <p class="muted">Dra maskiner. Koppla: klicka utgång → ingång (även upptagna portar — bekräfta byte). Ta bort: klicka rör → «Ta bort rör».</p>
+        <p class="muted">Dra maskiner. Koppla rör: dra från utgång → ingång, eller klicka utgång → ingång. Klicka rör → «Ta bort rör».</p>
         @if (_selectedConnectionIndex is int sel && sel >= 0 && sel < Plan.Connections.Count)
         {
             var sc = Plan.Connections[sel];
@@ -14,10 +14,17 @@
                 <button type="button" class="secondary" @onclick="ClearPipeSelection">Avmarkera</button>
             </div>
         }
+        @if (!string.IsNullOrEmpty(SelectedMachineId))
+        {
+            <div class="fg-pipe-toolbar">
+                <span class="muted">Vald maskin: <strong>@SelectedMachineId</strong></span>
+                <button type="button" class="secondary fg-btn-danger" @onclick="RemoveSelectedMachineAsync">Ta bort maskin</button>
+            </div>
+        }
     }
     else
     {
-        <p class="muted">Planen körs — endast visning.</p>
+        <p class="muted fg-factory-running-banner">Planen körs — endast visning. Stoppa fabriken för att redigera.</p>
     }
     <svg xmlns="http://www.w3.org/2000/svg"
          class="fg-factory-canvas"
@@ -25,7 +32,7 @@
          @onclick="OnCanvasBackgroundClick"
          @onmousemove="OnMouseMove"
          @onmouseup="OnMouseUp"
-         @onmouseleave="OnMouseUp">
+         @onmouseleave="OnMouseLeave">
         <defs>
             <marker id="fg-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
                 <path d="M0,0 L6,3 L0,6 Z" fill="var(--fg-pipe, #5b9bd5)" />
@@ -35,13 +42,24 @@
         @foreach (var entry in BuildPipeEntries())
         {
             var selected = _selectedConnectionIndex == entry.Index;
+            var pipeTitle = GetPipeTooltip(entry.Index);
             <path class="fg-pipe-hit @(selected ? "fg-pipe-hit-selected" : "")"
                   d="@entry.Draw.Path"
                   @onclick="() => OnPipeClick(entry.Index)"
-                  @onclick:stopPropagation="true" />
-            <path class="@entry.Draw.CssClass @(selected ? "fg-pipe-selected" : "")"
+                  @onclick:stopPropagation="true">
+                <title>@pipeTitle</title>
+            </path>
+            <path class="@entry.Draw.CssClass @(selected ? "fg-pipe-selected" : "") @GetPipeFlowClass(entry.Index)"
                   d="@entry.Draw.Path"
                   marker-end="url(#fg-arrow)"
+                  pointer-events="none" />
+        }
+
+        @if (_dragPipeFrom is { } dragFrom && _dragCursor is { } cursor)
+        {
+            var p1 = GetPortPointOrDefault(dragFrom.Id, dragFrom.Port, true);
+            <path class="fg-pipe fg-pipe-drag-preview"
+                  d="@PipeRouting.BuildPath(p1, cursor, 0, 1)"
                   pointer-events="none" />
         }
 
@@ -54,13 +72,26 @@
             if (!_machineMeta.TryGetValue(m.Type, out var meta))
                 meta = null;
 
-            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "")"
+            var running = IsMachineRunning(m.Id);
+            var blocked = IsMachineBlocked(m.Id);
+            var machineTitle = GetMachineTooltip(m);
+
+            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "")"
                transform="translate(@Fmt(mx), @Fmt(my))"
                @onmousedown="e => OnMachineMouseDown(e, m.Id)"
                @onmousedown:stopPropagation="true">
+                <title>@machineTitle</title>
                 <rect class="fg-machine-body" width="@w" height="@h" rx="6" />
+                @if (running)
+                {
+                    <rect class="fg-machine-flow-pulse" width="@w" height="@h" rx="6" pointer-events="none" />
+                }
                 <foreignObject x="4" y="6" width="@(w - 8)" height="20">
-                    <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-label-html">@m.Id</div>
+                    <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-label-html">
+                        @m.Id
+                        @if (running) { <span class="fg-machine-status-dot" title="Kör">●</span> }
+                        else if (blocked) { <span class="fg-machine-status-dot fg-machine-status-blocked" title="Blockerad">●</span> }
+                    </div>
                 </foreignObject>
                 <foreignObject x="4" y="26" width="@(w - 8)" height="16">
                     <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-type-html">@m.Type</div>
@@ -75,10 +106,12 @@
                         var port = inPorts[pi];
                         var py = PortY(pi, inPorts.Count, h);
                         var inHint = GetPortFlowHint(m.Id, port.Name, isOutput: false);
-                        <circle class="fg-port fg-port-in @PortClass(m.Id, port.Name, false)"
+                        <circle class="fg-port fg-port-in @PortClass(m.Id, port.Name, false) @(HasPortFlow(m.Id, port.Name, false) ? "fg-port-flowing" : "")"
                                 cx="0" cy="@Fmt(py)" r="5"
                                 @onclick="() => OnPortClick(m.Id, port.Name, false)"
-                                @onclick:stopPropagation="true">
+                                @onclick:stopPropagation="true"
+                                @onmouseup="e => OnPortMouseUp(e, m.Id, port.Name, false)"
+                                @onmouseup:stopPropagation="true">
                             <title>@GetPortTitle(port.Name, inHint)</title>
                         </circle>
                         @if (!string.IsNullOrEmpty(inHint))
@@ -93,10 +126,13 @@
                         var port = outPorts[pi];
                         var py = PortY(pi, outPorts.Count, h);
                         var outHint = GetPortFlowHint(m.Id, port.Name, isOutput: true);
-                        <circle class="fg-port fg-port-out @PortClass(m.Id, port.Name, true)"
+                        <circle class="fg-port fg-port-out @PortClass(m.Id, port.Name, true) @(HasPortFlow(m.Id, port.Name, true) ? "fg-port-flowing" : "")"
                                 cx="@w" cy="@Fmt(py)" r="5"
                                 @onclick="() => OnPortClick(m.Id, port.Name, true)"
-                                @onclick:stopPropagation="true">
+                                @onclick:stopPropagation="true"
+                                @onmousedown="e => OnPortMouseDown(e, m.Id, port.Name, true)"
+                                @onmousedown:stopPropagation="true"
+                                @onmouseup="e => OnPortMouseUp(e, m.Id, port.Name, false)">
                             <title>@GetPortTitle(port.Name, outHint)</title>
                         </circle>
                         @if (!string.IsNullOrEmpty(outHint))
@@ -124,6 +160,12 @@
     public bool ReadOnly { get; set; }
 
     [Parameter]
+    public bool IsFactoryRunning { get; set; }
+
+    [Parameter]
+    public double UnitsPerSecond { get; set; } = 1;
+
+    [Parameter]
     public IReadOnlyDictionary<string, MachineStoreItemDto> MachineMeta { get; set; } =
         new Dictionary<string, MachineStoreItemDto>(StringComparer.OrdinalIgnoreCase);
 
@@ -140,10 +182,16 @@
     public EventCallback<int> ConnectionRemoved { get; set; }
 
     [Parameter]
+    public EventCallback<string> MachineRemoved { get; set; }
+
+    [Parameter]
     public IReadOnlyList<SeaportPortFlowDto> SeaportPortFlows { get; set; } = Array.Empty<SeaportPortFlowDto>();
 
     [Parameter]
     public IReadOnlyList<MachinePortFlowDto> MachinePortFlows { get; set; } = Array.Empty<MachinePortFlowDto>();
+
+    [Parameter]
+    public IReadOnlyList<BoardIssueDto> BoardIssues { get; set; } = Array.Empty<BoardIssueDto>();
 
     [Parameter]
     public string? SelectedMachineId { get; set; }
@@ -154,11 +202,15 @@
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, MachinePortFlowDto> _machinePortByKey = new(StringComparer.Ordinal);
+    private Dictionary<string, string> _blockedByMachineId = new(StringComparer.Ordinal);
+    private HashSet<string> _machinesWithFlow = new(StringComparer.Ordinal);
     private string _viewBox = "0 0 800 480";
     private string? _dragMachineId;
     private double _dragOffsetX;
     private double _dragOffsetY;
     private (string Id, string Port)? _pendingOut;
+    private (string Id, string Port)? _dragPipeFrom;
+    private (double X, double Y)? _dragCursor;
     private int? _selectedConnectionIndex;
 
     protected override void OnParametersSet()
@@ -170,7 +222,29 @@
         _machinePortByKey = MachinePortFlows.ToDictionary(
             p => PortFlowKey(p.MachineId, p.Port),
             StringComparer.Ordinal);
+        _blockedByMachineId = BoardIssues
+            .Where(i => i.Severity == "error" && i.MachineId != null
+                        && (i.Code == "machine_blocked" || i.Code == "dna_incompatible"))
+            .GroupBy(i => i.MachineId!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Message, StringComparer.Ordinal);
+        _machinesWithFlow = BuildMachinesWithFlow();
         UpdateViewBox();
+    }
+
+    private HashSet<string> BuildMachinesWithFlow()
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var flow in MachinePortFlows)
+        {
+            if (!string.IsNullOrEmpty(flow.OutputElementSymbol) || !string.IsNullOrEmpty(flow.InputElementSymbol))
+                set.Add(flow.MachineId);
+        }
+        foreach (var sea in SeaportPortFlows)
+        {
+            if (!string.IsNullOrEmpty(sea.ElementSymbol))
+                set.Add(sea.MachineId);
+        }
+        return set;
     }
 
     private void UpdateViewBox()
@@ -258,6 +332,9 @@
         return true;
     }
 
+    private (double X, double Y) GetPortPointOrDefault(string machineId, string portName, bool isOutput) =>
+        TryGetPortPoint(machineId, portName, isOutput, out var p) ? p : (0, 0);
+
     private static string PortFlowKey(string machineId, string port) => $"{machineId}\0{port}";
 
     private string? GetPortFlowHint(string machineId, string portName, bool isOutput)
@@ -299,10 +376,124 @@
     private static string GetPortTitle(string portName, string? hint) =>
         string.IsNullOrEmpty(hint) ? portName : $"{portName}: {hint}";
 
+    private string GetPipeTooltip(int connectionIndex)
+    {
+        if (connectionIndex < 0 || connectionIndex >= Plan.Connections.Count)
+            return "Rör";
+
+        var c = Plan.Connections[connectionIndex];
+        var rate = FormatRate();
+        var material = GetConnectionMaterialHint(c);
+        return string.IsNullOrEmpty(material)
+            ? $"{c.FromId}.{c.FromPort} → {c.ToId}.{c.ToPort} · {rate}"
+            : $"{material} · {rate}\n{c.FromId}.{c.FromPort} → {c.ToId}.{c.ToPort}";
+    }
+
+    private string? GetConnectionMaterialHint(ConnectionDto c)
+    {
+        if (_machinePortByKey.TryGetValue(PortFlowKey(c.FromId, c.FromPort), out var flow))
+        {
+            if (!string.IsNullOrEmpty(flow.OutputElementSymbol))
+                return flow.OutputElementSymbol;
+            if (!string.IsNullOrEmpty(flow.InputElementSymbol))
+                return flow.InputElementSymbol;
+        }
+        return null;
+    }
+
+    private string GetMachineTooltip(MachineDto m)
+    {
+        var lines = new List<string> { $"{m.Id} ({m.Type})" };
+
+        if (_blockedByMachineId.TryGetValue(m.Id, out var block))
+            lines.Add(block);
+        else if (IsFactoryRunning && _machinesWithFlow.Contains(m.Id))
+            lines.Add($"Kör — ~{FormatRate()}");
+        else if (IsFactoryRunning)
+            lines.Add("Kör — väntar på material");
+        else
+            lines.Add(GetStoppedSettingsSummary(m));
+
+        foreach (var flow in MachinePortFlows.Where(f => f.MachineId == m.Id))
+        {
+            if (!string.IsNullOrEmpty(flow.Summary))
+                lines.Add($"{flow.Port}: {flow.Summary}");
+        }
+
+        return string.Join("\n", lines.Distinct());
+    }
+
+    private static string GetStoppedSettingsSummary(MachineDto m)
+    {
+        var fields = MachineSettingsUi.GetFields(m.Type);
+        if (fields.Count == 0)
+            return "Inga inställningar — koppla rör och spara.";
+
+        var parts = new List<string>();
+        foreach (var field in fields)
+        {
+            if (MachineSettingsUi.UsesElementPicker(field))
+            {
+                var id = field.JsonKey switch
+                {
+                    "outElementId" => PlanMachineSettings.GetOutElementId(m),
+                    "port1" or "port2" or "port3" => PlanMachineSettings.GetSorterPortElement(m, field.JsonKey),
+                    _ => 0
+                };
+                parts.Add(id > 0 ? $"{field.Label}: id {id}" : $"{field.Label}: (ingenting)");
+            }
+            else
+            {
+                var v = PlanMachineSettings.GetInt(m, field.JsonKey, -1);
+                if (v >= 0)
+                {
+                    var opt = field.Options.FirstOrDefault(o => o.Value == v);
+                    parts.Add($"{field.Label}: {opt?.Label ?? v.ToString()}");
+                }
+            }
+        }
+        return string.Join(" · ", parts);
+    }
+
+    private string FormatRate() =>
+        UnitsPerSecond >= 0.01
+            ? $"{UnitsPerSecond:0.##} enheter/s"
+            : "1 enhet/tick";
+
+    private string GetPipeFlowClass(int connectionIndex)
+    {
+        if (!IsFactoryRunning || connectionIndex < 0 || connectionIndex >= Plan.Connections.Count)
+            return "";
+        var c = Plan.Connections[connectionIndex];
+        return _machinesWithFlow.Contains(c.FromId) ? "fg-pipe-flowing" : "";
+    }
+
+    private bool HasPortFlow(string machineId, string portName, bool isOutput)
+    {
+        if (!IsFactoryRunning)
+            return false;
+        if (isOutput && _machinePortByKey.ContainsKey(PortFlowKey(machineId, portName)))
+            return !string.IsNullOrEmpty(_machinePortByKey[PortFlowKey(machineId, portName)].OutputElementSymbol);
+        if (!isOutput)
+        {
+            var conn = Plan.Connections.FirstOrDefault(c => c.ToId == machineId && c.ToPort == portName);
+            if (conn != null)
+                return _machinesWithFlow.Contains(conn.FromId);
+        }
+        return false;
+    }
+
+    private bool IsMachineBlocked(string machineId) => _blockedByMachineId.ContainsKey(machineId);
+
+    private bool IsMachineRunning(string machineId) =>
+        IsFactoryRunning && !IsMachineBlocked(machineId) && _machinesWithFlow.Contains(machineId);
+
     private string PortClass(string machineId, string portName, bool isOutput)
     {
         var classes = new List<string>();
         if (_pendingOut is { } p && isOutput && p.Id == machineId && p.Port == portName)
+            classes.Add("fg-port-pending");
+        if (_dragPipeFrom is { } d && isOutput && d.Id == machineId && d.Port == portName)
             classes.Add("fg-port-pending");
 
         var occupied = isOutput
@@ -334,6 +525,13 @@
 
     private async Task OnMouseMove(MouseEventArgs e)
     {
+        if (_dragPipeFrom != null && !ReadOnly)
+        {
+            _dragCursor = (e.OffsetX, e.OffsetY);
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
         if (_dragMachineId == null || ReadOnly)
             return;
 
@@ -354,11 +552,28 @@
     private void OnMouseUp(MouseEventArgs _)
     {
         _dragMachineId = null;
+        if (_dragPipeFrom != null)
+        {
+            _dragPipeFrom = null;
+            _dragCursor = null;
+        }
+    }
+
+    private void OnMouseLeave(MouseEventArgs _)
+    {
+        _dragMachineId = null;
+        if (_dragPipeFrom != null)
+        {
+            _dragPipeFrom = null;
+            _dragCursor = null;
+        }
     }
 
     private async Task OnCanvasBackgroundClick()
     {
         _pendingOut = null;
+        _dragPipeFrom = null;
+        _dragCursor = null;
         _selectedConnectionIndex = null;
         await SelectedMachineIdChanged.InvokeAsync(null);
     }
@@ -368,17 +583,62 @@
         if (ReadOnly)
             return;
         _pendingOut = null;
+        _dragPipeFrom = null;
         _selectedConnectionIndex = _selectedConnectionIndex == connectionIndex ? null : connectionIndex;
+        StateHasChanged();
     }
 
-    private void ClearPipeSelection() => _selectedConnectionIndex = null;
+    private void ClearPipeSelection()
+    {
+        _selectedConnectionIndex = null;
+        StateHasChanged();
+    }
 
     private async Task RemoveSelectedPipeAsync()
     {
         if (ReadOnly || _selectedConnectionIndex is not int idx)
             return;
+        if (idx < 0 || idx >= Plan.Connections.Count)
+            return;
+
         await ConnectionRemoved.InvokeAsync(idx);
         _selectedConnectionIndex = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveSelectedMachineAsync()
+    {
+        if (ReadOnly || string.IsNullOrEmpty(SelectedMachineId))
+            return;
+        await MachineRemoved.InvokeAsync(SelectedMachineId);
+        await SelectedMachineIdChanged.InvokeAsync(null);
+    }
+
+    private void OnPortMouseDown(MouseEventArgs e, string machineId, string portName, bool isOutput)
+    {
+        if (ReadOnly || !isOutput || e.Button != 0)
+            return;
+        _dragPipeFrom = (machineId, portName);
+        _dragCursor = (e.OffsetX, e.OffsetY);
+        _pendingOut = null;
+        _selectedConnectionIndex = null;
+    }
+
+    private async Task OnPortMouseUp(MouseEventArgs e, string machineId, string portName, bool isOutput)
+    {
+        if (ReadOnly || isOutput)
+            return;
+
+        if (_dragPipeFrom is { } from)
+        {
+            _dragPipeFrom = null;
+            _dragCursor = null;
+            if (from.Id != machineId)
+                await ConnectionAdded.InvokeAsync((from.Id, from.Port, machineId, portName));
+            return;
+        }
+
+        await OnPortClick(machineId, portName, false);
     }
 
     private async Task OnPortClick(string machineId, string portName, bool isOutput)
@@ -391,6 +651,7 @@
         if (isOutput)
         {
             _pendingOut = (machineId, portName);
+            _dragPipeFrom = null;
             return;
         }
 

@@ -47,7 +47,7 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
     internal static int ParseOutElementId(string? settingsJson)
     {
         if (string.IsNullOrEmpty(settingsJson))
-            return 1;
+            return 0;
         try
         {
             using var doc = JsonDocument.Parse(settingsJson);
@@ -58,7 +58,7 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
         {
             /* default */
         }
-        return 1;
+        return 0;
     }
 }
 
