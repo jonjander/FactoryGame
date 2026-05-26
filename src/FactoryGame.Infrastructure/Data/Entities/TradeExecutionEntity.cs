@@ -6,6 +6,8 @@ public class TradeExecutionEntity
 
     public int ElementId { get; set; }
 
+    public long Dna { get; set; }
+
     public decimal Price { get; set; }
 
     public long Quantity { get; set; }

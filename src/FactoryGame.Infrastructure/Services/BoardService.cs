@@ -95,8 +95,9 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             throw new InvalidOperationException("Machine id already exists on plan.");
 
         var machines = plan.Machines.ToList();
-        machines.Add(new MachineDto(machineId, stock.MachineType));
-        var newPlan = new BoardPlanDto(machines, plan.Connections.ToList());
+        var index = machines.Count;
+        machines.Add(PlanMachineLayout.WithDefaultPosition(new MachineDto(machineId, stock.MachineType), index));
+        var newPlan = PlanMachineLayout.NormalizeLayout(new BoardPlanDto(machines, plan.Connections.ToList()));
         ValidateSorterRules(newPlan);
 
         db.PlayerMachineStocks.Remove(stock);
@@ -124,7 +125,8 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         ValidateSorterRules(plan);
         ValidateConnectionEndpoints(plan);
 
-        var json = JsonSerializer.Serialize(plan, Json);
+        var normalized = PlanMachineLayout.NormalizeLayout(plan);
+        var json = JsonSerializer.Serialize(normalized, Json);
         board.RevisionVersion++;
         db.BoardRevisions.Add(new BoardRevisionEntity
         {
@@ -266,7 +268,8 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
 
         var poolQty = db.PoolStacks.AsNoTracking()
             .Where(s => s.PlayerId == board.PlayerId)
-            .ToDictionary(s => s.ElementId, s => (decimal)s.Quantity);
+            .GroupBy(s => s.ElementId)
+            .ToDictionary(g => g.Key, g => g.Sum(s => (decimal)s.Quantity));
 
         var prices = db.MarketPriceCandles.AsNoTracking()
             .GroupBy(c => c.ElementId)
@@ -311,7 +314,8 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
     private static MachinePortFlowDto MapMachinePortFlow(MachinePortFlowDetail p) =>
         new(p.MachineId, p.MachineType, p.Port, p.LinkedMachineId, p.LinkedPort,
             p.InputElementId, p.InputElementSymbol, p.OutputElementId, p.OutputElementSymbol,
-            p.TransformNote, p.Summary, p.IsEstimate, p.IsPoolSource);
+            p.InputPhase, p.OutputPhase, p.InputDna, p.OutputDna,
+            p.TransformNote, p.Summary, p.ProcessStatus, p.DnaChanged, p.IsEstimate, p.IsPoolSource);
 
     public async Task<BoardSnapshotDto?> GetSnapshotAsync(Guid playerId, Guid boardId, long? afterTick, CancellationToken ct)
     {

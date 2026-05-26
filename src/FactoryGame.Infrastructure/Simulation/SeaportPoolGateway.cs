@@ -10,12 +10,14 @@ public sealed class SeaportPoolGateway(AppDbContext db, Guid playerId) : ISeapor
 {
     private const long VolumePerUnit = 1;
 
-    public bool TryWithdraw(int elementId, decimal quantity)
+    public bool TryWithdraw(int elementId, long dna, decimal quantity)
     {
-        if (quantity <= 0)
+        if (quantity <= 0 || dna == 0)
             return false;
+
         var qty = (long)Math.Ceiling(quantity);
-        var stack = db.PoolStacks.FirstOrDefault(s => s.PlayerId == playerId && s.ElementId == elementId);
+        var stack = db.PoolStacks.FirstOrDefault(s =>
+            s.PlayerId == playerId && s.ElementId == elementId && s.Dna == dna);
         if (stack == null || stack.Quantity < qty)
             return false;
 
@@ -31,15 +33,18 @@ public sealed class SeaportPoolGateway(AppDbContext db, Guid playerId) : ISeapor
     {
         if (quantity <= 0)
             return false;
-        if (!ElementCatalog.All.Any(e => e.Id == elementId))
+        if (!ElementCatalogLookup.IsKnownElementId(elementId))
             return false;
+        if (dna == 0)
+            dna = ElementCatalogLookup.CatalogDnaFor(elementId);
 
         var qty = (long)Math.Ceiling(quantity);
         var pool = db.InventoryPools.First(p => p.PlayerId == playerId);
         if (pool.UsedVolume + qty * VolumePerUnit > pool.MaxVolume)
             return false;
 
-        var stack = db.PoolStacks.FirstOrDefault(s => s.PlayerId == playerId && s.ElementId == elementId);
+        var stack = db.PoolStacks.FirstOrDefault(s =>
+            s.PlayerId == playerId && s.ElementId == elementId && s.Dna == dna);
         if (stack == null)
         {
             db.PoolStacks.Add(new PoolStackEntity
@@ -47,6 +52,7 @@ public sealed class SeaportPoolGateway(AppDbContext db, Guid playerId) : ISeapor
                 Id = Guid.NewGuid(),
                 PlayerId = playerId,
                 ElementId = elementId,
+                Dna = dna,
                 Quantity = qty,
                 VolumePerUnit = VolumePerUnit
             });

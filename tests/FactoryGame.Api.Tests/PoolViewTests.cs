@@ -21,6 +21,9 @@ public sealed class PoolViewTests : IClassFixture<ApiWebApplicationFixture>
         Assert.NotNull(overview);
         Assert.True(overview.MaxVolume > 0);
         Assert.Equal(5, overview.Stacks.Count);
+        Assert.Equal(5, overview.Groups.Count);
+        Assert.All(overview.Stacks, row => Assert.NotEqual(0, row.Dna));
+        Assert.All(overview.Groups, group => Assert.NotEmpty(group.Variants));
 
         decimal sum = 0;
         foreach (var row in overview.Stacks)

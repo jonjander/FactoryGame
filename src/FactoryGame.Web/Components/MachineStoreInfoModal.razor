@@ -57,7 +57,7 @@
         "Boiler" => "Höjer temperaturen i materialets DNA — vätskor blir varmare och kan förberedas för separation.",
         "Heater" => "Ökar energi/temperaturband deterministiskt. Undvik högt explosiva ämnen.",
         "Cooler" => "Sänker energi/temperatur. Giftiga ämnen kan blockera kylning.",
-        "Condenser" => "Omvandlar gas till vätska genom att sänka kokpunktsbandet.",
+        "Condenser" => "Omvandlar gas till vätska genom att sänka kokpunktsbandet. Ut-symbol kan vara samma (t.ex. E04) — kolla fas och pool-variant.",
         "Crystallizer" => "Fryser ostabil vätska till fast form via fryspunktsband.",
         "Melter" => "Smälter fast material till vätska via kokpunktsband.",
         "Mixer" => "Blandar två ingångar. Låg intensitet = kompakt DNA; hög intensitet = ostabil/volatil DNA för destillation.",
@@ -71,10 +71,11 @@
     private static IReadOnlyList<string> GetTips(string type) => type switch
     {
         "Boiler" => ["Kräver vätskefas.", "Koppla seaport out → boiler in för startloop.", "Justera värme efter önskad process."],
-        "Destilator" => ["Kräver vätske- eller gasfas — inte fast.", "Använd Mixer på hög intensitet för volatil DNA.", "Ställ kok-cut och reflux efter fraktioner."],
+        "Condenser" => ["Kräver gasform.", "Symbolen kan vara oförändrad — fas (gas→vätska) syns i fabrikinformation.", "Kondenserad vätska blir egen pool-variant vid seaport in."],
+        "Destillator" => ["Kräver vätske- eller gasfas — inte fast.", "Använd Mixer på hög intensitet för volatil DNA.", "Ställ kok-cut och reflux efter fraktioner."],
         "Mixer" => ["Två ingångar (in1, in2).", "Balanserad ratio ger förutsägbar blandning.", "Hög intensitet → bättre destillation downstream."],
         "Sorter" => ["Välj unika grundämnen på port 1–3.", "Kontrollera att downstream-maskiner tål ämnets DNA.", "Rest-port fångar allt omatchat."],
-        "SeaportConnector" => ["Välj ut-element från det du faktiskt har i poolen.", "Standard är inget utflöde tills du väljer grundämne.", "Koppla in till pool för att lagra produktion."],
+        "SeaportConnector" => ["Välj pool-variant (fas) — t.ex. E04 gasform vs E04 flytande.", "Standard är inget utflöde tills du väljer variant.", "Koppla in till pool för att lagra produktion per DNA."],
         "LiquidSeparator" => ["Endast vätskor.", "Cut styr var gränsen går mellan ut1 och ut2."],
         _ => ["Placera från maskinlager med unikt id.", "Spara planen efter kopplingar och inställningar.", "Starta fabriken när seaport och loop är kopplade."]
     };

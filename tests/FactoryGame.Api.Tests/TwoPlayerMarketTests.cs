@@ -1,12 +1,14 @@
 using System.Net.Http.Json;
 using FactoryGame.Contracts.Auth;
 using FactoryGame.Contracts.Market;
+using FactoryGame.Domain.Content;
 
 namespace FactoryGame.Api.Tests;
 
 public sealed class TwoPlayerMarketTests : IClassFixture<ApiWebApplicationFixture>
 {
     private const int ElementId = 1;
+    private static readonly long ElementDna = ElementCatalogLookup.CatalogDnaFor(ElementId);
 
     private readonly ApiWebApplicationFixture _fixture;
 
@@ -41,14 +43,14 @@ public sealed class TwoPlayerMarketTests : IClassFixture<ApiWebApplicationFixtur
         // Undercut synthetic asks so this player sell is the best ask.
         var sellPrice = Math.Max(0.01m, depth.BestAsk!.Value - 0.01m);
         var sell = await seller.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(ElementId, "sell", sellPrice, 3, "two-player-sell"));
+            new PlaceOrderRequest(ElementId, ElementDna, "sell", sellPrice, 3, "two-player-sell"));
         sell.EnsureSuccessStatusCode();
         var sellResult = await sell.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(sellResult);
         Assert.Equal("Open", sellResult.Status, ignoreCase: true);
 
         var buy = await buyer.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(ElementId, "buy", sellPrice, 2, "two-player-buy"));
+            new PlaceOrderRequest(ElementId, ElementDna, "buy", sellPrice, 2, "two-player-buy"));
         buy.EnsureSuccessStatusCode();
         var buyResult = await buy.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(buyResult);
@@ -57,7 +59,7 @@ public sealed class TwoPlayerMarketTests : IClassFixture<ApiWebApplicationFixtur
 
         var sellerOrders = await seller.GetFromJsonAsync<List<MyOpenOrderDto>>("/v1/market/orders/mine");
         Assert.NotNull(sellerOrders);
-        var remaining = sellerOrders.FirstOrDefault(o => o.ElementId == ElementId);
+        var remaining = sellerOrders.FirstOrDefault(o => o.ElementId == ElementId && o.Dna == ElementDna);
         Assert.NotNull(remaining);
         Assert.Equal(1, remaining.QuantityRemaining);
     }

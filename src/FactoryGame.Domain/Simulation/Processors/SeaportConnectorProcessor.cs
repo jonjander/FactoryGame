@@ -13,16 +13,16 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
             return;
 
         var elementId = ParseOutElementId(settingsJson);
-        if (elementId > 0)
+        var materialDna = ResolveOutMaterialDna(settingsJson, elementId);
+        if (elementId > 0 && materialDna != 0)
         {
-            if (ctx.Pool.TryWithdraw(elementId, ctx.UnitsPerTick))
+            if (ctx.Pool.TryWithdraw(elementId, materialDna, ctx.UnitsPerTick))
             {
                 ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
-                var element = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId);
                 var pkt = new MaterialPacket
                 {
                     ElementId = elementId,
-                    Dna = element.Id == elementId ? element.Dna : 0,
+                    Dna = materialDna,
                     Quantity = ctx.UnitsPerTick
                 };
                 machine.GetOrCreateOutput("out").TryEnqueue(pkt);
@@ -60,6 +60,33 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
         }
         return 0;
     }
+
+    internal static long ParseOutMaterialDna(string? settingsJson)
+    {
+        if (string.IsNullOrEmpty(settingsJson))
+            return 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(settingsJson);
+            if (doc.RootElement.TryGetProperty("outMaterialDna", out var el) && el.TryGetInt64(out var dna))
+                return dna;
+        }
+        catch
+        {
+            /* default */
+        }
+        return 0;
+    }
+
+    internal static long ResolveOutMaterialDna(string? settingsJson, int elementId)
+    {
+        if (elementId <= 0)
+            return 0;
+        var explicitDna = ParseOutMaterialDna(settingsJson);
+        if (explicitDna != 0)
+            return explicitDna;
+        return ElementCatalogLookup.CatalogDnaFor(elementId);
+    }
 }
 
 internal sealed class SeaportInProcessor : IMachineProcessor
@@ -71,16 +98,16 @@ internal sealed class SeaportInProcessor : IMachineProcessor
         if (machine.IsBlocked || ctx.Pool == null)
             return;
         var elementId = SeaportConnectorProcessor.ParseOutElementId(settingsJson);
-        if (elementId <= 0)
+        var materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(settingsJson, elementId);
+        if (elementId <= 0 || materialDna == 0)
             return;
-        if (!ctx.Pool.TryWithdraw(elementId, ctx.UnitsPerTick))
+        if (!ctx.Pool.TryWithdraw(elementId, materialDna, ctx.UnitsPerTick))
             return;
         ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
-        var element = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId);
         var pkt = new MaterialPacket
         {
             ElementId = elementId,
-            Dna = element.Id == elementId ? element.Dna : 0,
+            Dna = materialDna,
             Quantity = ctx.UnitsPerTick
         };
         machine.GetOrCreateOutput("out").TryEnqueue(pkt);

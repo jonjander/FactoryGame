@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FactoryGame.Domain.Content;
+using FactoryGame.Domain.Dna;
 using FactoryGame.Domain.Simulation.Processors;
 
 namespace FactoryGame.Domain.Simulation;
@@ -69,77 +70,98 @@ internal static class MaterialFlowTrace
         return TraceUpstream(connTo.FromId, connTo.FromPort, machineById, connections, runtime, visited);
     }
 
-    internal static (int? OutputId, string? OutputSymbol, string? TransformNote) PredictOutput(
+    internal static PredictedOutput PredictOutput(
         MachineInfo machine,
         string outPort,
         int? inputElementId,
-        string? inputElementSymbol)
+        string? inputElementSymbol,
+        long? inputDna = null)
     {
         if (inputElementId == null)
-            return (null, null, null);
+            return new PredictedOutput(null, null, null, null, null, null, false);
+
+        var sourceDna = inputDna ?? ElementCatalogLookup.CatalogDnaFor(inputElementId.Value);
+        var inputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(sourceDna));
 
         var inputEl = ElementCatalog.All.FirstOrDefault(e => e.Id == inputElementId.Value);
         if (inputEl.Id != inputElementId.Value)
-            return (inputElementId, inputElementSymbol, null);
+            return new PredictedOutput(inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase, null, false);
+
+        long outputDna;
+        string? note;
 
         if (machine.Type.Equals("Boiler", StringComparison.OrdinalIgnoreCase))
         {
-            var dna = DnaTransforms.Heat(inputEl.Dna);
-            return ResolveOutput(dna, inputElementSymbol, "värms i Boiler");
+            outputDna = DnaTransforms.Heat(sourceDna);
+            note = "värms i Boiler";
         }
-
-        if (machine.Type.Equals("Heater", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Heater", StringComparison.OrdinalIgnoreCase))
         {
-            var dna = DnaTransforms.Heat(inputEl.Dna, 4);
-            return ResolveOutput(dna, inputElementSymbol, "värms i Heater");
+            outputDna = DnaTransforms.Heat(sourceDna, 4);
+            note = "värms i Heater";
         }
-
-        if (machine.Type.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
         {
-            var dna = DnaTransforms.Cool(inputEl.Dna);
-            return ResolveOutput(dna, inputElementSymbol, "kyls i Cooler");
+            outputDna = DnaTransforms.Cool(sourceDna);
+            note = "kyls i Cooler";
         }
-
-        if (machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
         {
-            var dna = DnaTransforms.Condense(inputEl.Dna);
-            return ResolveOutput(dna, inputElementSymbol, "kondenseras till vätska");
+            outputDna = DnaTransforms.Condense(sourceDna);
+            note = "kondenseras till vätska";
         }
-
-        if (machine.Type.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
         {
             var cut = 2048;
-            var (dna, solid) = DnaTransforms.Crystallize(inputEl.Dna, cut);
-            var note = solid ? "kristalliseras till fast form" : "kyls (fryspunkt över cut, fortfarande vätska)";
-            return ResolveOutput(dna, inputElementSymbol, note);
+            var (dna, solid) = DnaTransforms.Crystallize(sourceDna, cut);
+            outputDna = dna;
+            note = solid ? "kristalliseras till fast form" : "kyls (fryspunkt över cut, fortfarande vätska)";
         }
-
-        if (machine.Type.Equals("Melter", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Melter", StringComparison.OrdinalIgnoreCase))
         {
-            var (dna, melted) = DnaTransforms.Melt(inputEl.Dna, 1800);
-            var note = melted ? "smälts till vätska" : "värms (kokpunkt under cut, fortfarande fast)";
-            return ResolveOutput(dna, inputElementSymbol, note);
+            var (dna, melted) = DnaTransforms.Melt(sourceDna, 1800);
+            outputDna = dna;
+            note = melted ? "smälts till vätska" : "värms (kokpunkt under cut, fortfarande fast)";
         }
-
-        if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
         {
-            return (inputElementId, inputElementSymbol, "blandas i Mixer (kräver två ingångar; intensitet styr kvalitet)");
+            return new PredictedOutput(
+                inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase,
+                "blandas i Mixer (kräver två ingångar; intensitet styr kvalitet)", false);
         }
-
-        if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
+        else if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
         {
             var ids = ParseSorterOutElements(machine.Settings?.GetRawText(), outPort);
             if (ids.Count == 1)
-                return (ids[0], SymbolFor(ids[0]), "sorteras ut");
+                return new PredictedOutput(ids[0], SymbolFor(ids[0]), ElementCatalogLookup.CatalogDnaFor(ids[0]), inputPhase, inputPhase, "sorteras ut", false);
             if (ids.Count > 1)
-                return (null, null, $"sorter: {string.Join(", ", ids.Select(SymbolFor))}");
+                return new PredictedOutput(null, null, null, inputPhase, null, $"sorter: {string.Join(", ", ids.Select(SymbolFor))}", false);
+            return new PredictedOutput(inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase, null, false);
+        }
+        else
+        {
+            return new PredictedOutput(inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase, null, false);
         }
 
-        return (inputElementId, inputElementSymbol, null);
+        var resolved = ResolveOutput(outputDna, inputElementId, inputElementSymbol, note);
+        var outputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(outputDna));
+        var dnaChanged = sourceDna != outputDna;
+        if (inputPhase != outputPhase && note != null)
+            note = $"{MaterialPhaseLabels.PhaseLabelSv(inputPhase)} → {MaterialPhaseLabels.PhaseLabelSv(outputPhase)}";
+
+        return new PredictedOutput(
+            resolved.OutputId ?? inputElementId,
+            resolved.OutputSymbol ?? inputElementSymbol,
+            outputDna,
+            inputPhase,
+            outputPhase,
+            resolved.TransformNote ?? note,
+            dnaChanged);
     }
 
     private static (int? OutputId, string? OutputSymbol, string? TransformNote) ResolveOutput(
         long dna,
+        int? inputElementId,
         string? inputSymbol,
         string transformNote)
     {
@@ -147,10 +169,13 @@ internal static class MaterialFlowTrace
         if (match.Id > 0)
             return (match.Id, match.Symbol, transformNote);
 
+        if (inputElementId is > 0 && !string.IsNullOrEmpty(inputSymbol))
+            return (inputElementId, inputSymbol, transformNote);
+
         return (null, inputSymbol != null ? $"{inputSymbol}*" : null, $"{transformNote} (nytt DNA)");
     }
 
-    private static string? ResolveUpstreamInputPort(string machineType, string outPort) =>
+    internal static string? ResolveUpstreamInputPort(string machineType, string outPort) =>
         machineType switch
         {
             _ when machineType.Equals("Boiler", StringComparison.OrdinalIgnoreCase) => "in",
@@ -203,3 +228,12 @@ internal static class MaterialFlowTrace
         return el.Id == elementId ? el.Symbol : null;
     }
 }
+
+internal sealed record PredictedOutput(
+    int? OutputId,
+    string? OutputSymbol,
+    long? OutputDna,
+    string? InputPhase,
+    string? OutputPhase,
+    string? TransformNote,
+    bool DnaChanged);

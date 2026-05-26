@@ -104,7 +104,7 @@
                 @if (IsSelectedBoardRunning())
                 {
                     <span class="fg-status-pill fg-status-running">Kör</span>
-                    <span class="muted">tick @_boardInfo.SimulationTick — redigering låst tills du stoppar</span>
+                    <span class="muted">Redigering låst tills du stoppar</span>
                 }
                 else
                 {
@@ -129,12 +129,13 @@
                                SeaportPortFlows="@(_boardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
                                MachinePortFlows="@(_boardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
                                BoardIssues="@(_boardInfo?.Issues ?? Array.Empty<BoardIssueDto>())"
-                               SelectedMachineId="_settingsMachineId"
+                               SelectedMachineId="@_settingsMachineId"
                                SelectedMachineIdChanged="OnCanvasMachineSelectedAsync"
                                PlanChanged="OnCanvasPlanChangedAsync"
                                ConnectionAdded="OnCanvasConnectionAddedAsync"
                                ConnectionRemoved="OnCanvasConnectionRemovedAsync"
-                               MachineRemoved="OnCanvasMachineRemovedAsync" />
+                               MachineRemoved="OnCanvasMachineRemovedAsync"
+                               LayoutCommitted="OnCanvasLayoutCommittedAsync" />
             </div>
         }
 
@@ -159,6 +160,7 @@
                                   Disabled="@(_busy || IsSelectedBoardRunning())"
                                   Elements="_elements"
                                   OwnedPoolElementIds="_ownedPoolElementIds"
+                                  PoolVariants="_ownedPoolVariants"
                                   PlanMachines="@GetPlanMachines()"
                                   PlanConnections="@GetPlanConnections()"
                                   MachineMeta="_machineMeta"
@@ -324,6 +326,7 @@
     private List<ElementContentItem> _elements = [];
     private string _settingsMachineId = "";
     private HashSet<int> _ownedPoolElementIds = [];
+    private List<PoolVariantStackDto> _ownedPoolVariants = [];
     private bool _storeInfoVisible;
     private MachineStoreItemDto? _storeInfoItem;
 
@@ -415,8 +418,14 @@
     private async Task OnCanvasPlanChangedAsync(BoardPlanDto plan)
     {
         _planJson = SerializePlan(plan);
-        _saveHint = "Layout ändrad i canvas (ej sparat).";
         await SyncBoardInfoFromEditorAsync();
+    }
+
+    private async Task OnCanvasLayoutCommittedAsync()
+    {
+        if (IsSelectedBoardRunning())
+            return;
+        await SavePlanQuietAsync();
     }
 
     private async Task OnCanvasConnectionAddedAsync((string FromId, string FromPort, string ToId, string ToPort) pipe) =>
@@ -469,14 +478,28 @@
         try
         {
             var view = await Http.GetFromJsonAsync<PoolOverviewDto>("/v1/me/pool/view", JsonRelaxed);
-            _ownedPoolElementIds = view?.Stacks
-                .Where(s => s.Quantity > 0)
-                .Select(s => s.ElementId)
-                .ToHashSet() ?? [];
+            _ownedPoolVariants = view?.Groups
+                .SelectMany(g => g.Variants)
+                .Where(v => v.Quantity > 0)
+                .ToList() ?? [];
+            if (_ownedPoolVariants.Count == 0 && view?.Stacks is { Count: > 0 } stacks)
+            {
+                _ownedPoolVariants = stacks
+                    .Where(s => s.Quantity > 0)
+                    .Select(s => new PoolVariantStackDto(
+                        s.ElementId, s.Symbol, s.Dna, s.Phase, s.PhaseLabel,
+                        s.Quantity, s.VolumePerUnit, s.LastPrice, s.LineValue,
+                        s.PriceRank, s.CatalogSize, s.ChangePercent24h))
+                    .ToList();
+            }
+            _ownedPoolElementIds = _ownedPoolVariants
+                .Select(v => v.ElementId)
+                .ToHashSet();
         }
         catch
         {
             _ownedPoolElementIds = [];
+            _ownedPoolVariants = [];
         }
     }
 
@@ -778,7 +801,7 @@
 
             var plan = await res.Content.ReadFromJsonAsync<BoardPlanDto>(JsonRelaxed);
             if (plan != null)
-                _planJson = SerializePlan(plan);
+                _planJson = SerializePlan(PlanMachineLayout.NormalizeLayout(plan));
         }
         catch (Exception ex)
         {
@@ -1084,28 +1107,7 @@
                 return;
             }
 
-            var body = new SavePlanRequest(plan);
-            if (await Storage.IsOnlineAsync())
-            {
-                var res = await Http.PutAsJsonAsync($"/v1/boards/{id}/plan", body);
-                if (res.StatusCode == System.Net.HttpStatusCode.Conflict)
-                {
-                    _saveHint = "Konflikt med servern (409). Öppna CLI och använd merge-flöde: jämför revision manuellt eller välj att skriva över via ny sparning.";
-                }
-                else if (!res.IsSuccessStatusCode)
-                    _error = await res.Content.ReadAsStringAsync();
-                else
-                {
-                    _saveHint = "Sparat på servern.";
-                    await LoadBoardInfoAsync();
-                }
-            }
-            else
-            {
-                await Queue.EnqueueAsync("PUT", $"/v1/boards/{id}/plan", body);
-                _saveHint = "Offline: sparning köad. Synka under CLI när du är online.";
-            }
-
+            await SavePlanCoreAsync(id, plan, showConflictHint: true);
             await LoadBoardsAsync();
         }
         catch (Exception ex)
@@ -1115,6 +1117,54 @@
         finally
         {
             _busy = false;
+        }
+    }
+
+    private async Task SavePlanQuietAsync()
+    {
+        if (_selected is not { } id || !TryDeserializePlan(out var plan))
+            return;
+
+        _error = null;
+        try
+        {
+            await SavePlanCoreAsync(id, plan, showConflictHint: false);
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+    }
+
+    private async Task SavePlanCoreAsync(Guid boardId, BoardPlanDto plan, bool showConflictHint)
+    {
+        var normalized = PlanMachineLayout.NormalizeLayout(plan);
+        _planJson = SerializePlan(normalized);
+        var body = new SavePlanRequest(normalized);
+
+        if (await Storage.IsOnlineAsync())
+        {
+            var res = await Http.PutAsJsonAsync($"/v1/boards/{boardId}/plan", body);
+            if (res.StatusCode == System.Net.HttpStatusCode.Conflict && showConflictHint)
+            {
+                _saveHint = "Konflikt med servern (409). Öppna CLI och använd merge-flöde: jämför revision manuellt eller välj att skriva över via ny sparning.";
+            }
+            else if (!res.IsSuccessStatusCode)
+            {
+                _error = await res.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                _saveHint = showConflictHint ? "Sparat på servern." : "Layout sparad.";
+                await LoadBoardInfoAsync();
+            }
+        }
+        else
+        {
+            await Queue.EnqueueAsync("PUT", $"/v1/boards/{boardId}/plan", body);
+            _saveHint = showConflictHint
+                ? "Offline: sparning köad. Synka under CLI när du är online."
+                : "Layout köad (offline).";
         }
     }
 

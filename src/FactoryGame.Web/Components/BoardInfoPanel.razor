@@ -3,7 +3,7 @@
 <div class="panel fg-sub fg-board-info">
     <h4>Fabrikinformation — @Info.Name</h4>
     <p class="muted">
-        Läge: <strong>@Info.Mode</strong> · tick @Info.SimulationTick
+        Läge: <strong>@Info.Mode</strong>
         · @Info.PlanMachineCount maskin(er), @Info.PlanConnectionCount rör
         @if (Info.PlanHasCycle) { <span> · slinga</span> }
         @if (Info.Throughput.IsEstimate) { <span> · uppskattning</span> }
@@ -102,7 +102,7 @@
     @if (seaportOutPorts.Count > 0)
     {
         <h5>Seaport — utgång «out» (pool → fabrik)</h5>
-        <p class="muted">Grundämnet väljs ovanför canvas under «Seaport — grundämne från pool» (planfält <code>outElementId</code>).</p>
+        <p class="muted">Välj pool-variant ovanför canvas (planfält <code>outElementId</code> + <code>outMaterialDna</code>).</p>
         <ul class="fg-seaport-port-list">
             @foreach (var port in seaportOutPorts)
             {
@@ -153,6 +153,10 @@
                             @if (!string.IsNullOrEmpty(flow.InputElementSymbol))
                             {
                                 <span class="fg-element-badge">@flow.InputElementSymbol</span>
+                                @if (!string.IsNullOrEmpty(flow.InputPhase))
+                                {
+                                    <span class="fg-phase-badge fg-phase-@flow.InputPhase.ToLowerInvariant()">@FormatPhaseLabel(flow.InputPhase)</span>
+                                }
                             }
                             @if (!string.IsNullOrEmpty(flow.InputElementSymbol) && !string.IsNullOrEmpty(flow.OutputElementSymbol))
                             {
@@ -161,11 +165,22 @@
                             @if (!string.IsNullOrEmpty(flow.OutputElementSymbol))
                             {
                                 <span class="fg-element-badge fg-element-badge-out">@flow.OutputElementSymbol</span>
+                                @if (!string.IsNullOrEmpty(flow.OutputPhase))
+                                {
+                                    <span class="fg-phase-badge fg-phase-@flow.OutputPhase.ToLowerInvariant()">@FormatPhaseLabel(flow.OutputPhase)</span>
+                                }
                             }
                             @if (!string.IsNullOrEmpty(flow.TransformNote))
                             {
                                 <span class="muted">(@flow.TransformNote)</span>
                             }
+                        </p>
+                    }
+                    @if (!string.IsNullOrEmpty(flow.ProcessStatus))
+                    {
+                        <p class="fg-process-status fg-process-@flow.ProcessStatus.ToLowerInvariant()">
+                            @FormatProcessStatus(flow.ProcessStatus)
+                            @if (flow.DnaChanged) { <span class="muted"> · DNA ändrad</span> }
                         </p>
                     }
                     <p class="fg-seaport-port-summary">@flow.Summary</p>
@@ -193,4 +208,21 @@
 @code {
     [Parameter, EditorRequired]
     public BoardInfoDto Info { get; set; } = null!;
+
+    private static string FormatPhaseLabel(string phaseKey) => phaseKey.ToLowerInvariant() switch
+    {
+        "gas" => "gasform",
+        "liquid" => "flytande",
+        "solid" => "fast",
+        _ => phaseKey
+    };
+
+    private static string FormatProcessStatus(string status) => status switch
+    {
+        "Transformed" => "Transformerad",
+        "Blocked" => "Blockerad",
+        "WaitingMaterial" => "Väntar på material",
+        "Idle" => "Vilar",
+        _ => status
+    };
 }

@@ -1,5 +1,6 @@
 @using FactoryGame.Contracts.Boards
 @using FactoryGame.Contracts.Machines
+@using FactoryGame.Contracts.Pool
 @using FactoryGame.Web.Models
 
 @if (_machine != null && _fields.Count > 0)
@@ -14,7 +15,26 @@
         {
             <div class="fg-machine-setting-row">
                 <label for="@SettingInputId(field)">@field.Label</label>
-                @if (MachineSettingsUi.UsesElementPicker(field))
+                @if (UsesPoolVariantPicker(field))
+                {
+                    <div class="fg-setting-control">
+                        <select id="@SettingInputId(field)"
+                                class="fg-select @(Disabled ? "fg-select-locked" : "")"
+                                disabled="@Disabled"
+                                value="@GetPoolVariantPickerValue()"
+                                @onchange="OnPoolVariantFieldChanged">
+                            @foreach (var opt in GetPoolVariantOptions())
+                            {
+                                <option value="@VariantKey(opt.ElementId, opt.Dna)">@opt.Label</option>
+                            }
+                        </select>
+                        @foreach (var warn in GetPoolVariantWarnings())
+                        {
+                            <p class="fg-setting-warning">@warn</p>
+                        }
+                    </div>
+                }
+                else if (MachineSettingsUi.UsesElementPicker(field))
                 {
                     <div class="fg-setting-control">
                         <select id="@SettingInputId(field)"
@@ -65,6 +85,9 @@
     public IReadOnlySet<int> OwnedPoolElementIds { get; set; } = EmptyIntSet;
 
     [Parameter]
+    public IReadOnlyList<PoolVariantStackDto> PoolVariants { get; set; } = Array.Empty<PoolVariantStackDto>();
+
+    [Parameter]
     public IReadOnlyList<MachineDto> PlanMachines { get; set; } = Array.Empty<MachineDto>();
 
     [Parameter]
@@ -92,6 +115,31 @@
 
     private string SettingInputId(MachineSettingField field) =>
         $"ms-{_machine?.Id}-{field.JsonKey}";
+
+    private bool UsesPoolVariantPicker(MachineSettingField field) =>
+        field.JsonKey == "outElementId" && PoolVariants.Count > 0;
+
+    private static string VariantKey(int elementId, long dna) => $"{elementId}:{dna}";
+
+    private string GetPoolVariantPickerValue()
+    {
+        if (_machine == null)
+            return VariantKey(0, 0);
+        var elementId = PlanMachineSettings.GetOutElementId(_machine);
+        var dna = PlanMachineSettings.GetOutMaterialDna(_machine);
+        if (elementId <= 0)
+            return VariantKey(0, 0);
+        if (dna == 0)
+        {
+            var match = PoolVariants.FirstOrDefault(v => v.ElementId == elementId);
+            if (match != null)
+                return VariantKey(match.ElementId, match.Dna);
+        }
+        return VariantKey(elementId, dna);
+    }
+
+    private IReadOnlyList<PoolVariantOption> GetPoolVariantOptions() =>
+        MachineSettingsUi.PoolVariantOptions(PoolVariants, allowEmpty: true);
 
     private int GetNumericValue(MachineSettingField field)
     {
@@ -140,6 +188,23 @@
             MachineMeta);
     }
 
+    private IReadOnlyList<string> GetPoolVariantWarnings()
+    {
+        if (_machine == null || Disabled)
+            return Array.Empty<string>();
+        var elementId = PlanMachineSettings.GetOutElementId(_machine);
+        if (elementId <= 0)
+            return Array.Empty<string>();
+        return MachineSettingsWarnings.GetElementWarnings(
+            _machine,
+            "outElementId",
+            elementId,
+            Elements,
+            PlanMachines,
+            PlanConnections,
+            MachineMeta);
+    }
+
     private async Task OnNumericFieldChanged(MachineSettingField field, ChangeEventArgs e)
     {
         if (_machine == null || !int.TryParse(e.Value?.ToString(), out var v))
@@ -161,5 +226,29 @@
         };
         _machine = updated;
         await MachineChanged.InvokeAsync(updated);
+    }
+
+    private async Task OnPoolVariantFieldChanged(ChangeEventArgs e)
+    {
+        if (_machine == null)
+            return;
+        var raw = e.Value?.ToString() ?? "";
+        if (!TryParseVariantKey(raw, out var elementId, out var dna))
+            return;
+        var updated = elementId <= 0
+            ? PlanMachineSettings.WithOutElementId(_machine, 0)
+            : PlanMachineSettings.WithOutMaterialVariant(_machine, elementId, dna);
+        _machine = updated;
+        await MachineChanged.InvokeAsync(updated);
+    }
+
+    private static bool TryParseVariantKey(string raw, out int elementId, out long dna)
+    {
+        elementId = 0;
+        dna = 0;
+        var parts = raw.Split(':', 2);
+        if (parts.Length != 2)
+            return false;
+        return int.TryParse(parts[0], out elementId) && long.TryParse(parts[1], out dna);
     }
 }

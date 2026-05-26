@@ -9,6 +9,8 @@ public class PoolStackEntity
 
     public int ElementId { get; set; }
 
+    public long Dna { get; set; }
+
     public long Quantity { get; set; }
 
     public long VolumePerUnit { get; set; }

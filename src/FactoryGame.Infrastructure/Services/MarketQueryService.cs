@@ -1,5 +1,6 @@
 using FactoryGame.Contracts.Pool;
 using FactoryGame.Domain.Content;
+using FactoryGame.Domain.Dna;
 using FactoryGame.Domain.Market;
 using FactoryGame.Domain.Names;
 using FactoryGame.Infrastructure.Data;
@@ -17,24 +18,27 @@ public sealed class MarketQueryService(AppDbContext db)
     {
         var stacks = await db.PoolStacks.AsNoTracking()
             .Where(s => s.PlayerId == playerId && s.Quantity > 0)
+            .OrderBy(s => s.ElementId)
+            .ThenBy(s => s.Dna)
             .ToListAsync(ct);
 
         if (stacks.Count == 0)
             return Array.Empty<MarketElementSummary>();
 
-        var elementIds = stacks.Select(s => s.ElementId).ToList();
         var summaries = new List<MarketElementSummary>();
-
-        foreach (var elementId in elementIds)
+        foreach (var stack in stacks)
         {
-            var element = ElementCatalog.All.First(e => e.Id == elementId);
-            var depth = await GetDepthAsync(elementId, ct);
-            var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(elementId, element.Dna, ct);
-
-            var stack = stacks.First(s => s.ElementId == elementId);
+            var element = ElementCatalog.All.First(e => e.Id == stack.ElementId);
+            var depth = await GetDepthAsync(stack.ElementId, stack.Dna, ct);
+            var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(stack.ElementId, stack.Dna, ct);
+            var phase = MaterialPhaseLabels.DecodePhase(stack.Dna);
             summaries.Add(new MarketElementSummary(
-                elementId,
-                ElementNameGenerator.Generate(element.Dna, locale),
+                stack.ElementId,
+                stack.Dna,
+                element.Symbol,
+                MaterialPhaseLabels.PhaseKey(phase),
+                MaterialPhaseLabels.PhaseLabelSv(phase),
+                ElementNameGenerator.Generate(stack.Dna, locale),
                 stack.Quantity,
                 lastPrice,
                 changePct,
@@ -42,7 +46,7 @@ public sealed class MarketQueryService(AppDbContext db)
                 depth.BestAsk));
         }
 
-        return summaries.OrderBy(s => s.ElementId).ToList();
+        return summaries;
     }
 
     public async Task<PoolOverviewDto?> GetPoolOverviewAsync(
@@ -58,39 +62,75 @@ public sealed class MarketQueryService(AppDbContext db)
         var stacks = await db.PoolStacks.AsNoTracking()
             .Where(s => s.PlayerId == playerId && s.Quantity > 0)
             .OrderBy(s => s.ElementId)
+            .ThenBy(s => s.Dna)
             .ToListAsync(ct);
 
         var ranks = await GetGlobalPriceRanksAsync(ct);
         var catalogSize = ElementCatalog.All.Count;
         var stackViews = new List<PoolStackViewDto>();
+        var groups = new List<PoolElementGroupDto>();
         decimal totalValue = 0;
 
-        foreach (var stack in stacks)
+        foreach (var group in stacks.GroupBy(s => s.ElementId).OrderBy(g => g.Key))
         {
-            var element = ElementCatalog.All.First(e => e.Id == stack.ElementId);
-            var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(stack.ElementId, element.Dna, ct);
-            var lineValue = Math.Round(lastPrice * stack.Quantity, 2);
-            totalValue += lineValue;
-            ranks.TryGetValue(stack.ElementId, out var priceRank);
+            var element = ElementCatalog.All.First(e => e.Id == group.Key);
+            var variants = new List<PoolVariantStackDto>();
+            long groupQty = 0;
 
-            stackViews.Add(new PoolStackViewDto(
-                stack.ElementId,
+            foreach (var stack in group.OrderBy(s => MaterialPhaseLabels.PhaseSortOrder(MaterialPhaseLabels.DecodePhase(s.Dna)))
+                .ThenBy(s => s.Dna))
+            {
+                var phase = MaterialPhaseLabels.DecodePhase(stack.Dna);
+                var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(stack.ElementId, stack.Dna, ct);
+                var lineValue = Math.Round(lastPrice * stack.Quantity, 2);
+                totalValue += lineValue;
+                groupQty += stack.Quantity;
+                ranks.TryGetValue(stack.ElementId, out var priceRank);
+
+                var variant = new PoolVariantStackDto(
+                    stack.ElementId,
+                    element.Symbol,
+                    stack.Dna,
+                    MaterialPhaseLabels.PhaseKey(phase),
+                    MaterialPhaseLabels.PhaseLabelSv(phase),
+                    stack.Quantity,
+                    stack.VolumePerUnit,
+                    lastPrice,
+                    lineValue,
+                    priceRank > 0 ? priceRank : catalogSize,
+                    catalogSize,
+                    changePct);
+                variants.Add(variant);
+                stackViews.Add(new PoolStackViewDto(
+                    stack.ElementId,
+                    element.Symbol,
+                    stack.Dna,
+                    MaterialPhaseLabels.PhaseKey(phase),
+                    MaterialPhaseLabels.PhaseLabelSv(phase),
+                    ElementNameGenerator.Generate(stack.Dna, locale),
+                    stack.Quantity,
+                    stack.VolumePerUnit,
+                    lastPrice,
+                    lineValue,
+                    priceRank > 0 ? priceRank : catalogSize,
+                    catalogSize,
+                    changePct));
+            }
+
+            groups.Add(new PoolElementGroupDto(
+                element.Id,
                 element.Symbol,
                 ElementNameGenerator.Generate(element.Dna, locale),
-                stack.Quantity,
-                stack.VolumePerUnit,
-                lastPrice,
-                lineValue,
-                priceRank > 0 ? priceRank : catalogSize,
-                catalogSize,
-                changePct));
+                groupQty,
+                variants));
         }
 
         return new PoolOverviewDto(
             pool.MaxVolume,
             pool.UsedVolume,
             totalValue,
-            stackViews);
+            stackViews,
+            groups);
     }
 
     public async Task<IReadOnlyDictionary<int, int>> GetGlobalPriceRanksAsync(CancellationToken ct = default)
@@ -116,7 +156,7 @@ public sealed class MarketQueryService(AppDbContext db)
         long dna,
         CancellationToken ct = default)
     {
-        var depth = await GetDepthAsync(elementId, ct);
+        var depth = await GetDepthAsync(elementId, dna, ct);
         var candles = (await db.MarketPriceCandles.AsNoTracking()
             .Where(c => c.ElementId == elementId)
             .ToListAsync(ct))
@@ -138,10 +178,13 @@ public sealed class MarketQueryService(AppDbContext db)
         return (lastPrice, changePct);
     }
 
-    public async Task<MarketDepthSnapshot> GetDepthAsync(int elementId, CancellationToken ct = default)
+    public async Task<MarketDepthSnapshot> GetDepthAsync(int elementId, long dna, CancellationToken ct = default)
     {
+        if (dna == 0)
+            dna = ElementCatalogLookup.CatalogDnaFor(elementId);
+
         var orders = await db.MarketOrders.AsNoTracking()
-            .Where(o => o.ElementId == elementId && o.Status == OrderStatus.Open && o.QuantityRemaining > 0)
+            .Where(o => o.ElementId == elementId && o.Dna == dna && o.Status == OrderStatus.Open && o.QuantityRemaining > 0)
             .ToListAsync(ct);
 
         var levels = orders
@@ -159,7 +202,7 @@ public sealed class MarketQueryService(AppDbContext db)
         decimal? bid = bidPrices.Count > 0 ? bidPrices.Max() : null;
         decimal? ask = askPrices.Count > 0 ? askPrices.Min() : null;
 
-        return new MarketDepthSnapshot(elementId, bid, ask, levels);
+        return new MarketDepthSnapshot(elementId, dna, bid, ask, levels);
     }
 
     public async Task<IReadOnlyList<MarketCandlePoint>> GetHistoryAsync(int elementId, int points, CancellationToken ct = default)
@@ -214,11 +257,15 @@ public sealed class MarketQueryService(AppDbContext db)
     }
 
     private static IReadOnlyList<MarketTradeRow> MapTrades(IEnumerable<TradeExecutionEntity> rows) =>
-        rows.Select(t => new MarketTradeRow(t.Id, t.ElementId, t.Price, t.Quantity, t.CreatedAt)).ToList();
+        rows.Select(t => new MarketTradeRow(t.Id, t.ElementId, t.Dna, t.Price, t.Quantity, t.CreatedAt)).ToList();
 }
 
 public sealed record MarketElementSummary(
     int ElementId,
+    long Dna,
+    string Symbol,
+    string Phase,
+    string PhaseLabel,
     string DisplayName,
     long PoolQuantity,
     decimal LastPrice,
@@ -228,7 +275,7 @@ public sealed record MarketElementSummary(
 
 public sealed record MarketDepthLevel(decimal Price, long BidQuantity, long AskQuantity);
 
-public sealed record MarketDepthSnapshot(int ElementId, decimal? BestBid, decimal? BestAsk, IReadOnlyList<MarketDepthLevel> Levels);
+public sealed record MarketDepthSnapshot(int ElementId, long Dna, decimal? BestBid, decimal? BestAsk, IReadOnlyList<MarketDepthLevel> Levels);
 
 public sealed record MarketCandlePoint(
     DateTimeOffset BucketStart,
@@ -238,4 +285,4 @@ public sealed record MarketCandlePoint(
     decimal Close,
     long Volume);
 
-public sealed record MarketTradeRow(Guid Id, int ElementId, decimal Price, long Quantity, DateTimeOffset CreatedAt);
+public sealed record MarketTradeRow(Guid Id, int ElementId, long Dna, decimal Price, long Quantity, DateTimeOffset CreatedAt);

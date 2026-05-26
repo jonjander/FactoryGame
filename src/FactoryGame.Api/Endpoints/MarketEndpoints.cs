@@ -42,6 +42,10 @@ public static class MarketEndpoints
                 var rows = await query.GetSummaryForPlayerAsync(playerId, locale, ct);
                 var dtos = rows.Select(r => new MarketElementSummaryDto(
                     r.ElementId,
+                    r.Dna,
+                    r.Symbol,
+                    r.Phase,
+                    r.PhaseLabel,
                     r.DisplayName,
                     r.PoolQuantity,
                     r.LastPrice,
@@ -55,6 +59,7 @@ public static class MarketEndpoints
 
         group.MapGet("/elements/{elementId:int}/depth", async Task<IResult> (
                 int elementId,
+                long? dna,
                 AppDbContext db,
                 IServiceScopeFactory scopeFactory,
                 MarketQueryService query,
@@ -74,9 +79,11 @@ public static class MarketEndpoints
                     // Returnera befintligt djup även om syntetisk likviditet inte kunde uppdateras.
                 }
 
-                var depth = await query.GetDepthAsync(elementId, ct);
+                var resolvedDna = dna ?? FactoryGame.Domain.Content.ElementCatalogLookup.CatalogDnaFor(elementId);
+                var depth = await query.GetDepthAsync(elementId, resolvedDna, ct);
                 var dto = new MarketDepthDto(
                     depth.ElementId,
+                    depth.Dna,
                     depth.BestBid,
                     depth.BestAsk,
                     depth.Levels.Select(l => new MarketDepthLevelDto(l.Price, l.BidQuantity, l.AskQuantity)).ToList());
@@ -148,6 +155,7 @@ public static class MarketEndpoints
                     .Select(o => new MyOpenOrderDto(
                         o.Id,
                         o.ElementId,
+                        o.Dna,
                         o.Side.ToString(),
                         o.LimitPrice ?? 0m,
                         o.QuantityRemaining,
@@ -198,7 +206,7 @@ public static class MarketEndpoints
                     includeSynthetic ?? false,
                     highlightPlayerId: null,
                     ct);
-                var dtos = rows.Select(t => new MarketTradeDto(t.Id, t.ElementId, t.Price, t.Quantity, t.CreatedAt)).ToList();
+                var dtos = rows.Select(t => new MarketTradeDto(t.Id, t.ElementId, t.Dna, t.Price, t.Quantity, t.CreatedAt)).ToList();
                 return Results.Ok(dtos);
             })
             .WithName("RecentTrades")

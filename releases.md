@@ -2,6 +2,14 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.19
+
+- **Pool — DNA-varianter:** en stack per unikt DNA `(ElementId, Dna)`; grupperad pool-vy med fas (gasform/flytande/fast).
+- **Seaport OUT:** välj pool-variant (`outMaterialDna`) — t.ex. E04 gasform vs E04 flytande.
+- **Börs:** separata orderböcker per variant; `PlaceOrderRequest.Dna`, depth med `?dna=`.
+- **Fabrik UX:** fas-badges och processstatus vid transform (Condenser E04 gas→vätska); tooltips i canvas och BoardInfoPanel.
+- **Tester:** `PoolDnaStackTests`, utökade `MachinePortFlowAnalyzerTests`; API-tester uppdaterade för DNA-ordrar.
+
 ## 0.2.18
 
 - **Fabrik — UX:** seaport OUT default «(ingenting)»; pool-filter på OUT; tydligare start/stop och låsta inställningar vid körning.

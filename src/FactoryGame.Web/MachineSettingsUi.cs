@@ -145,4 +145,20 @@ public static class MachineSettingsUi
         }
         return list;
     }
+
+    public static IReadOnlyList<PoolVariantOption> PoolVariantOptions(
+        IReadOnlyList<FactoryGame.Contracts.Pool.PoolVariantStackDto> variants,
+        bool allowEmpty)
+    {
+        var list = new List<PoolVariantOption>();
+        if (allowEmpty)
+            list.Add(new(0, 0, "(ingenting)"));
+        foreach (var v in variants.OrderBy(x => x.ElementId).ThenBy(x => x.Phase, StringComparer.Ordinal))
+        {
+            list.Add(new(v.ElementId, v.Dna, $"{v.Symbol} — {v.PhaseLabel} ({v.Quantity})"));
+        }
+        return list;
+    }
 }
+
+public sealed record PoolVariantOption(int ElementId, long Dna, string Label);

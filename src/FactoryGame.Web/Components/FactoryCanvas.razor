@@ -1,10 +1,18 @@
 @using FactoryGame.Contracts.Boards
 @using FactoryGame.Contracts.Machines
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <div class="fg-factory-canvas-wrap">
+    <ConfirmDialog Visible="_confirmRemoveVisible"
+                   Message="@_confirmRemoveMessage"
+                   ConfirmLabel="Ta bort"
+                   OnConfirm="ConfirmRemoveMachineAsync"
+                   OnCancel="CancelRemoveMachine" />
     @if (!ReadOnly)
     {
-        <p class="muted">Dra maskiner. Koppla rör: dra från utgång → ingång, eller klicka utgång → ingång. Klicka rör → «Ta bort rör».</p>
+        <p class="muted">Dra maskiner. Koppla rör: dra från utgång → ingång, eller klicka utgång → ingång. Klicka rör → «Ta bort rör». Papperskorg på maskin → ta bort.</p>
         @if (_selectedConnectionIndex is int sel && sel >= 0 && sel < Plan.Connections.Count)
         {
             var sc = Plan.Connections[sel];
@@ -14,25 +22,16 @@
                 <button type="button" class="secondary" @onclick="ClearPipeSelection">Avmarkera</button>
             </div>
         }
-        @if (!string.IsNullOrEmpty(SelectedMachineId))
-        {
-            <div class="fg-pipe-toolbar">
-                <span class="muted">Vald maskin: <strong>@SelectedMachineId</strong></span>
-                <button type="button" class="secondary fg-btn-danger" @onclick="RemoveSelectedMachineAsync">Ta bort maskin</button>
-            </div>
-        }
     }
     else
     {
         <p class="muted fg-factory-running-banner">Planen körs — endast visning. Stoppa fabriken för att redigera.</p>
     }
-    <svg xmlns="http://www.w3.org/2000/svg"
+    <svg @ref="_svgRef"
+         xmlns="http://www.w3.org/2000/svg"
          class="fg-factory-canvas"
          viewBox="@_viewBox"
-         @onclick="OnCanvasBackgroundClick"
-         @onmousemove="OnMouseMove"
-         @onmouseup="OnMouseUp"
-         @onmouseleave="OnMouseLeave">
+         @onclick="OnCanvasBackgroundClick">
         <defs>
             <marker id="fg-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
                 <path d="M0,0 L6,3 L0,6 Z" fill="var(--fg-pipe, #5b9bd5)" />
@@ -77,25 +76,49 @@
             var machineTitle = GetMachineTooltip(m);
 
             <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "")"
-               transform="translate(@Fmt(mx), @Fmt(my))"
-               @onmousedown="e => OnMachineMouseDown(e, m.Id)"
-               @onmousedown:stopPropagation="true">
+               transform="translate(@Fmt(mx), @Fmt(my))">
                 <title>@machineTitle</title>
-                <rect class="fg-machine-body" width="@w" height="@h" rx="6" />
+                <rect class="fg-machine-body" width="@w" height="@h" rx="6" pointer-events="none" />
                 @if (running)
                 {
                     <rect class="fg-machine-flow-pulse" width="@w" height="@h" rx="6" pointer-events="none" />
                 }
-                <foreignObject x="4" y="6" width="@(w - 8)" height="20">
+                @if (!ReadOnly)
+                {
+                    <rect class="fg-machine-drag-handle"
+                          width="@w"
+                          height="@h"
+                          rx="6"
+                          @onmousedown="e => OnMachineMouseDown(e, m.Id)"
+                          @onmousedown:stopPropagation="true" />
+                }
+                <foreignObject x="4" y="6" width="@(w - 8)" height="20" pointer-events="none">
                     <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-label-html">
                         @m.Id
                         @if (running) { <span class="fg-machine-status-dot" title="Kör">●</span> }
                         else if (blocked) { <span class="fg-machine-status-dot fg-machine-status-blocked" title="Blockerad">●</span> }
                     </div>
                 </foreignObject>
-                <foreignObject x="4" y="26" width="@(w - 8)" height="16">
+                <foreignObject x="4" y="26" width="@(w - 8)" height="16" pointer-events="none">
                     <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-type-html">@m.Type</div>
                 </foreignObject>
+                @if (!ReadOnly)
+                {
+                    <foreignObject x="@Fmt(w - 22)" y="2" width="20" height="20">
+                        <button xmlns="http://www.w3.org/1999/xhtml"
+                                type="button"
+                                class="fg-machine-delete-btn"
+                                title="Ta bort maskin"
+                                aria-label="Ta bort @m.Id"
+                                @onclick="() => RequestRemoveMachine(m)"
+                                @onclick:stopPropagation="true"
+                                @onmousedown:stopPropagation="true">
+                            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                                <path fill="currentColor" d="M5.5 1.5A1 1 0 0 1 6.5 1h3a1 1 0 0 1 1 1V2h2.5a.5.5 0 0 1 0 1H13v9.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 12.5V3h-.5a.5.5 0 0 1 0-1H5v-.5zm1 0v.5h3V1.5h-3zM4 3v9.5c0 .276.224.5.5.5h7a.5.5 0 0 0 .5-.5V3H4zm2 2h1v6H6V5zm3 0h1v6H9V5z"/>
+                            </svg>
+                        </button>
+                    </foreignObject>
+                }
 
                 @if (meta != null)
                 {
@@ -116,7 +139,7 @@
                         </circle>
                         @if (!string.IsNullOrEmpty(inHint))
                         {
-                            <foreignObject x="-58" y="@Fmt(py - 9)" width="54" height="18">
+                            <foreignObject x="-58" y="@Fmt(py - 9)" width="54" height="18" pointer-events="none">
                                 <div xmlns="http://www.w3.org/1999/xhtml" class="fg-port-flow-hint">@inHint</div>
                             </foreignObject>
                         }
@@ -137,7 +160,7 @@
                         </circle>
                         @if (!string.IsNullOrEmpty(outHint))
                         {
-                            <foreignObject x="@Fmt(w + 4)" y="@Fmt(py - 9)" width="54" height="18">
+                            <foreignObject x="@Fmt(w + 4)" y="@Fmt(py - 9)" width="54" height="18" pointer-events="none">
                                 <div xmlns="http://www.w3.org/1999/xhtml" class="fg-port-flow-hint">@outHint</div>
                             </foreignObject>
                         }
@@ -199,6 +222,9 @@
     [Parameter]
     public EventCallback<string?> SelectedMachineIdChanged { get; set; }
 
+    [Parameter]
+    public EventCallback LayoutCommitted { get; set; }
+
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, MachinePortFlowDto> _machinePortByKey = new(StringComparer.Ordinal);
@@ -212,6 +238,108 @@
     private (string Id, string Port)? _dragPipeFrom;
     private (double X, double Y)? _dragCursor;
     private int? _selectedConnectionIndex;
+    private bool _confirmRemoveVisible;
+    private string? _pendingRemoveMachineId;
+    private string _confirmRemoveMessage = "";
+    private ElementReference _svgRef;
+    private IJSObjectReference? _canvasModule;
+    private DotNetObjectReference<FactoryCanvas>? _dotNetRef;
+    private bool _pointerDragActive;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            _canvasModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/factory-canvas.js");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopPointerDragAsync();
+        _dotNetRef?.Dispose();
+        if (_canvasModule != null)
+            await _canvasModule.DisposeAsync();
+    }
+
+    private sealed class SvgPoint
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    private async Task<(double X, double Y)?> ClientToSvgAsync(double clientX, double clientY)
+    {
+        if (_canvasModule == null)
+            return null;
+        var pt = await _canvasModule.InvokeAsync<SvgPoint>("toSvgPoint", _svgRef, clientX, clientY);
+        return (pt.X, pt.Y);
+    }
+
+    private async Task StartPointerDragAsync()
+    {
+        if (_canvasModule == null || _pointerDragActive)
+            return;
+        _dotNetRef ??= DotNetObjectReference.Create(this);
+        await _canvasModule.InvokeVoidAsync("startPointerDrag", _dotNetRef);
+        _pointerDragActive = true;
+    }
+
+    private async Task StopPointerDragAsync()
+    {
+        if (_canvasModule == null || !_pointerDragActive)
+            return;
+        await _canvasModule.InvokeVoidAsync("stopPointerDrag");
+        _pointerDragActive = false;
+    }
+
+    [JSInvokable]
+    public async Task OnDocumentPointerMove(double clientX, double clientY)
+    {
+        if (ReadOnly)
+            return;
+
+        var pt = await ClientToSvgAsync(clientX, clientY);
+        if (pt == null)
+            return;
+
+        if (_dragPipeFrom != null)
+        {
+            _dragCursor = pt;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (_dragMachineId == null)
+            return;
+
+        var machines = Plan.Machines.ToList();
+        var idx = machines.FindIndex(m => m.Id == _dragMachineId);
+        if (idx < 0)
+            return;
+
+        var nx = Math.Max(0, pt.Value.X - _dragOffsetX);
+        var ny = Math.Max(0, pt.Value.Y - _dragOffsetY);
+        machines[idx] = PlanLayout.WithPosition(machines[idx], nx, ny);
+        var updated = new BoardPlanDto(machines, Plan.Connections);
+        Plan = updated;
+        UpdateViewBox();
+        await PlanChanged.InvokeAsync(updated);
+    }
+
+    [JSInvokable]
+    public async Task OnDocumentPointerUp()
+    {
+        var commitLayout = _dragMachineId != null;
+        _dragMachineId = null;
+        if (_dragPipeFrom != null)
+        {
+            _dragPipeFrom = null;
+            _dragCursor = null;
+        }
+        await StopPointerDragAsync();
+        if (commitLayout)
+            await LayoutCommitted.InvokeAsync();
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override void OnParametersSet()
     {
@@ -417,7 +545,12 @@
         foreach (var flow in MachinePortFlows.Where(f => f.MachineId == m.Id))
         {
             if (!string.IsNullOrEmpty(flow.Summary))
-                lines.Add($"{flow.Port}: {flow.Summary}");
+            {
+                var phaseHint = BuildPhaseHint(flow);
+                lines.Add(string.IsNullOrEmpty(phaseHint)
+                    ? $"{flow.Port}: {flow.Summary}"
+                    : $"{flow.Port}: {phaseHint} — {flow.Summary}");
+            }
         }
 
         return string.Join("\n", lines.Distinct());
@@ -454,6 +587,31 @@
         }
         return string.Join(" · ", parts);
     }
+
+    private static string BuildPhaseHint(MachinePortFlowDto flow)
+    {
+        if (flow.DnaChanged
+            && !string.IsNullOrEmpty(flow.InputElementSymbol)
+            && !string.IsNullOrEmpty(flow.OutputElementSymbol)
+            && !string.IsNullOrEmpty(flow.InputPhase)
+            && !string.IsNullOrEmpty(flow.OutputPhase))
+        {
+            return $"{flow.InputElementSymbol} {PhaseShort(flow.InputPhase)}→{PhaseShort(flow.OutputPhase)}";
+        }
+
+        if (!string.IsNullOrEmpty(flow.OutputPhase) && !string.IsNullOrEmpty(flow.OutputElementSymbol))
+            return $"{flow.OutputElementSymbol} {PhaseShort(flow.OutputPhase)}";
+
+        return "";
+    }
+
+    private static string PhaseShort(string phaseKey) => phaseKey.ToLowerInvariant() switch
+    {
+        "gas" => "gas",
+        "liquid" => "vätska",
+        "solid" => "fast",
+        _ => phaseKey
+    };
 
     private string FormatRate() =>
         UnitsPerSecond >= 0.01
@@ -511,62 +669,27 @@
 
     private async Task OnMachineMouseDown(MouseEventArgs e, string machineId)
     {
-        if (ReadOnly)
+        if (ReadOnly || e.Button != 0)
             return;
+
+        _dragPipeFrom = null;
+        _dragCursor = null;
+        _pendingOut = null;
         await SelectedMachineIdChanged.InvokeAsync(machineId);
         _dragMachineId = machineId;
+
+        var pt = await ClientToSvgAsync(e.ClientX, e.ClientY);
+        if (pt == null)
+            return;
+
         var idx = Plan.Machines.ToList().FindIndex(m => m.Id == machineId);
         if (idx < 0)
             return;
+
         var (mx, my) = PlanLayout.GetPosition(Plan.Machines[idx], idx);
-        _dragOffsetX = e.OffsetX - mx;
-        _dragOffsetY = e.OffsetY - my;
-    }
-
-    private async Task OnMouseMove(MouseEventArgs e)
-    {
-        if (_dragPipeFrom != null && !ReadOnly)
-        {
-            _dragCursor = (e.OffsetX, e.OffsetY);
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
-        if (_dragMachineId == null || ReadOnly)
-            return;
-
-        var machines = Plan.Machines.ToList();
-        var idx = machines.FindIndex(m => m.Id == _dragMachineId);
-        if (idx < 0)
-            return;
-
-        var nx = Math.Max(0, e.OffsetX - _dragOffsetX);
-        var ny = Math.Max(0, e.OffsetY - _dragOffsetY);
-        machines[idx] = PlanLayout.WithPosition(machines[idx], nx, ny);
-        var updated = new BoardPlanDto(machines, Plan.Connections);
-        Plan = updated;
-        UpdateViewBox();
-        await PlanChanged.InvokeAsync(updated);
-    }
-
-    private void OnMouseUp(MouseEventArgs _)
-    {
-        _dragMachineId = null;
-        if (_dragPipeFrom != null)
-        {
-            _dragPipeFrom = null;
-            _dragCursor = null;
-        }
-    }
-
-    private void OnMouseLeave(MouseEventArgs _)
-    {
-        _dragMachineId = null;
-        if (_dragPipeFrom != null)
-        {
-            _dragPipeFrom = null;
-            _dragCursor = null;
-        }
+        _dragOffsetX = pt.Value.X - mx;
+        _dragOffsetY = pt.Value.Y - my;
+        await StartPointerDragAsync();
     }
 
     private async Task OnCanvasBackgroundClick()
@@ -606,22 +729,51 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task RemoveSelectedMachineAsync()
+    private void RequestRemoveMachine(MachineDto m)
     {
-        if (ReadOnly || string.IsNullOrEmpty(SelectedMachineId))
+        if (ReadOnly)
             return;
-        await MachineRemoved.InvokeAsync(SelectedMachineId);
-        await SelectedMachineIdChanged.InvokeAsync(null);
+        _pendingRemoveMachineId = m.Id;
+        _confirmRemoveMessage =
+            $"Ta bort maskin {m.Id} ({m.Type})? Alla kopplade rör tas också bort.";
+        _confirmRemoveVisible = true;
     }
 
-    private void OnPortMouseDown(MouseEventArgs e, string machineId, string portName, bool isOutput)
+    private async Task ConfirmRemoveMachineAsync()
+    {
+        if (ReadOnly || string.IsNullOrEmpty(_pendingRemoveMachineId))
+        {
+            CancelRemoveMachine();
+            return;
+        }
+
+        var machineId = _pendingRemoveMachineId;
+        CancelRemoveMachine();
+        await MachineRemoved.InvokeAsync(machineId);
+        if (!string.IsNullOrEmpty(SelectedMachineId)
+            && SelectedMachineId.Equals(machineId, StringComparison.Ordinal))
+            await SelectedMachineIdChanged.InvokeAsync(null);
+    }
+
+    private void CancelRemoveMachine()
+    {
+        _confirmRemoveVisible = false;
+        _pendingRemoveMachineId = null;
+        _confirmRemoveMessage = "";
+    }
+
+    private async Task OnPortMouseDown(MouseEventArgs e, string machineId, string portName, bool isOutput)
     {
         if (ReadOnly || !isOutput || e.Button != 0)
             return;
+
+        _dragMachineId = null;
         _dragPipeFrom = (machineId, portName);
-        _dragCursor = (e.OffsetX, e.OffsetY);
+        var pt = await ClientToSvgAsync(e.ClientX, e.ClientY);
+        _dragCursor = pt;
         _pendingOut = null;
         _selectedConnectionIndex = null;
+        await StartPointerDragAsync();
     }
 
     private async Task OnPortMouseUp(MouseEventArgs e, string machineId, string portName, bool isOutput)
@@ -633,6 +785,7 @@
         {
             _dragPipeFrom = null;
             _dragCursor = null;
+            await StopPointerDragAsync();
             if (from.Id != machineId)
                 await ConnectionAdded.InvokeAsync((from.Id, from.Port, machineId, portName));
             return;

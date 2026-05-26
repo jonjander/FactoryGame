@@ -41,7 +41,8 @@ public sealed class PlayerPoolBootstrapService(AppDbContext db, IOptions<GameEco
                 continue;
 
             var exists = await db.PoolStacks.AsNoTracking().AnyAsync(
-                s => s.PlayerId == playerId && s.ElementId == elementId, ct);
+                s => s.PlayerId == playerId && s.ElementId == elementId
+                     && s.Dna == ElementCatalogLookup.CatalogDnaFor(elementId), ct);
             if (exists)
                 continue;
 
@@ -53,6 +54,7 @@ public sealed class PlayerPoolBootstrapService(AppDbContext db, IOptions<GameEco
                 Id = Guid.NewGuid(),
                 PlayerId = playerId,
                 ElementId = elementId,
+                Dna = ElementCatalogLookup.CatalogDnaFor(elementId),
                 Quantity = qty,
                 VolumePerUnit = 1
             });

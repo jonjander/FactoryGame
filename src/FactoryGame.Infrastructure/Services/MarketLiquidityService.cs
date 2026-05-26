@@ -120,6 +120,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             Id = Guid.NewGuid(),
             PlayerId = _opts.SystemPlayerId,
             ElementId = elementId,
+            Dna = ElementCatalogLookup.CatalogDnaFor(elementId),
             Side = side,
             LimitPrice = price,
             QuantityRemaining = qty,
@@ -274,7 +275,8 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
     private async Task EnsureSystemPoolStackAsync(int elementId, CancellationToken ct)
     {
         var stack = await db.PoolStacks.FirstOrDefaultAsync(
-            s => s.PlayerId == _opts.SystemPlayerId && s.ElementId == elementId, ct);
+            s => s.PlayerId == _opts.SystemPlayerId && s.ElementId == elementId
+                 && s.Dna == ElementCatalogLookup.CatalogDnaFor(elementId), ct);
         if (stack != null && stack.Quantity >= _opts.SystemPoolQuantityPerElement / 2)
             return;
 
@@ -286,6 +288,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
                 Id = Guid.NewGuid(),
                 PlayerId = _opts.SystemPlayerId,
                 ElementId = elementId,
+                Dna = ElementCatalogLookup.CatalogDnaFor(elementId),
                 Quantity = target,
                 VolumePerUnit = 1
             });

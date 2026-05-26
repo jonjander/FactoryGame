@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FactoryGame.Contracts.Auth;
 using FactoryGame.Contracts.Market;
+using FactoryGame.Domain.Content;
 
 namespace FactoryGame.Api.Tests;
 
@@ -28,12 +29,13 @@ public sealed class MarketSoloTradeTests : IClassFixture<ApiWebApplicationFixtur
         Assert.NotEmpty(items);
 
         var elementId = items[0].ElementId;
-        var depth = await client.GetFromJsonAsync<MarketDepthDto>($"/v1/market/elements/{elementId}/depth");
+        var dna = items[0].Dna;
+        var depth = await client.GetFromJsonAsync<MarketDepthDto>($"/v1/market/elements/{elementId}/depth?dna={dna}");
         Assert.NotNull(depth);
         Assert.NotNull(depth.BestAsk);
 
         var buy = await client.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(elementId, "buy", depth.BestAsk!.Value, 1, "solo-buy-1"));
+            new PlaceOrderRequest(elementId, dna, "buy", depth.BestAsk!.Value, 1, "solo-buy-1"));
         Assert.Equal(HttpStatusCode.OK, buy.StatusCode);
         var orderBody = await buy.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(orderBody);

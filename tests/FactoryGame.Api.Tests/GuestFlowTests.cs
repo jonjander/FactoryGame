@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FactoryGame.Contracts.Auth;
 using FactoryGame.Contracts.Market;
+using FactoryGame.Domain.Content;
 
 namespace FactoryGame.Api.Tests;
 
@@ -33,11 +34,11 @@ public sealed class GuestFlowTests : IClassFixture<ApiWebApplicationFixture>
         (await buyer.GetAsync("/v1/me/wallet")).EnsureSuccessStatusCode();
 
         var sell = await seller.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(1, "sell", 10m, 5, "int-sell-1"));
+            new PlaceOrderRequest(1, ElementCatalogLookup.CatalogDnaFor(1), "sell", 10m, 5, "int-sell-1"));
         sell.EnsureSuccessStatusCode();
 
         var buy = await buyer.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(1, "buy", 10m, 5, "int-buy-1"));
+            new PlaceOrderRequest(1, ElementCatalogLookup.CatalogDnaFor(1), "buy", 10m, 5, "int-buy-1"));
         buy.EnsureSuccessStatusCode();
     }
 }

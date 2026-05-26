@@ -495,13 +495,13 @@ public sealed class BoardTickEngineTests
 
     private sealed class FakePool : ISeaportPoolSink
     {
-        public bool TryWithdraw(int elementId, decimal quantity) => true;
+        public bool TryWithdraw(int elementId, long dna, decimal quantity) => true;
         public bool TryDeposit(int elementId, long dna, decimal quantity) => true;
     }
 
     private sealed class TrackingPool : ISeaportPoolSink
     {
-        public bool TryWithdraw(int elementId, decimal quantity) => true;
+        public bool TryWithdraw(int elementId, long dna, decimal quantity) => true;
         public bool TryDeposit(int elementId, long dna, decimal quantity) => true;
     }
 }

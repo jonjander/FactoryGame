@@ -17,6 +17,18 @@ internal static class PlanMachineSettings
     public static int GetOutElementId(MachineDto machine) =>
         GetInt(machine, "outElementId", 0);
 
+    public static long GetOutMaterialDna(MachineDto machine) =>
+        GetLong(machine, "outMaterialDna", 0);
+
+    public static long GetLong(MachineDto machine, string key, long defaultValue)
+    {
+        if (machine.Settings is not { ValueKind: JsonValueKind.Object } settings)
+            return defaultValue;
+        if (settings.TryGetProperty(key, out var el) && el.TryGetInt64(out var v))
+            return v;
+        return defaultValue;
+    }
+
     public static int GetSorterPortElement(MachineDto machine, string portKey)
     {
         if (machine.Settings is not { ValueKind: JsonValueKind.Object } settings)
@@ -40,6 +52,19 @@ internal static class PlanMachineSettings
 
     public static MachineDto WithOutElementId(MachineDto machine, int elementId) =>
         WithInt(machine, "outElementId", elementId);
+
+    public static MachineDto WithLong(MachineDto machine, string key, long value)
+    {
+        var dict = CloneSettings(machine);
+        dict[key] = JsonSerializer.SerializeToElement(value);
+        return machine with { Settings = JsonSerializer.SerializeToElement(dict) };
+    }
+
+    public static MachineDto WithOutMaterialVariant(MachineDto machine, int elementId, long dna)
+    {
+        var updated = WithOutElementId(machine, elementId);
+        return WithLong(updated, "outMaterialDna", dna);
+    }
 
     public static MachineDto WithSorterPort(MachineDto machine, string portKey, int elementId)
     {

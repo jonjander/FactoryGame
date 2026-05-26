@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using FactoryGame.Contracts.Auth;
 using FactoryGame.Contracts.Market;
+using FactoryGame.Domain.Content;
 
 namespace FactoryGame.Api.Tests;
 
@@ -29,7 +30,7 @@ public sealed class MarketMyOrdersTests : IClassFixture<ApiWebApplicationFixture
 
         var sellPrice = depth.BestAsk!.Value + 5m;
         var place = await client.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(1, "sell", sellPrice, 1, "my-orders-sell-1"));
+            new PlaceOrderRequest(1, ElementCatalogLookup.CatalogDnaFor(1), "sell", sellPrice, 1, "my-orders-sell-1"));
         place.EnsureSuccessStatusCode();
 
         var mine = await client.GetAsync("/v1/market/orders/mine");

@@ -38,7 +38,7 @@ else if (_overview is null && !_busy)
 {
     <div class="panel"><p class="muted">Kunde inte läsa poolen.</p></div>
 }
-else if (_overview is { Stacks.Count: 0 } && !_busy)
+else if (GetGroups().Count == 0 && !_busy)
 {
     <div class="panel">
         <p class="muted">Inget material i poolen. Öppna sidan igen efter inloggning om du nyss skapade konto — startpaket läggs i poolen automatiskt.</p>
@@ -48,36 +48,47 @@ else if (_overview is not null)
 {
     <div class="panel pool-holdings">
         <h3>Innehav</h3>
-        <table class="pool-holdings-table">
-            <thead>
-                <tr>
-                    <th>Ämne</th>
-                    <th>Antal</th>
-                    <th>Marknadsvärde/enhet</th>
-                    <th>Radvärde</th>
-                    <th>Börs-rank</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in _overview.Stacks.OrderBy(s => s.DisplayName))
-                {
-                    <tr>
-                        <td class="pool-name-cell">
-                            <span class="fg-element-badge">@row.Symbol</span>
-                            <span>@row.DisplayName</span>
-                        </td>
-                        <td><strong>@row.Quantity</strong></td>
-                        <td class="pool-num">@row.LastPrice.ToString("0.##")</td>
-                        <td class="pool-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
-                        <td class="pool-rank">#@row.PriceRank <span class="muted">av @row.CatalogSize</span></td>
-                        <td class="pool-actions">
-                            <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row.ElementId)">Info</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="pool-groups">
+            @foreach (var group in GetGroups().OrderBy(g => g.DisplayName))
+            {
+                <section class="pool-element-group">
+                    <header class="pool-group-header">
+                        <span class="fg-element-badge">@group.Symbol</span>
+                        <strong>@group.DisplayName</strong>
+                        <span class="muted pool-group-total">@group.TotalQuantity st totalt</span>
+                    </header>
+                    <table class="pool-holdings-table pool-variant-table">
+                        <thead>
+                            <tr>
+                                <th>Variant</th>
+                                <th>Antal</th>
+                                <th>Marknadsvärde/enhet</th>
+                                <th>Radvärde</th>
+                                <th>Börs-rank</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in group.Variants.OrderBy(v => v.Phase, StringComparer.Ordinal))
+                            {
+                                <tr>
+                                    <td class="pool-name-cell">
+                                        <span class="fg-phase-badge fg-phase-@row.Phase.ToLowerInvariant()">@row.PhaseLabel</span>
+                                    </td>
+                                    <td><strong>@row.Quantity</strong></td>
+                                    <td class="pool-num">@row.LastPrice.ToString("0.##")</td>
+                                    <td class="pool-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
+                                    <td class="pool-rank">#@row.PriceRank <span class="muted">av @row.CatalogSize</span></td>
+                                    <td class="pool-actions">
+                                        <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row.ElementId)">Info</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </section>
+            }
+        </div>
     </div>
 }
 
@@ -90,6 +101,31 @@ else if (_overview is not null)
     private ElementContentItem? _analysisElement;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private IReadOnlyList<PoolElementGroupDto> GetGroups()
+    {
+        if (_overview == null)
+            return Array.Empty<PoolElementGroupDto>();
+        if (_overview.Groups.Count > 0)
+            return _overview.Groups.Where(g => g.TotalQuantity > 0).ToList();
+        return _overview.Stacks
+            .Where(s => s.Quantity > 0)
+            .GroupBy(s => s.ElementId)
+            .Select(g =>
+            {
+                var first = g.First();
+                return new PoolElementGroupDto(
+                    g.Key,
+                    first.Symbol,
+                    first.DisplayName,
+                    g.Sum(x => x.Quantity),
+                    g.Select(s => new PoolVariantStackDto(
+                        s.ElementId, s.Symbol, s.Dna, s.Phase, s.PhaseLabel,
+                        s.Quantity, s.VolumePerUnit, s.LastPrice, s.LineValue,
+                        s.PriceRank, s.CatalogSize, s.ChangePercent24h)).ToList());
+            })
+            .ToList();
+    }
 
     private async Task LoadAsync()
     {

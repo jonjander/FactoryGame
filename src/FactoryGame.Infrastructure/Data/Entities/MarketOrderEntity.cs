@@ -10,6 +10,8 @@ public class MarketOrderEntity
 
     public int ElementId { get; set; }
 
+    public long Dna { get; set; }
+
     public OrderSide Side { get; set; }
 
     /// <summary>Limit price per unit; null treated as market (match best opposite).</summary>

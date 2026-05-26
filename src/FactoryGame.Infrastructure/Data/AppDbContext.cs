@@ -46,7 +46,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<PoolStackEntity>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.PlayerId, x.ElementId }).IsUnique();
+            e.HasIndex(x => new { x.PlayerId, x.ElementId, x.Dna }).IsUnique();
         });
 
         modelBuilder.Entity<PlayerSessionEntity>(e =>
@@ -65,8 +65,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<MarketOrderEntity>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.ElementId, x.Status, x.Side });
-            e.HasIndex(x => new { x.ElementId, x.IsSynthetic, x.Status });
+            e.HasIndex(x => new { x.ElementId, x.Dna, x.Status, x.Side });
+            e.HasIndex(x => new { x.ElementId, x.Dna, x.IsSynthetic, x.Status });
             e.HasIndex(x => new { x.PlayerId, x.IdempotencyKey }).IsUnique();
             e.Property(x => x.LimitPrice).HasPrecision(18, 4);
         });
@@ -74,8 +74,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<TradeExecutionEntity>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.ElementId);
-            e.HasIndex(x => new { x.ElementId, x.CreatedAt });
+            e.HasIndex(x => new { x.ElementId, x.Dna });
+            e.HasIndex(x => new { x.ElementId, x.Dna, x.CreatedAt });
             e.Property(x => x.Price).HasPrecision(18, 4);
         });
 

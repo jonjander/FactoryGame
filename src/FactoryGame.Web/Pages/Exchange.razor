@@ -45,12 +45,13 @@ else if (_summary.Count > 0)
         <h3>Ditt innehav (pool)</h3>
         <p class="muted exchange-holdings-intro">Det här äger du just nu och kan sälja. Efter köp ökar antalet här.</p>
         <table class="exchange-holdings-table">
-            <thead><tr><th>Ämne</th><th>I pool</th><th>Senaste</th><th>Bästa köp / sälj</th></tr></thead>
+            <thead><tr><th>Ämne</th><th>Variant</th><th>I pool</th><th>Senaste</th><th>Bästa köp / sälj</th></tr></thead>
             <tbody>
-                @foreach (var item in _summary.OrderBy(s => s.DisplayName))
+                @foreach (var item in _summary.OrderBy(s => s.DisplayName).ThenBy(s => s.Phase, StringComparer.Ordinal))
                 {
-                    <tr class="@(item.ElementId == _selectedId ? "selected" : "")" @onclick="() => SelectElementAsync(item.ElementId)">
-                        <td>@item.DisplayName</td>
+                    <tr class="@(IsSelected(item) ? "selected" : "")" @onclick="() => SelectVariantAsync(item)">
+                        <td><span class="fg-element-badge">@item.Symbol</span> @item.DisplayName</td>
+                        <td><span class="fg-phase-badge fg-phase-@item.Phase.ToLowerInvariant()">@item.PhaseLabel</span></td>
                         <td><strong>@item.PoolQuantity</strong> st</td>
                         <td>@item.LastPrice.ToString("0.##")</td>
                         <td class="muted">@FormatBidAsk(item)</td>
@@ -64,11 +65,11 @@ else if (_summary.Count > 0)
         <aside class="panel exchange-list">
             <h3>Handla</h3>
             <ul class="exchange-elements">
-                @foreach (var item in _summary)
+                @foreach (var item in _summary.OrderBy(s => s.DisplayName).ThenBy(s => s.Phase, StringComparer.Ordinal))
                 {
-                    <li class="@(item.ElementId == _selectedId ? "selected" : "")">
-                        <button type="button" class="exchange-element-btn" @onclick="() => SelectElementAsync(item.ElementId)">
-                            <span class="exchange-element-name">@item.DisplayName</span>
+                    <li class="@(IsSelected(item) ? "selected" : "")">
+                        <button type="button" class="exchange-element-btn" @onclick="() => SelectVariantAsync(item)">
+                            <span class="exchange-element-name">@item.Symbol — @item.PhaseLabel</span>
                             <span class="exchange-element-meta">
                                 <span>@item.LastPrice.ToString("0.##")</span>
                                 @if (item.ChangePercent24h is { } ch)
@@ -78,7 +79,7 @@ else if (_summary.Count > 0)
                                     </span>
                                 }
                             </span>
-                            <span class="muted exchange-element-qty">@item.PoolQuantity st i pool</span>
+                            <span class="muted exchange-element-qty">@item.PoolQuantity st i pool · @item.DisplayName</span>
                         </button>
                     </li>
                 }
@@ -90,8 +91,8 @@ else if (_summary.Count > 0)
             {
                 <div class="exchange-ticker">
                     <div>
-                        <h3>@_selected.DisplayName</h3>
-                        <p class="exchange-owned">Du äger: <strong>@_selected.PoolQuantity st</strong> i poolen</p>
+                        <h3>@_selected.Symbol — @_selected.PhaseLabel</h3>
+                        <p class="exchange-owned">@_selected.DisplayName · <strong>@_selected.PoolQuantity st</strong> i poolen</p>
                     </div>
                     <span class="exchange-last">@_selected.LastPrice.ToString("0.##")</span>
                     @if (_selected.ChangePercent24h is { } pct)
@@ -281,6 +282,7 @@ else if (_summary.Count > 0)
     private readonly List<MyOpenOrderDto> _myOpenOrders = new();
     private MarketTradeDto? _lastFill;
     private int _selectedId;
+    private long _selectedDna;
     private MarketElementSummaryDto? _selected;
     private string _side = "buy";
     private decimal _price = 10m;
@@ -292,7 +294,10 @@ else if (_summary.Count > 0)
     private CancellationTokenSource? _pollCts;
 
     private bool CanSubmit =>
-        _selectedId > 0 && _price > 0 && _qty > 0 && !_placing && string.IsNullOrEmpty(Tokens.BearerToken) == false;
+        _selectedId > 0 && _selectedDna != 0 && _price > 0 && _qty > 0 && !_placing && string.IsNullOrEmpty(Tokens.BearerToken) == false;
+
+    private bool IsSelected(MarketElementSummaryDto item) =>
+        item.ElementId == _selectedId && item.Dna == _selectedDna;
 
     private decimal EstimatedCost => _price > 0 && _qty > 0 ? _price * _qty : 0;
 
@@ -386,11 +391,14 @@ else if (_summary.Count > 0)
             if (_summary.Count == 0)
                 return;
 
-            if (_selectedId == 0 || _summary.All(s => s.ElementId != _selectedId))
+            if (_selectedId == 0 || _selectedDna == 0 || _summary.All(s => !IsSelected(s)))
+            {
                 _selectedId = _summary[0].ElementId;
+                _selectedDna = _summary[0].Dna;
+            }
 
-            _selected = _summary.FirstOrDefault(s => s.ElementId == _selectedId);
-            await LoadElementDetailAsync(_selectedId);
+            _selected = _summary.FirstOrDefault(s => IsSelected(s));
+            await LoadVariantDetailAsync(_selectedId, _selectedDna);
             await Wallet.RefreshAsync();
         }
         catch (Exception ex)
@@ -403,29 +411,31 @@ else if (_summary.Count > 0)
         }
     }
 
-    private async Task SelectElementAsync(int elementId)
+    private async Task SelectVariantAsync(MarketElementSummaryDto item)
     {
-        _selectedId = elementId;
-        _selected = _summary.FirstOrDefault(s => s.ElementId == elementId);
+        _selectedId = item.ElementId;
+        _selectedDna = item.Dna;
+        _selected = item;
         _orderFeedback = "";
         _orderDetails = "";
-        await LoadElementDetailAsync(elementId);
+        await LoadVariantDetailAsync(item.ElementId, item.Dna);
     }
 
-    private async Task LoadElementDetailAsync(int elementId)
+    private async Task LoadVariantDetailAsync(int elementId, long dna)
     {
-        await LoadDepthAsync(elementId);
+        await LoadDepthAsync(elementId, dna);
         await LoadHistoryAsync(elementId);
-        await LoadTradesAsync(elementId);
-        await LoadMyOpenOrdersAsync(elementId);
+        await LoadTradesAsync(elementId, dna);
+        await LoadMyOpenOrdersAsync(elementId, dna);
         ApplySuggestedPrice();
     }
 
-    private async Task LoadDepthAsync(int elementId)
+    private async Task LoadDepthAsync(int elementId, long dna)
     {
         try
         {
-            var depth = await Http.GetFromJsonAsync<MarketDepthDto>($"/v1/market/elements/{elementId}/depth", JsonOpts);
+            var depth = await Http.GetFromJsonAsync<MarketDepthDto>(
+                $"/v1/market/elements/{elementId}/depth?dna={dna}", JsonOpts);
             _depthLevels.Clear();
             if (depth?.Levels != null)
                 _depthLevels.AddRange(depth.Levels);
@@ -452,7 +462,7 @@ else if (_summary.Count > 0)
         }
     }
 
-    private async Task LoadTradesAsync(int elementId)
+    private async Task LoadTradesAsync(int elementId, long dna)
     {
         try
         {
@@ -460,7 +470,7 @@ else if (_summary.Count > 0)
                 $"/v1/market/trades?elementId={elementId}&limit=50", JsonOpts);
             _trades.Clear();
             if (trades != null)
-                _trades.AddRange(trades);
+                _trades.AddRange(trades.Where(t => t.Dna == dna));
         }
         catch (Exception ex)
         {
@@ -472,7 +482,7 @@ else if (_summary.Count > 0)
 
     private void ApplySuggestedPrice()
     {
-        var sel = _summary.FirstOrDefault(s => s.ElementId == _selectedId);
+        var sel = _summary.FirstOrDefault(s => IsSelected(s));
         if (sel == null) return;
 
         if (_side.Equals("buy", StringComparison.OrdinalIgnoreCase) && sel.BestAsk is { } ask)
@@ -522,7 +532,7 @@ else if (_summary.Count > 0)
         return _depthLevels.Where(l => l.BidQuantity > 0 && l.Price >= _price).Sum(l => l.BidQuantity);
     }
 
-    private async Task LoadMyOpenOrdersAsync(int elementId)
+    private async Task LoadMyOpenOrdersAsync(int elementId, long dna)
     {
         try
         {
@@ -530,7 +540,7 @@ else if (_summary.Count > 0)
                 $"/v1/market/orders/mine?elementId={elementId}", JsonOpts);
             _myOpenOrders.Clear();
             if (list != null)
-                _myOpenOrders.AddRange(list);
+                _myOpenOrders.AddRange(list.Where(o => o.Dna == dna));
         }
         catch
         {
@@ -585,7 +595,7 @@ else if (_summary.Count > 0)
         {
             try
             {
-                await Http.GetAsync($"/v1/market/elements/{_selectedId}/depth");
+                await Http.GetAsync($"/v1/market/elements/{_selectedId}/depth?dna={_selectedDna}");
             }
             catch
             {
@@ -593,7 +603,7 @@ else if (_summary.Count > 0)
             }
 
             var res = await Http.PostAsJsonAsync("/v1/market/orders",
-                new PlaceOrderRequest(_selectedId, _side, _price, _qty, $"web-{Guid.NewGuid():N}"));
+                new PlaceOrderRequest(_selectedId, _selectedDna, _side, _price, _qty, $"web-{Guid.NewGuid():N}"));
 
             var body = await res.Content.ReadAsStringAsync();
 
@@ -699,7 +709,7 @@ else if (_summary.Count > 0)
 
     private void SetLastFill(long quantity, decimal price)
     {
-        _lastFill = new MarketTradeDto(Guid.Empty, _selectedId, price, quantity, DateTimeOffset.UtcNow);
+        _lastFill = new MarketTradeDto(Guid.Empty, _selectedId, _selectedDna, price, quantity, DateTimeOffset.UtcNow);
     }
 
     private async Task RefreshAfterOrderAsync()
@@ -710,7 +720,7 @@ else if (_summary.Count > 0)
         var savedFill = _lastFill;
 
         await RefreshAsync();
-        await LoadTradesAsync(_selectedId);
+        await LoadTradesAsync(_selectedId, _selectedDna);
         await Wallet.RefreshAsync();
 
         _orderFeedback = savedFeedback;

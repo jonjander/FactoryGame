@@ -51,8 +51,14 @@ public sealed record MachinePortFlowDto(
     string? InputElementSymbol,
     int? OutputElementId,
     string? OutputElementSymbol,
+    string? InputPhase,
+    string? OutputPhase,
+    long? InputDna,
+    long? OutputDna,
     string? TransformNote,
     string Summary,
+    string ProcessStatus,
+    bool DnaChanged,
     bool IsEstimate,
     bool IsPoolSource);
 

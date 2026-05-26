@@ -94,7 +94,7 @@ public sealed class SimpleGameFlowTests : IAsyncLifetime
 
         var buyLimit = Math.Max(referencePrice + 2m, depth.BestAsk.Value);
         var buy = await _client.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(elementId, "buy", buyLimit, BuyQuantity, "game-buy-element"));
+            new PlaceOrderRequest(elementId, ElementCatalogLookup.CatalogDnaFor(elementId), "buy", buyLimit, BuyQuantity, "game-buy-element"));
         buy.EnsureSuccessStatusCode();
         var buyResult = await buy.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(buyResult);
@@ -190,14 +190,14 @@ public sealed class SimpleGameFlowTests : IAsyncLifetime
 
         var sellPrice = referencePrice;
         var sellHeavy = await _client.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(elementId, "sell", sellPrice, 1, "game-sell-fraction-1"));
+            new PlaceOrderRequest(elementId, ElementCatalogLookup.CatalogDnaFor(elementId), "sell", sellPrice, 1, "game-sell-fraction-1"));
         sellHeavy.EnsureSuccessStatusCode();
         var sellHeavyBody = await sellHeavy.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(sellHeavyBody);
         Assert.Equal("Open", sellHeavyBody.Status, ignoreCase: true);
 
         var sellLight = await _client.PostAsJsonAsync("/v1/market/orders",
-            new PlaceOrderRequest(elementId, "sell", sellPrice + 1m, 1, "game-sell-fraction-2"));
+            new PlaceOrderRequest(elementId, ElementCatalogLookup.CatalogDnaFor(elementId), "sell", sellPrice + 1m, 1, "game-sell-fraction-2"));
         sellLight.EnsureSuccessStatusCode();
         var sellLightBody = await sellLight.Content.ReadFromJsonAsync<PlaceOrderResponse>();
         Assert.NotNull(sellLightBody);

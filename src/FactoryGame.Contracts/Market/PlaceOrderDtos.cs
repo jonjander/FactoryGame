@@ -2,6 +2,7 @@ namespace FactoryGame.Contracts.Market;
 
 public sealed record PlaceOrderRequest(
     int ElementId,
+    long Dna,
     string Side,
     decimal LimitPrice,
     long Quantity,
@@ -18,6 +19,7 @@ public sealed record PlaceOrderResponse(
 public sealed record MyOpenOrderDto(
     Guid Id,
     int ElementId,
+    long Dna,
     string Side,
     decimal LimitPrice,
     long QuantityRemaining,
