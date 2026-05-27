@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FactoryGame.Domain.Dna;
 
 namespace FactoryGame.Domain.Simulation.Processors;
@@ -12,7 +11,8 @@ internal sealed class DestillatorProcessor : IMachineProcessor
         if (machine.IsBlocked)
             return;
 
-        var pkt = FlowHelper.PullFromInput(machine, "in");
+        var inBudget = ctx.GetPortInputBudget(MachineType, "in", settingsJson);
+        var pkt = FlowHelper.PullFromInputBudget(machine, "in", inBudget);
         if (pkt == null)
             return;
 
@@ -28,11 +28,16 @@ internal sealed class DestillatorProcessor : IMachineProcessor
         var cut = ResolveCutBoiling(settingsJson);
         var (heavyDna, lightDna) = DnaTransforms.DistillFractions(pkt.Dna, cut);
 
-        var total = Math.Min(pkt.Quantity, ctx.UnitsPerTick);
+        var total = pkt.Quantity;
         var heavyPermille = ComputeHeavyPermille(decoded.BoilingPoint, cut, settingsJson);
         var heavyQty = total * heavyPermille / 1000m;
         heavyQty = ClampSplit(heavyQty, total);
         var lightQty = total - heavyQty;
+
+        var heavyBudget = ctx.GetPortOutputBudget(MachineType, "out1", settingsJson);
+        var lightBudget = ctx.GetPortOutputBudget(MachineType, "out2", settingsJson);
+        heavyQty = Math.Min(heavyQty, heavyBudget);
+        lightQty = Math.Min(lightQty, lightBudget);
 
         var heavyPkt = new MaterialPacket
         {
@@ -52,15 +57,16 @@ internal sealed class DestillatorProcessor : IMachineProcessor
         var outHeavy = machine.GetOrCreateOutput("out1");
         var outLight = machine.GetOrCreateOutput("out2");
 
-        if (!outHeavy.TryEnqueue(heavyPkt))
+        if (heavyQty > 0 && !outHeavy.TryEnqueue(heavyPkt))
         {
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
             return;
         }
 
-        if (!outLight.TryEnqueue(lightPkt))
+        if (lightQty > 0 && !outLight.TryEnqueue(lightPkt))
         {
-            _ = outHeavy.TryDequeue();
+            if (heavyQty > 0)
+                _ = outHeavy.TryDequeue();
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
         }
     }

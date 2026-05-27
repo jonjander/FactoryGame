@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using FactoryGame.Contracts.Json;
+
 namespace FactoryGame.Contracts.Pool;
 
 public sealed record PoolOverviewDto(
@@ -17,7 +20,7 @@ public sealed record PoolElementGroupDto(
 public sealed record PoolVariantStackDto(
     int ElementId,
     string Symbol,
-    long Dna,
+    [property: JsonConverter(typeof(DnaJsonConverter))] long Dna,
     string Phase,
     string PhaseLabel,
     long Quantity,
@@ -32,7 +35,7 @@ public sealed record PoolVariantStackDto(
 public sealed record PoolStackViewDto(
     int ElementId,
     string Symbol,
-    long Dna,
+    [property: JsonConverter(typeof(DnaJsonConverter))] long Dna,
     string Phase,
     string PhaseLabel,
     string DisplayName,

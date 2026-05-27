@@ -14,6 +14,7 @@ internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializ
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await ApplyMarketLiquidityPatchesAsync(db, cancellationToken);
         await ApplyPoolDnaPatchesAsync(db, cancellationToken);
+        await ApplySponsorCompanyPatchesAsync(db, cancellationToken);
     }
 
     private static async Task ApplyMarketLiquidityPatchesAsync(AppDbContext db, CancellationToken ct)
@@ -65,6 +66,63 @@ internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializ
             "CREATE INDEX IF NOT EXISTS IX_MarketOrders_ElementId_Dna_Status_Side ON MarketOrders (ElementId, Dna, Status, Side);", ct);
         await db.Database.ExecuteSqlRawAsync(
             "CREATE INDEX IF NOT EXISTS IX_TradeExecutions_ElementId_Dna ON TradeExecutions (ElementId, Dna);", ct);
+    }
+
+    private static async Task ApplySponsorCompanyPatchesAsync(AppDbContext db, CancellationToken ct)
+    {
+        await TryAddColumnAsync(db, "Players", "IsSponsorAccount", "INTEGER NOT NULL DEFAULT 0", ct);
+        await TryAddColumnAsync(db, "MarketOrders", "SponsorCompanyId", "TEXT NULL", ct);
+        await TryAddColumnAsync(db, "TradeExecutions", "BuyerSponsorCompanyId", "TEXT NULL", ct);
+        await TryAddColumnAsync(db, "TradeExecutions", "SellerSponsorCompanyId", "TEXT NULL", ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS SponsorCompanies (
+                Id TEXT NOT NULL PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Description TEXT NOT NULL DEFAULT '',
+                LogoUrl TEXT NOT NULL DEFAULT '',
+                PlayerId TEXT NOT NULL,
+                IsActive INTEGER NOT NULL DEFAULT 1,
+                FundingMode INTEGER NOT NULL DEFAULT 0,
+                BudgetRemaining REAL NULL,
+                TotalBudget REAL NULL,
+                VirtualSpend REAL NOT NULL DEFAULT 0,
+                ExposureTier INTEGER NOT NULL DEFAULT 1,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL
+            );
+            """, ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE UNIQUE INDEX IF NOT EXISTS IX_SponsorCompanies_PlayerId ON SponsorCompanies (PlayerId);", ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS IX_SponsorCompanies_IsActive ON SponsorCompanies (IsActive);", ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS SponsorCompanyOrders (
+                Id TEXT NOT NULL PRIMARY KEY,
+                SponsorCompanyId TEXT NOT NULL,
+                ElementId INTEGER NOT NULL,
+                Dna INTEGER NOT NULL DEFAULT 0,
+                Side INTEGER NOT NULL,
+                LimitPrice REAL NOT NULL,
+                TargetQuantity INTEGER NOT NULL,
+                IsActive INTEGER NOT NULL DEFAULT 1,
+                LinkedMarketOrderId TEXT NULL,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                FOREIGN KEY (SponsorCompanyId) REFERENCES SponsorCompanies(Id) ON DELETE CASCADE
+            );
+            """, ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS IX_SponsorCompanyOrders_SponsorCompanyId_IsActive ON SponsorCompanyOrders (SponsorCompanyId, IsActive);", ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS IX_MarketOrders_SponsorCompanyId ON MarketOrders (SponsorCompanyId);", ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS IX_TradeExecutions_BuyerSponsorCompanyId ON TradeExecutions (BuyerSponsorCompanyId);", ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS IX_TradeExecutions_SellerSponsorCompanyId ON TradeExecutions (SellerSponsorCompanyId);", ct);
     }
 
     private static async Task TryAddColumnAsync(AppDbContext db, string table, string column, string definition, CancellationToken ct)

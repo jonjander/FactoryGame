@@ -29,4 +29,6 @@ public class MarketOrderEntity
     public string? IdempotencyKey { get; set; }
 
     public bool IsSynthetic { get; set; }
+
+    public Guid? SponsorCompanyId { get; set; }
 }

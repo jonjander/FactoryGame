@@ -1,13 +1,14 @@
 using System.Text.Json;
 using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Dna;
+using FactoryGame.Domain.Simulation.Processors;
 
 namespace FactoryGame.Domain.Simulation;
 
 /// <summary>Static plan report: seaport flows, throughput estimate, value estimate, validation issues.</summary>
 public static class BoardInfoAnalyzer
 {
-    private const double UnitsPerTick = 1.0;
+    private const double BaselineUnitsPerTick = 1.0;
     private const decimal ReferenceUnitValue = 10m;
 
     public static BoardInfoReport Analyze(BoardInfoAnalyzeRequest request)
@@ -15,7 +16,6 @@ public static class BoardInfoAnalyzer
         var machines = request.Machines;
         var connections = request.Connections;
         var tickSec = Math.Max(1, request.TickIntervalSeconds);
-        var unitRate = UnitsPerTick / tickSec;
         var isEstimate = !request.IsRunning;
 
         var connFrom = connections.GroupBy(c => (c.FromId, c.FromPort)).ToDictionary(g => g.Key, g => g.First());
@@ -65,7 +65,7 @@ public static class BoardInfoAnalyzer
                     m.Id));
             }
 
-            CollectSeaportFlows(m, connFrom, connTo, unitRate, intoFactory, outOfFactory, issues);
+            CollectSeaportFlows(m, connFrom, connTo, tickSec, intoFactory, outOfFactory, issues);
             CollectSorterDnaIssues(m, machineById, connFrom, issues);
         }
 
@@ -89,6 +89,7 @@ public static class BoardInfoAnalyzer
             }
         }
 
+        CollectPoolStockIssues(machines, connFrom, request.PoolQuantities, issues);
         CollectRuntimeIssues(request, issues);
 
         double intoUps;
@@ -113,7 +114,7 @@ public static class BoardInfoAnalyzer
             ? "Mätt från senaste simuleringstick."
             : isEstimate
                 ? "Uppskattning från plan (fabriken kör inte)."
-                : "Baserat på planstruktur (1 enhet/tick per seaport-koppling).";
+                : "Baserat på planstruktur och maskinspecifika flödesrater.";
 
         var valueNote = request.IsRunning && request.ElementPrices != null
             ? "Värde från senaste flöde × spotpris + maskinkapital (timprorata)."
@@ -146,6 +147,13 @@ public static class BoardInfoAnalyzer
             issues);
     }
 
+    private static double MachineEffectiveUnitRate(MachineInfo machine, double tickSec)
+    {
+        var settings = machine.Settings?.GetRawText();
+        var permille = MachineRateCatalog.GetEffectiveRatePermille(machine.Type, settings);
+        return BaselineUnitsPerTick * permille / 1000.0 / tickSec;
+    }
+
     private static SimulationPlan ToSimulationPlan(
         IReadOnlyList<MachineInfo> machines,
         IReadOnlyList<ConnectionInfo> connections) =>
@@ -175,11 +183,12 @@ public static class BoardInfoAnalyzer
         MachineInfo m,
         IReadOnlyDictionary<(string FromId, string FromPort), ConnectionInfo> connFrom,
         IReadOnlyDictionary<(string ToId, string ToPort), ConnectionInfo> connTo,
-        double unitRate,
+        double tickSec,
         List<SeaportFlowLine> intoFactory,
         List<SeaportFlowLine> outOfFactory,
         List<BoardIssue> issues)
     {
+        var unitRate = MachineEffectiveUnitRate(m, tickSec);
         if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
             || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
         {
@@ -285,6 +294,40 @@ public static class BoardInfoAnalyzer
         }
 
         return result;
+    }
+
+    private static void CollectPoolStockIssues(
+        IReadOnlyList<MachineInfo> machines,
+        IReadOnlyDictionary<(string FromId, string FromPort), ConnectionInfo> connFrom,
+        IReadOnlyDictionary<int, decimal>? poolQuantities,
+        List<BoardIssue> issues)
+    {
+        if (poolQuantities == null)
+            return;
+
+        foreach (var m in machines)
+        {
+            if (!m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+                && !m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!connFrom.ContainsKey((m.Id, "out")))
+                continue;
+
+            var elementId = SeaportConnectorProcessor.ParseOutElementId(m.Settings?.GetRawText());
+            if (elementId <= 0)
+                continue;
+
+            if (poolQuantities.GetValueOrDefault(elementId) > 0)
+                continue;
+
+            var symbol = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId).Symbol;
+            var label = string.IsNullOrEmpty(symbol) ? $"element {elementId}" : symbol;
+            issues.Add(BoardIssue.Warning(
+                "pool_empty",
+                $"Seaport «{m.Id}» matar in {label} men poolen har inget kvar.",
+                m.Id));
+        }
     }
 
     private static void CollectRuntimeIssues(BoardInfoAnalyzeRequest request, List<BoardIssue> issues)

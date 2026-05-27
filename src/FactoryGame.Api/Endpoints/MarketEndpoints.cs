@@ -138,6 +138,7 @@ public static class MarketEndpoints
         group.MapGet("/orders/mine", async Task<IResult> (
                 HttpContext http,
                 int? elementId,
+                long? dna,
                 AppDbContext db,
                 CancellationToken ct) =>
             {
@@ -148,6 +149,8 @@ public static class MarketEndpoints
                     .Where(o => o.PlayerId == playerId && !o.IsSynthetic && o.Status == OrderStatus.Open && o.QuantityRemaining > 0);
                 if (elementId is { } e)
                     q = q.Where(o => o.ElementId == e);
+                if (dna is { } d)
+                    q = q.Where(o => o.Dna == d);
 
                 var rows = await q.ToListAsync(ct);
                 var list = rows
@@ -165,6 +168,53 @@ public static class MarketEndpoints
                 return Results.Ok(list);
             })
             .WithName("MyOpenOrders")
+            .WithOpenApi();
+
+        group.MapPost("/orders/{orderId:guid}/cancel", async Task<IResult> (
+                HttpContext http,
+                Guid orderId,
+                ExchangeService exchange,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                try
+                {
+                    var result = await exchange.CancelOrderAsync(playerId, orderId, ct);
+                    return Results.Ok(result);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.Conflict(new { error = ex.Message });
+                }
+            })
+            .WithName("CancelOrder")
+            .WithOpenApi();
+
+        group.MapPost("/orders/{orderId:guid}/amend", async Task<IResult> (
+                HttpContext http,
+                Guid orderId,
+                AmendOrderRequest request,
+                ExchangeService exchange,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                try
+                {
+                    var result = await exchange.AmendOrderPriceAsync(playerId, orderId, request.LimitPrice, ct);
+                    return Results.Ok(result);
+                }
+                catch (ArgumentException ex)
+                {
+                    return Results.BadRequest(new { error = ex.Message });
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.Conflict(new { error = ex.Message });
+                }
+            })
+            .WithName("AmendOrder")
             .WithOpenApi();
 
         group.MapGet("/orders/open", async Task<IResult> (int? elementId, AppDbContext db, CancellationToken ct) =>
@@ -194,22 +244,73 @@ public static class MarketEndpoints
             .WithOpenApi();
 
         group.MapGet("/trades", async Task<IResult> (
+                HttpContext http,
                 int? elementId,
                 int? limit,
                 bool? includeSynthetic,
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
+                Guid? viewerId = http.Items["PlayerId"] is Guid pid ? pid : null;
                 var rows = await query.GetRecentTradesAsync(
                     elementId,
                     limit ?? 50,
                     includeSynthetic ?? false,
-                    highlightPlayerId: null,
+                    highlightPlayerId: viewerId,
                     ct);
-                var dtos = rows.Select(t => new MarketTradeDto(t.Id, t.ElementId, t.Dna, t.Price, t.Quantity, t.CreatedAt)).ToList();
+                var dtos = rows.Select(t => new MarketTradeDto(
+                    t.Id,
+                    t.ElementId,
+                    t.Dna,
+                    t.Price,
+                    t.Quantity,
+                    t.CreatedAt,
+                    t.BuyerLabel,
+                    t.SellerLabel,
+                    t.BuyerIsSponsor,
+                    t.SellerIsSponsor,
+                    t.BuyerSponsorCompanyId,
+                    t.SellerSponsorCompanyId)).ToList();
                 return Results.Ok(dtos);
             })
             .WithName("RecentTrades")
+            .WithOpenApi();
+
+        group.MapGet("/insights", async Task<IResult> (
+                HttpContext http,
+                MarketQueryService query,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
+                if (string.IsNullOrEmpty(locale))
+                    locale = "sv";
+                var insights = await query.GetInsightsForPlayerAsync(playerId, locale, ct);
+                return Results.Ok(insights);
+            })
+            .WithName("MarketInsights")
+            .WithOpenApi();
+
+        group.MapGet("/leaderboards", async Task<IResult> (
+                MarketQueryService query,
+                CancellationToken ct) =>
+            {
+                var boards = await query.GetLeaderboardsAsync(ct);
+                return Results.Ok(boards);
+            })
+            .WithName("MarketLeaderboards")
+            .WithOpenApi();
+
+        group.MapGet("/sponsors/{id:guid}", async Task<IResult> (
+                Guid id,
+                MarketQueryService query,
+                CancellationToken ct) =>
+            {
+                var profile = await query.GetSponsorProfileAsync(id, ct);
+                return profile == null ? Results.NotFound() : Results.Ok(profile);
+            })
+            .WithName("SponsorProfile")
             .WithOpenApi();
     }
 

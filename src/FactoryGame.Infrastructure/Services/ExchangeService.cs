@@ -250,7 +250,11 @@ public sealed class ExchangeService(AppDbContext db)
 
             {
 
-                while (buy.QuantityRemaining > 0 && buy.Status == OrderStatus.Open)
+                var skipSellIds = new HashSet<Guid>();
+
+                var innerGuard = 0;
+
+                while (buy.QuantityRemaining > 0 && buy.Status == OrderStatus.Open && innerGuard++ < 1000)
 
                 {
 
@@ -266,7 +270,11 @@ public sealed class ExchangeService(AppDbContext db)
 
                     var sell = sellCandidates
 
+                        .Where(o => !skipSellIds.Contains(o.Id))
+
                         .OrderBy(o => o.LimitPrice)
+
+                        .ThenBy(o => SellCandidatePriority(o))
 
                         .ThenBy(o => o.CreatedAt)
 
@@ -286,6 +294,18 @@ public sealed class ExchangeService(AppDbContext db)
 
 
 
+                    if (buy.SponsorCompanyId.HasValue && sell.SponsorCompanyId.HasValue)
+
+                    {
+
+                        skipSellIds.Add(sell.Id);
+
+                        continue;
+
+                    }
+
+
+
                     var qty = Math.Min(buy.QuantityRemaining, sell.QuantityRemaining);
 
                     var price = sell.LimitPrice!.Value;
@@ -296,7 +316,13 @@ public sealed class ExchangeService(AppDbContext db)
 
                     if (!ok)
 
-                        break;
+                    {
+
+                        skipSellIds.Add(sell.Id);
+
+                        continue;
+
+                    }
 
 
 
@@ -311,6 +337,12 @@ public sealed class ExchangeService(AppDbContext db)
                     if (sell.QuantityRemaining == 0)
 
                         sell.Status = OrderStatus.Filled;
+
+
+
+                    // Re-query sees stale rows until pending changes are flushed (EF + SQLite in one tx).
+
+                    await db.SaveChangesAsync(ct);
 
                 }
 
@@ -334,9 +366,37 @@ public sealed class ExchangeService(AppDbContext db)
 
 
 
-        if (buyerBalance.Cash < total)
+        SponsorCompanyEntity? buyerSponsor = null;
+
+        SponsorCompanyEntity? sellerSponsor = null;
+
+        if (buy.SponsorCompanyId is { } buyerSponsorId)
+
+            buyerSponsor = await db.SponsorCompanies.FirstOrDefaultAsync(c => c.Id == buyerSponsorId, ct);
+
+        if (sell.SponsorCompanyId is { } sellerSponsorId)
+
+            sellerSponsor = await db.SponsorCompanies.FirstOrDefaultAsync(c => c.Id == sellerSponsorId, ct);
+
+
+
+        if (buyerSponsor?.FundingMode == SponsorFundingMode.Budget
+
+            && (buyerSponsor.BudgetRemaining is not { } budgetRemaining || budgetRemaining < total))
 
             return false;
+
+
+
+        if (buyerSponsor?.FundingMode != SponsorFundingMode.Utopia && buyerBalance.Cash < total)
+
+            return false;
+
+
+
+        if (buyerSponsor?.FundingMode == SponsorFundingMode.Utopia && buyerBalance.Cash < total)
+
+            buyerBalance.Cash = total;
 
 
 
@@ -353,6 +413,16 @@ public sealed class ExchangeService(AppDbContext db)
         buyerBalance.Cash -= total;
 
         sellerBalance.Cash += total;
+
+
+
+        if (buyerSponsor?.FundingMode == SponsorFundingMode.Budget && buyerSponsor.BudgetRemaining is { } br)
+
+            buyerSponsor.BudgetRemaining = br - total;
+
+        if (buyerSponsor?.FundingMode == SponsorFundingMode.Utopia)
+
+            buyerSponsor.VirtualSpend += total;
 
 
 
@@ -392,7 +462,11 @@ public sealed class ExchangeService(AppDbContext db)
 
             CreatedAt = DateTimeOffset.UtcNow,
 
-            IsSynthetic = buy.IsSynthetic && sell.IsSynthetic
+            IsSynthetic = buy.IsSynthetic && sell.IsSynthetic,
+
+            BuyerSponsorCompanyId = buy.SponsorCompanyId,
+
+            SellerSponsorCompanyId = sell.SponsorCompanyId
 
         });
 
@@ -557,6 +631,400 @@ public sealed class ExchangeService(AppDbContext db)
             .Select(s => s.Quantity)
 
             .FirstOrDefaultAsync(ct);
+
+
+
+    public async Task<OrderActionResponse> CancelOrderAsync(Guid playerId, Guid orderId, CancellationToken ct = default)
+
+    {
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        try
+
+        {
+
+            var order = await db.MarketOrders.FirstOrDefaultAsync(
+
+                o => o.Id == orderId && o.PlayerId == playerId, ct);
+
+            if (order == null)
+
+                throw new InvalidOperationException("Order not found.");
+
+            if (order.IsSynthetic)
+
+                throw new InvalidOperationException("Cannot cancel synthetic order.");
+
+            if (order.Status != OrderStatus.Open || order.QuantityRemaining <= 0)
+
+                throw new InvalidOperationException("Order is not open.");
+
+
+
+            var remaining = order.QuantityRemaining;
+
+            if (order.Side == OrderSide.Sell && remaining > 0)
+
+                await AddToBuyerPoolAsync(order.PlayerId, order.ElementId, order.Dna, remaining, ct);
+
+
+
+            order.Status = OrderStatus.Cancelled;
+
+            order.QuantityRemaining = 0;
+
+            await db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+
+
+
+            return new OrderActionResponse(order.Id, order.Status.ToString(), 0, order.OriginalQuantity - remaining, null, order.LimitPrice, order.OriginalQuantity);
+
+        }
+
+        catch
+
+        {
+
+            await tx.RollbackAsync(ct);
+
+            throw;
+
+        }
+
+    }
+
+
+
+    public async Task<OrderActionResponse> AmendOrderPriceAsync(Guid playerId, Guid orderId, decimal newLimitPrice, CancellationToken ct = default)
+
+    {
+
+        if (newLimitPrice <= 0)
+
+            throw new ArgumentException("Limit price must be positive.", nameof(newLimitPrice));
+
+
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        try
+
+        {
+
+            var order = await db.MarketOrders.FirstOrDefaultAsync(
+
+                o => o.Id == orderId && o.PlayerId == playerId, ct);
+
+            if (order == null)
+
+                throw new InvalidOperationException("Order not found.");
+
+            if (order.IsSynthetic)
+
+                throw new InvalidOperationException("Cannot amend synthetic order.");
+
+            if (order.Status != OrderStatus.Open || order.QuantityRemaining <= 0)
+
+                throw new InvalidOperationException("Order is not open.");
+
+
+
+            var oldLimit = order.LimitPrice ?? 0m;
+
+            if (order.Side == OrderSide.Buy && newLimitPrice > oldLimit)
+
+            {
+
+                var extraCost = (newLimitPrice - oldLimit) * order.QuantityRemaining;
+
+                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ct);
+
+                if (balance.Cash < extraCost)
+
+                    throw new InvalidOperationException("Insufficient cash for higher buy limit.");
+
+            }
+
+
+
+            order.LimitPrice = newLimitPrice;
+
+            await db.SaveChangesAsync(ct);
+
+
+
+            await MatchOrdersForVariantAsync(order.ElementId, order.Dna, ct);
+
+            await db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+
+
+
+            var updated = await db.MarketOrders.AsNoTracking().FirstAsync(o => o.Id == orderId, ct);
+
+            var filled = updated.OriginalQuantity - updated.QuantityRemaining;
+
+            return new OrderActionResponse(
+
+                updated.Id,
+
+                updated.Status.ToString(),
+
+                updated.QuantityRemaining,
+
+                filled,
+
+                filled > 0 ? await GetAverageFillPriceAsync(updated.Id, ct) : null,
+
+                updated.LimitPrice,
+
+                updated.OriginalQuantity);
+
+        }
+
+        catch
+
+        {
+
+            await tx.RollbackAsync(ct);
+
+            throw;
+
+        }
+
+    }
+
+
+
+    public async Task<PlaceOrderResponse> PlaceSponsorOrderAsync(
+
+        Guid sponsorCompanyId,
+
+        PlaceOrderRequest request,
+
+        CancellationToken ct = default)
+
+    {
+
+        var company = await db.SponsorCompanies.FirstOrDefaultAsync(c => c.Id == sponsorCompanyId, ct)
+
+            ?? throw new InvalidOperationException("Sponsor company not found.");
+
+        if (!company.IsActive)
+
+            throw new InvalidOperationException("Sponsor company is inactive.");
+
+
+
+        if (request.Quantity <= 0)
+
+            throw new ArgumentException("Quantity must be positive.", nameof(request));
+
+
+
+        if (!ElementCatalog.All.Any(e => e.Id == request.ElementId))
+
+            throw new InvalidOperationException("Unknown element.");
+
+
+
+        var dna = ResolveOrderDna(request.ElementId, request.Dna);
+
+        var side = request.Side.Equals("buy", StringComparison.OrdinalIgnoreCase)
+
+            ? OrderSide.Buy
+
+            : request.Side.Equals("sell", StringComparison.OrdinalIgnoreCase)
+
+                ? OrderSide.Sell
+
+                : throw new ArgumentException("Side must be buy or sell.");
+
+
+
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+
+        {
+
+            var existing = await db.MarketOrders.FirstOrDefaultAsync(
+
+                o => o.PlayerId == company.PlayerId && o.IdempotencyKey == request.IdempotencyKey, ct);
+
+            if (existing != null)
+
+            {
+
+                var filledExisting = existing.OriginalQuantity - existing.QuantityRemaining;
+
+                return new PlaceOrderResponse(
+
+                    existing.Id,
+
+                    existing.QuantityRemaining,
+
+                    existing.Status.ToString(),
+
+                    filledExisting,
+
+                    await GetAverageFillPriceAsync(existing.Id, ct),
+
+                    existing.OriginalQuantity);
+
+            }
+
+        }
+
+
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        try
+
+        {
+
+            if (side == OrderSide.Sell)
+
+            {
+
+                await RemoveFromPoolAsync(company.PlayerId, request.ElementId, dna, request.Quantity, ct);
+
+            }
+
+            else
+
+            {
+
+                var cost = request.LimitPrice * request.Quantity;
+
+                if (company.FundingMode == SponsorFundingMode.Budget
+
+                    && (company.BudgetRemaining is not { } budget || budget < cost))
+
+                    throw new InvalidOperationException("Insufficient sponsor budget for buy.");
+
+
+
+                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == company.PlayerId, ct);
+
+                if (company.FundingMode != SponsorFundingMode.Utopia && balance.Cash < cost)
+
+                    throw new InvalidOperationException("Insufficient cash for buy.");
+
+
+
+                if (company.FundingMode == SponsorFundingMode.Utopia && balance.Cash < cost)
+
+                    balance.Cash = cost;
+
+
+
+                var pool = await db.InventoryPools.FirstAsync(p => p.PlayerId == company.PlayerId, ct);
+
+                if (pool.UsedVolume + request.Quantity * VolumePerUnit > pool.MaxVolume)
+
+                    throw new InvalidOperationException("Pool volume would exceed max; buy blocked.");
+
+            }
+
+
+
+            var order = new MarketOrderEntity
+
+            {
+
+                Id = Guid.NewGuid(),
+
+                PlayerId = company.PlayerId,
+
+                SponsorCompanyId = sponsorCompanyId,
+
+                ElementId = request.ElementId,
+
+                Dna = dna,
+
+                Side = side,
+
+                LimitPrice = request.LimitPrice,
+
+                QuantityRemaining = request.Quantity,
+
+                OriginalQuantity = request.Quantity,
+
+                Status = OrderStatus.Open,
+
+                CreatedAt = DateTimeOffset.UtcNow,
+
+                IdempotencyKey = request.IdempotencyKey
+
+            };
+
+            db.MarketOrders.Add(order);
+
+            await db.SaveChangesAsync(ct);
+
+
+
+            await MatchOrdersForVariantAsync(request.ElementId, dna, ct);
+
+            await db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+
+
+
+            var updated = await db.MarketOrders.AsNoTracking().FirstAsync(o => o.Id == order.Id, ct);
+
+            var quantityFilled = updated.OriginalQuantity - updated.QuantityRemaining;
+
+            return new PlaceOrderResponse(
+
+                updated.Id,
+
+                updated.QuantityRemaining,
+
+                updated.Status.ToString(),
+
+                quantityFilled,
+
+                quantityFilled > 0 ? await GetAverageFillPriceAsync(updated.Id, ct) : null,
+
+                updated.OriginalQuantity);
+
+        }
+
+        catch
+
+        {
+
+            await tx.RollbackAsync(ct);
+
+            throw;
+
+        }
+
+    }
+
+
+
+    private static int SellCandidatePriority(MarketOrderEntity order)
+
+    {
+
+        if (order.IsSynthetic)
+
+            return 2;
+
+        if (order.SponsorCompanyId.HasValue)
+
+            return 1;
+
+        return 0;
+
+    }
 
 }
 

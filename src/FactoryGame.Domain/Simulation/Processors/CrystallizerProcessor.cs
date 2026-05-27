@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FactoryGame.Domain.Dna;
 
 namespace FactoryGame.Domain.Simulation.Processors;
@@ -14,7 +13,15 @@ internal sealed class CrystallizerProcessor : IMachineProcessor
         if (machine.IsBlocked)
             return;
 
-        var pkt = FlowHelper.PullFromInput(machine, "in");
+        var slot = machine.ProcessingSlot;
+        if (slot?.Packet != null)
+        {
+            AdvanceSpreadProcessing(machine, ctx, settingsJson, slot);
+            return;
+        }
+
+        var inBudget = ctx.GetPortInputBudget(MachineType, "in", settingsJson);
+        var pkt = FlowHelper.PullFromInputBudget(machine, "in", inBudget);
         if (pkt == null)
             return;
 
@@ -26,13 +33,35 @@ internal sealed class CrystallizerProcessor : IMachineProcessor
             return;
         }
 
-        var total = Math.Min(pkt.Quantity, ctx.UnitsPerTick);
         var spread = DnaTransforms.MeasureDnaSpreadPermille(pkt.Dna);
         if (spread < MinSpreadPermille)
         {
-            Passthrough(machine, pkt, total);
+            Passthrough(machine, ctx, settingsJson, pkt);
             return;
         }
+
+        var chill = ResolveChillDelta(settingsJson);
+        slot = ProcessTimingDna.EnsureSlot(machine);
+        slot.Packet = pkt;
+        slot.ElapsedTicks = 0;
+        slot.TotalTicks = ProcessTimingDna.ResolveTotalTicks(chill, settingsJson);
+        slot.OperationRatePermille = MachineRateCatalog.GetOperationRatePermille(settingsJson);
+        slot.TotalDelta = chill;
+        slot.ProcessKind = "crystallize";
+        AdvanceSpreadProcessing(machine, ctx, settingsJson, slot);
+    }
+
+    private static void AdvanceSpreadProcessing(
+        MachineRuntimeState machine,
+        TickContext ctx,
+        string? settingsJson,
+        ProcessingSlotState slot)
+    {
+        var pkt = slot.Packet!;
+        slot.ElapsedTicks++;
+
+        if (slot.ElapsedTicks < slot.TotalTicks)
+            return;
 
         var cut = ResolveCutFreeze(settingsJson);
         var chill = ResolveChillDelta(settingsJson);
@@ -42,24 +71,36 @@ internal sealed class CrystallizerProcessor : IMachineProcessor
         {
             ElementId = pkt.ElementId,
             Dna = outDna,
-            Quantity = total,
+            Quantity = pkt.Quantity,
             Quality = pkt.Quality
         };
 
-        if (!machine.GetOrCreateOutput("out").TryEnqueue(outPkt))
-            machine.GetOrCreateInput("in").TryEnqueue(pkt);
+        var outBudget = ctx.GetPortOutputBudget("Crystallizer", "out", settingsJson);
+        if (FlowHelper.TryPushOutputBudget(machine, "out", outPkt, outBudget))
+        {
+            slot.Packet = null;
+            slot.ElapsedTicks = 0;
+            return;
+        }
+
+        slot.ElapsedTicks--;
     }
 
-    private static void Passthrough(MachineRuntimeState machine, MaterialPacket pkt, decimal qty)
+    private static void Passthrough(
+        MachineRuntimeState machine,
+        TickContext ctx,
+        string? settingsJson,
+        MaterialPacket pkt)
     {
+        var outBudget = ctx.GetPortOutputBudget("Crystallizer", "out", settingsJson);
         var pass = new MaterialPacket
         {
             ElementId = pkt.ElementId,
             Dna = pkt.Dna,
-            Quantity = qty,
+            Quantity = Math.Min(pkt.Quantity, outBudget),
             Quality = pkt.Quality
         };
-        if (!machine.GetOrCreateOutput("out").TryEnqueue(pass))
+        if (!FlowHelper.TryPushOutputBudget(machine, "out", pass, outBudget))
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
     }
 

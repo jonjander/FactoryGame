@@ -154,7 +154,7 @@ function registerTools(mcp: McpServer): void {
     "market_summary",
     {
       description:
-        "GET /v1/market/summary — per-element market overview for current player (authenticated).",
+        "GET /v1/market/summary — per-element DNA variant rows (elementId + dna string + phase). Authenticated.",
       inputSchema: { ...optionalSession, ...optionalLocale },
     },
     async ({ sessionToken, apiKey, locale }) => {
@@ -169,15 +169,24 @@ function registerTools(mcp: McpServer): void {
   mcp.registerTool(
     "market_element_depth",
     {
-      description: "GET /v1/market/elements/{elementId}/depth — order book depth (public).",
+      description:
+        "GET /v1/market/elements/{elementId}/depth — order book depth for one element variant (public). Pass dna as decimal string when not using catalog default.",
       inputSchema: {
         elementId: z.number().int(),
+        dna: z
+          .string()
+          .optional()
+          .describe("Material DNA variant as decimal string (matches pool/market summary dna)."),
       },
     },
-    async ({ elementId }) => {
+    async ({ elementId, dna }) => {
+      const q =
+        dna !== undefined
+          ? `?dna=${encodeURIComponent(dna)}`
+          : "";
       const r = await fetchPublic(
         "GET",
-        `/v1/market/elements/${encodeURIComponent(String(elementId))}/depth`
+        `/v1/market/elements/${encodeURIComponent(String(elementId))}/depth${q}`
       );
       return formatToolResult(r);
     }
@@ -213,13 +222,19 @@ function registerTools(mcp: McpServer): void {
       inputSchema: {
         ...optionalSession,
         elementId: z.number().int().optional(),
+        dna: z
+          .string()
+          .optional()
+          .describe("Filter by material DNA variant (decimal string)."),
       },
     },
-    async ({ sessionToken, apiKey, elementId }) => {
-      const q =
-        elementId !== undefined
-          ? `?elementId=${encodeURIComponent(String(elementId))}`
-          : "";
+    async ({ sessionToken, apiKey, elementId, dna }) => {
+      const params = new URLSearchParams();
+      if (elementId !== undefined)
+        params.set("elementId", String(elementId));
+      if (dna !== undefined)
+        params.set("dna", dna);
+      const q = params.size > 0 ? `?${params.toString()}` : "";
       const r = await fetchPlayer("GET", `/v1/market/orders/mine${q}`, {
         sessionToken,
         apiKey,
@@ -231,10 +246,14 @@ function registerTools(mcp: McpServer): void {
   mcp.registerTool(
     "market_place_order",
     {
-      description: "POST /v1/market/orders — place a limit order (authenticated).",
+      description:
+        "POST /v1/market/orders — place a limit order for a specific material DNA variant (authenticated).",
       inputSchema: {
         ...optionalSession,
         elementId: z.number().int(),
+        dna: z
+          .string()
+          .describe("Material DNA variant as decimal string (from market_summary or pool groups)."),
         side: z.string().describe("Buy or Sell per API contract."),
         limitPrice: z.number(),
         quantity: z.number().int(),
@@ -302,7 +321,7 @@ function registerTools(mcp: McpServer): void {
     "player_pool_view",
     {
       description:
-        "GET /v1/me/pool/view — pool overview with stacks and estimated values.",
+        "GET /v1/me/pool/view — pool overview with stacks, groups[] (per elementId + dna variant), phase labels, and estimated values. DNA fields are JSON strings.",
       inputSchema: { ...optionalSession, ...optionalLocale },
     },
     async ({ sessionToken, apiKey, locale }) => {
@@ -391,7 +410,7 @@ function registerTools(mcp: McpServer): void {
     "boards_save_plan",
     {
       description:
-        "PUT /v1/boards/{boardId}/plan — save machines and connections (see BoardPlanDto).",
+        "PUT /v1/boards/{boardId}/plan — save machines and connections (see BoardPlanDto). Seaport OUT: set settings.outElementId and settings.outMaterialDna as decimal string for pool variant.",
       inputSchema: {
         ...optionalSession,
         boardId: z.string().uuid(),

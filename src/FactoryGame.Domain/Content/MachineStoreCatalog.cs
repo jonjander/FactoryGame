@@ -15,6 +15,9 @@ public static class MachineStoreCatalog
         new("LiquidSeparator", "Liquid separator", 3200m),
         new("Destilator", "Destilator", 3500m),
         new("Sorter", "Sorter", 5000m),
+        new("Tank", "Tank", 1200m),
+        new("Junction", "Junction", 800m),
+        new("RateLimiter", "Rate limiter", 1500m),
         new("SeaportConnector", "Seaport connector", 50m)
     ];
 

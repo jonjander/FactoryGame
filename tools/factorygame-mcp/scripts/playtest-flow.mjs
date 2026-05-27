@@ -41,8 +41,18 @@ async function pollRunning(client, sessionToken, boardId) {
 
 async function tryOptionalMarketOrder(client, sessionToken) {
   try {
+    const { json: summary } = await callOk(client, "market_summary", {
+      sessionToken,
+      locale: "sv",
+    });
+    const row = summary?.[0];
+    if (!row?.elementId || !row?.dna) {
+      console.error("playtest: skip market_place_order (no market summary row)");
+      return;
+    }
     const { json: depth } = await callOk(client, "market_element_depth", {
-      elementId: 1,
+      elementId: row.elementId,
+      dna: String(row.dna),
     });
     if (!depth?.bestAsk) {
       console.error("playtest: skip market_place_order (no bestAsk on element 1)");
@@ -50,7 +60,8 @@ async function tryOptionalMarketOrder(client, sessionToken) {
     }
     await callOk(client, "market_place_order", {
       sessionToken,
-      elementId: 1,
+      elementId: row.elementId,
+      dna: String(row.dna),
       side: "buy",
       limitPrice: depth.bestAsk,
       quantity: 1,

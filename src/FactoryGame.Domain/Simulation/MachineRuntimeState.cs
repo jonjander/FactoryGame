@@ -7,6 +7,9 @@ public sealed class MachineRuntimeState
     public string? BlockedReason { get; set; }
     public Dictionary<string, PortBuffer> InputPorts { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, PortBuffer> OutputPorts { get; } = new(StringComparer.Ordinal);
+    public TankInternalState? Tank { get; set; }
+    public JunctionInternalState? Junction { get; set; }
+    public ProcessingSlotState? ProcessingSlot { get; set; }
 
     public bool IsBlocked => BlockedReason != null;
 

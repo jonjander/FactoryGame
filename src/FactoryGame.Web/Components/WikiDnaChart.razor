@@ -1,0 +1,49 @@
+@using FactoryGame.Web.Models
+
+<div class="pool-dna-chart wiki-dna-chart" aria-label="DNA-band">
+    @foreach (var band in GetDnaBands(Element))
+    {
+        <div class="pool-dna-band">
+            <div class="pool-dna-bar-wrap">
+                <div class="pool-dna-bar wiki-dna-bar wiki-dna-bar-@band.Slug" style="height: @(band.Percent)%"></div>
+            </div>
+            <span class="pool-dna-label">@band.Label</span>
+            <span class="pool-dna-value muted">@band.ValueText</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ElementContentItem Element { get; set; } = null!;
+
+    private static IReadOnlyList<DnaBand> GetDnaBands(ElementContentItem element)
+    {
+        var d = element.Decoded;
+        return
+        [
+            Band("Fas", PhasePercent(d.Phase), d.Phase, "phase"),
+            Band("Explosiv", d.Explosivity, $"{d.Explosivity}%", "explosive"),
+            Band("Brand", d.Flammability, $"{d.Flammability}%", "fire"),
+            Band("Toxisk", d.Toxicity, $"{d.Toxicity}%", "toxic"),
+            Band("Kok", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString(), "boil"),
+            Band("Frys", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString(), "freeze"),
+            Band("Familj", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString(), "family")
+        ];
+    }
+
+    private static int PhasePercent(string phase) => phase switch
+    {
+        "Liquid" => 55,
+        "Gas" => 90,
+        _ => 25
+    };
+
+    private static int NormalizeBucket(int value, int max = 4095) =>
+        max <= 0 ? 0 : Math.Clamp((int)Math.Round(value * 100.0 / max), 4, 100);
+
+    private static DnaBand Band(string label, int percent, string valueText, string slug) =>
+        new(label, Math.Clamp(percent, 4, 100), valueText, slug);
+
+    private sealed record DnaBand(string Label, int Percent, string ValueText, string Slug);
+}

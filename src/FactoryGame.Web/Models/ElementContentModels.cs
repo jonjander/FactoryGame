@@ -49,8 +49,26 @@ public sealed class WikiContentResponse
     [JsonPropertyName("locale")]
     public string Locale { get; set; } = "";
 
+    [JsonPropertyName("nameGeneratorVersion")]
+    public int NameGeneratorVersion { get; set; }
+
+    [JsonPropertyName("machines")]
+    public List<WikiMachineItem> Machines { get; set; } = [];
+
     [JsonPropertyName("elements")]
     public List<WikiElementItem> Elements { get; set; } = [];
+}
+
+public sealed class WikiMachineItem
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    [JsonPropertyName("ports")]
+    public string Ports { get; set; } = "";
+
+    [JsonPropertyName("summary")]
+    public string Summary { get; set; } = "";
 }
 
 public sealed class WikiElementItem

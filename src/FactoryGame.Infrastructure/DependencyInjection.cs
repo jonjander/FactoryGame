@@ -15,6 +15,7 @@ public static class DependencyInjection
     {
         services.Configure<GameEconomyOptions>(configuration.GetSection(GameEconomyOptions.SectionName));
         services.Configure<MarketLiquidityOptions>(configuration.GetSection(MarketLiquidityOptions.SectionName));
+        services.Configure<SponsorCompanyOptions>(configuration.GetSection(SponsorCompanyOptions.SectionName));
         services.Configure<AdminOptions>(configuration.GetSection(AdminOptions.SectionName));
 
         var dbResolution = DbConnectionResolver.Resolve(configuration.GetConnectionString("DefaultConnection"));
@@ -41,6 +42,9 @@ public static class DependencyInjection
         services.AddScoped<BoardSimulationRunner>();
         services.AddScoped<MachineInventoryService>();
         services.AddScoped<AdminService>();
+        services.AddScoped<SponsorCompanyService>();
+        services.AddScoped<SponsorCompanyTradingService>();
+        services.AddHostedService<SponsorCompanyTradingHostedService>();
         services.AddHostedService<BaseIncomeBackgroundService>();
         services.AddHostedService<SimulationTickHostedService>();
 

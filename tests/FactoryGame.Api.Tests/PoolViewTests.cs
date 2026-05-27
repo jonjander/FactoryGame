@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using FactoryGame.Contracts.Auth;
 using FactoryGame.Contracts.Pool;
 using FactoryGame.Domain.Content;
@@ -35,6 +36,22 @@ public sealed class PoolViewTests : IClassFixture<ApiWebApplicationFixture>
         }
 
         Assert.Equal(sum, overview.TotalEstimatedValue);
+    }
+
+    [Fact]
+    public async Task Pool_view_serializes_dna_as_json_strings()
+    {
+        var client = await CreateAuthedClientAsync();
+        var raw = await client.GetStringAsync("/v1/me/pool/view");
+        using var doc = JsonDocument.Parse(raw);
+        var stacks = doc.RootElement.GetProperty("stacks");
+        Assert.True(stacks.GetArrayLength() > 0);
+        Assert.Equal(JsonValueKind.String, stacks[0].GetProperty("dna").ValueKind);
+        var groups = doc.RootElement.GetProperty("groups");
+        Assert.True(groups.GetArrayLength() > 0);
+        var variants = groups[0].GetProperty("variants");
+        Assert.True(variants.GetArrayLength() > 0);
+        Assert.Equal(JsonValueKind.String, variants[0].GetProperty("dna").ValueKind);
     }
 
     [Fact]

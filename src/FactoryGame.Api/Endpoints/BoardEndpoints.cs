@@ -107,6 +107,30 @@ public static class BoardEndpoints
             .WithName("ListBoards")
             .WithOpenApi();
 
+        group.MapPatch("/{boardId:guid}", async Task<IResult> (
+                HttpContext http,
+                Guid boardId,
+                [FromBody] RenameBoardRequest? body,
+                BoardService boards,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                if (body == null || string.IsNullOrWhiteSpace(body.Name))
+                    return Results.BadRequest(new { error = "Name is required." });
+                try
+                {
+                    await boards.RenameBoardAsync(playerId, boardId, body.Name, ct);
+                    return Results.NoContent();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(new { error = ex.Message });
+                }
+            })
+            .WithName("RenameBoard")
+            .WithOpenApi();
+
         group.MapPut("/{boardId:guid}/plan", async Task<IResult> (
                 HttpContext http,
                 Guid boardId,

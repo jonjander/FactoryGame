@@ -15,6 +15,9 @@ public static class MachineProcessorRegistry
             new Processors.SorterProcessor(),
             new Processors.DestillatorProcessor(),
             new Processors.LiquidSeparatorProcessor(),
+            new Processors.TankProcessor(),
+            new Processors.JunctionProcessor(),
+            new Processors.RateLimiterProcessor(),
             new Processors.SeaportConnectorProcessor(),
             new Processors.SeaportInProcessor(),
             new Processors.SeaportOutProcessor()

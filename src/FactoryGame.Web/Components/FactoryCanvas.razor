@@ -48,7 +48,7 @@
                   @onclick:stopPropagation="true">
                 <title>@pipeTitle</title>
             </path>
-            <path class="@entry.Draw.CssClass @(selected ? "fg-pipe-selected" : "") @GetPipeFlowClass(entry.Index)"
+            <path class="@entry.Draw.CssClass @(selected ? "fg-pipe-selected" : "") @GetPipeFlowClass(entry.Index) @GetPipePhaseClass(entry.Index)"
                   d="@entry.Draw.Path"
                   marker-end="url(#fg-arrow)"
                   pointer-events="none" />
@@ -73,15 +73,22 @@
 
             var running = IsMachineRunning(m.Id);
             var blocked = IsMachineBlocked(m.Id);
+            var condenserActive = IsCondenserTransforming(m.Id);
             var machineTitle = GetMachineTooltip(m);
 
-            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "")"
+            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "") @(condenserActive ? "fg-machine-condenser-active" : "")"
                transform="translate(@Fmt(mx), @Fmt(my))">
                 <title>@machineTitle</title>
                 <rect class="fg-machine-body" width="@w" height="@h" rx="6" pointer-events="none" />
                 @if (running)
                 {
                     <rect class="fg-machine-flow-pulse" width="@w" height="@h" rx="6" pointer-events="none" />
+                }
+                @if (condenserActive)
+                {
+                    <circle class="fg-condenser-bubble fg-condenser-bubble-a" cx="@Fmt(w * 0.35)" cy="@Fmt(h * 0.55)" r="3" pointer-events="none" />
+                    <circle class="fg-condenser-bubble fg-condenser-bubble-b" cx="@Fmt(w * 0.55)" cy="@Fmt(h * 0.65)" r="2.5" pointer-events="none" />
+                    <circle class="fg-condenser-bubble fg-condenser-bubble-c" cx="@Fmt(w * 0.72)" cy="@Fmt(h * 0.5)" r="2" pointer-events="none" />
                 }
                 @if (!ReadOnly)
                 {
@@ -175,6 +182,7 @@
     private const double MachineWidth = 120;
     private const double MachineHeight = 64;
     private const double CanvasPad = 24;
+    private const double MachineDragThresholdPx = 4;
 
     [Parameter, EditorRequired]
     public BoardPlanDto Plan { get; set; } = null!;
@@ -232,6 +240,10 @@
     private HashSet<string> _machinesWithFlow = new(StringComparer.Ordinal);
     private string _viewBox = "0 0 800 480";
     private string? _dragMachineId;
+    private string? _pendingMachineDragId;
+    private bool _machineDragMoved;
+    private double _machineDragStartClientX;
+    private double _machineDragStartClientY;
     private double _dragOffsetX;
     private double _dragOffsetY;
     private (string Id, string Port)? _pendingOut;
@@ -276,7 +288,7 @@
 
     private async Task StartPointerDragAsync()
     {
-        if (_canvasModule == null || _pointerDragActive)
+        if (_canvasModule == null)
             return;
         _dotNetRef ??= DotNetObjectReference.Create(this);
         await _canvasModule.InvokeVoidAsync("startPointerDrag", _dotNetRef);
@@ -308,6 +320,17 @@
             return;
         }
 
+        if (_pendingMachineDragId != null && !_machineDragMoved)
+        {
+            var dx = clientX - _machineDragStartClientX;
+            var dy = clientY - _machineDragStartClientY;
+            if (dx * dx + dy * dy < MachineDragThresholdPx * MachineDragThresholdPx)
+                return;
+
+            _machineDragMoved = true;
+            _dragMachineId = _pendingMachineDragId;
+        }
+
         if (_dragMachineId == null)
             return;
 
@@ -328,7 +351,9 @@
     [JSInvokable]
     public async Task OnDocumentPointerUp()
     {
-        var commitLayout = _dragMachineId != null;
+        var commitLayout = _machineDragMoved && _dragMachineId != null;
+        _pendingMachineDragId = null;
+        _machineDragMoved = false;
         _dragMachineId = null;
         if (_dragPipeFrom != null)
         {
@@ -522,12 +547,15 @@
         if (_machinePortByKey.TryGetValue(PortFlowKey(c.FromId, c.FromPort), out var flow))
         {
             if (!string.IsNullOrEmpty(flow.OutputElementSymbol))
-                return flow.OutputElementSymbol;
+                return FormatMaterialWithPhase(flow.OutputElementSymbol, flow.OutputPhase);
             if (!string.IsNullOrEmpty(flow.InputElementSymbol))
-                return flow.InputElementSymbol;
+                return FormatMaterialWithPhase(flow.InputElementSymbol, flow.InputPhase ?? flow.OutputPhase);
         }
         return null;
     }
+
+    private static string FormatMaterialWithPhase(string symbol, string? phase) =>
+        string.IsNullOrEmpty(phase) ? symbol : $"{symbol} {PhaseShort(phase)}";
 
     private string GetMachineTooltip(MachineDto m)
     {
@@ -626,6 +654,40 @@
         return _machinesWithFlow.Contains(c.FromId) ? "fg-pipe-flowing" : "";
     }
 
+    private string GetPipePhaseClass(int connectionIndex)
+    {
+        if (connectionIndex < 0 || connectionIndex >= Plan.Connections.Count)
+            return "";
+
+        var c = Plan.Connections[connectionIndex];
+        if (!_machinePortByKey.TryGetValue(PortFlowKey(c.FromId, c.FromPort), out var flow)
+            || string.IsNullOrEmpty(flow.OutputPhase))
+            return "";
+
+        return flow.OutputPhase.ToLowerInvariant() switch
+        {
+            "gas" => "fg-pipe-phase-gas",
+            "liquid" => "fg-pipe-phase-liquid",
+            "solid" => "fg-pipe-phase-solid",
+            _ => ""
+        };
+    }
+
+    private bool IsCondenserTransforming(string machineId)
+    {
+        if (!IsFactoryRunning)
+            return false;
+
+        var machine = Plan.Machines.FirstOrDefault(m => m.Id == machineId);
+        if (machine == null || !machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return MachinePortFlows.Any(f =>
+            f.MachineId == machineId
+            && f.ProcessStatus == "Transformed"
+            && f.DnaChanged);
+    }
+
     private bool HasPortFlow(string machineId, string portName, bool isOutput)
     {
         if (!IsFactoryRunning)
@@ -675,8 +737,12 @@
         _dragPipeFrom = null;
         _dragCursor = null;
         _pendingOut = null;
+        _dragMachineId = null;
+        _machineDragMoved = false;
         await SelectedMachineIdChanged.InvokeAsync(machineId);
-        _dragMachineId = machineId;
+        _pendingMachineDragId = machineId;
+        _machineDragStartClientX = e.ClientX;
+        _machineDragStartClientY = e.ClientY;
 
         var pt = await ClientToSvgAsync(e.ClientX, e.ClientY);
         if (pt == null)
@@ -768,6 +834,8 @@
             return;
 
         _dragMachineId = null;
+        _pendingMachineDragId = null;
+        _machineDragMoved = false;
         _dragPipeFrom = (machineId, portName);
         var pt = await ClientToSvgAsync(e.ClientX, e.ClientY);
         _dragCursor = pt;
@@ -778,8 +846,19 @@
 
     private async Task OnPortMouseUp(MouseEventArgs e, string machineId, string portName, bool isOutput)
     {
-        if (ReadOnly || isOutput)
+        if (ReadOnly)
             return;
+
+        if (isOutput)
+        {
+            if (_dragPipeFrom != null)
+            {
+                _dragPipeFrom = null;
+                _dragCursor = null;
+                await StopPointerDragAsync();
+            }
+            return;
+        }
 
         if (_dragPipeFrom is { } from)
         {

@@ -4,6 +4,7 @@
 @inject WalletState Wallet
 @inject NavigationManager Nav
 @inject IJSRuntime Js
+@inject AppVersionMonitor AppVersion
 
 <div class="page">
     <header class="top-bar">
@@ -11,6 +12,7 @@
         <nav class="nav">
             <a href="/">Home</a>
             <a href="/exchange">Börs</a>
+            <a href="/market">Marknad</a>
             <a href="/pool">Pool</a>
             <a href="/boards">Fabrik</a>
             <a href="/wiki">Wiki</a>
@@ -35,6 +37,15 @@
     <main class="content">
         @Body
     </main>
+    @if (AppVersion.UpdateAvailable)
+    {
+        <div class="app-update-banner" role="status">
+            <span>Ny version @AppVersion.ServerVersion finns (du kör @AppReleaseVersion.Current).</span>
+            <button type="button" @onclick="HardReloadClientAsync" disabled="@_reloadBusy">
+                @(_reloadBusy ? "Uppdaterar…" : "Uppdatera nu")
+            </button>
+        </div>
+    }
     <footer class="app-footer muted">
         <span>Version @AppReleaseVersion.Current</span>
         <button type="button" class="secondary" @onclick="HardReloadClientAsync" disabled="@_reloadBusy" title="Rensa PWA-cache och ladda om så senaste WASM hämtas">
@@ -49,11 +60,15 @@
 
     protected override async Task OnInitializedAsync()
     {
+        AppVersion.Changed += OnAppVersionChanged;
+        AppVersion.Start();
         await Tokens.LoadAsync();
         Tokens.Changed += OnAuthChanged;
         Wallet.Changed += OnWalletChanged;
         await Wallet.RefreshAsync();
     }
+
+    private void OnAppVersionChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void OnAuthChanged() => _ = OnAuthChangedAsync();
 
@@ -88,6 +103,7 @@
 
     public void Dispose()
     {
+        AppVersion.Changed -= OnAppVersionChanged;
         Tokens.Changed -= OnAuthChanged;
         Wallet.Changed -= OnWalletChanged;
     }

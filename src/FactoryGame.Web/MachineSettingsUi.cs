@@ -72,43 +72,63 @@ public static class MachineSettingsUi
         new(20, "Kraftig")
     ];
 
+    private static readonly MachineSettingOption[] OperationRate =
+    [
+        new(500, "50 %"),
+        new(800, "80 %"),
+        new(1000, "100 %")
+    ];
+
+    private static readonly MachineSettingOption[] TankSize =
+    [
+        new(0, "Liten (8)"),
+        new(1, "Medium (24)"),
+        new(2, "Stor (64)")
+    ];
+
     public static IReadOnlyList<MachineSettingField> GetFields(string machineType)
     {
         var t = machineType.Trim();
         if (t.Equals("Boiler", StringComparison.OrdinalIgnoreCase))
-            return [new("heatDelta", "Värme", HeatPower)];
+            return WithOperationRate([new("heatDelta", "Värme", HeatPower)]);
         if (t.Equals("Heater", StringComparison.OrdinalIgnoreCase))
-            return [new("heatDelta", "Värme", HeatPower)];
+            return WithOperationRate([new("heatDelta", "Värme", HeatPower)]);
         if (t.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
-            return [new("coolDelta", "Kylning", CoolPower)];
+            return WithOperationRate([new("coolDelta", "Kylning", CoolPower)]);
         if (t.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
-            return [new("condenseDelta", "Kondensering", Condense)];
+            return WithOperationRate([new("condenseDelta", "Kondensering", Condense)]);
         if (t.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
-            return
+            return WithOperationRate(
             [
                 new("cutFreeze", "Frys-cut", CutBand),
                 new("chillDelta", "Kylhastighet", Chill)
-            ];
+            ]);
         if (t.Equals("Melter", StringComparison.OrdinalIgnoreCase))
-            return
+            return WithOperationRate(
             [
                 new("cutBoiling", "Smält-cut", CutBand),
                 new("heatDelta", "Smälteffekt", MeltHeat)
-            ];
+            ]);
         if (t.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
-            return
+            return WithOperationRate(
             [
                 new("mixIntensityPermille", "Blandning", MixIntensity),
                 new("ratioPermille", "Ratio in1", MixRatio)
-            ];
+            ]);
         if (t.Equals("Destilator", StringComparison.OrdinalIgnoreCase))
-            return
+            return WithOperationRate(
             [
                 new("cutBoiling", "Kok-cut", CutBand),
                 new("refluxPermille", "Reflux", Reflux)
-            ];
+            ]);
         if (t.Equals("LiquidSeparator", StringComparison.OrdinalIgnoreCase))
-            return [new("cutFreeze", "Separations-cut", CutBand)];
+            return WithOperationRate([new("cutFreeze", "Separations-cut", CutBand)]);
+        if (t.Equals("Tank", StringComparison.OrdinalIgnoreCase))
+            return [new("tankSize", "Storlek", TankSize)];
+        if (t.Equals("RateLimiter", StringComparison.OrdinalIgnoreCase))
+            return [new("maxRatePermille", "Max flöde", MaxRate)];
+        if (t.Equals("Junction", StringComparison.OrdinalIgnoreCase))
+            return Array.Empty<MachineSettingField>();
         if (t.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
             return
             [
@@ -122,6 +142,17 @@ public static class MachineSettingsUi
 
         return Array.Empty<MachineSettingField>();
     }
+
+    private static readonly MachineSettingOption[] MaxRate =
+    [
+        new(250, "25 %"),
+        new(500, "50 %"),
+        new(750, "75 %"),
+        new(1000, "100 %")
+    ];
+
+    private static IReadOnlyList<MachineSettingField> WithOperationRate(params MachineSettingField[] fields) =>
+        fields.Concat([new("operationRatePermille", "Drifthastighet", OperationRate)]).ToArray();
 
     public static bool UsesElementPicker(MachineSettingField field) =>
         field.JsonKey is "outElementId" or "port1" or "port2" or "port3";

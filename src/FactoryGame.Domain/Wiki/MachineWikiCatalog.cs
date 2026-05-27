@@ -15,6 +15,9 @@ public static class MachineWikiCatalog
         new("Crystallizer", "1:1", "Crystallizes spread/unstable liquid to solid via freeze band (never outputs gas)."),
         new("Melter", "1:1", "Melts spread solid to liquid via boil band (compact solids pass through)."),
         new("Sorter", "1:4", "Routes configured elements to ports 1–3; all other to port 4 (rest)."),
+        new("Tank", "1:1", "Buffer storage with configurable capacity (small/medium/large)."),
+        new("Junction", "1:2", "Splits one input across two outputs with fair alternation or capacity-weighted routing."),
+        new("RateLimiter", "1:1", "Caps flow to a configured maximum rate."),
         new("SeaportConnector", "1:1", "Kopplar fabrik till seaport-pool (in från rör, ut till rör)."),
         new("SeaportIn", "0:1", "Legacy: pool → fabrik (endast ut)."),
         new("SeaportOut", "1:0", "Legacy: fabrik → pool (endast in).")

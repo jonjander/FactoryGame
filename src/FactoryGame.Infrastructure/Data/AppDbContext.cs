@@ -20,6 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SimulationClockEntity> SimulationClock => Set<SimulationClockEntity>();
     public DbSet<BoardKeyframeEntity> BoardKeyframes => Set<BoardKeyframeEntity>();
     public DbSet<ApiKeyEntity> ApiKeys => Set<ApiKeyEntity>();
+    public DbSet<SponsorCompanyEntity> SponsorCompanies => Set<SponsorCompanyEntity>();
+    public DbSet<SponsorCompanyOrderEntity> SponsorCompanyOrders => Set<SponsorCompanyOrderEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +70,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.ElementId, x.Dna, x.Status, x.Side });
             e.HasIndex(x => new { x.ElementId, x.Dna, x.IsSynthetic, x.Status });
             e.HasIndex(x => new { x.PlayerId, x.IdempotencyKey }).IsUnique();
+            e.HasIndex(x => x.SponsorCompanyId);
             e.Property(x => x.LimitPrice).HasPrecision(18, 4);
         });
 
@@ -76,6 +79,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.ElementId, x.Dna });
             e.HasIndex(x => new { x.ElementId, x.Dna, x.CreatedAt });
+            e.HasIndex(x => x.BuyerSponsorCompanyId);
+            e.HasIndex(x => x.SellerSponsorCompanyId);
             e.Property(x => x.Price).HasPrecision(18, 4);
         });
 
@@ -131,6 +136,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.KeyHash).IsUnique();
             e.HasIndex(x => x.PlayerId);
             e.HasOne<PlayerEntity>().WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SponsorCompanyEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.PlayerId).IsUnique();
+            e.HasIndex(x => x.IsActive);
+            e.Property(x => x.BudgetRemaining).HasPrecision(18, 4);
+            e.Property(x => x.TotalBudget).HasPrecision(18, 4);
+            e.Property(x => x.VirtualSpend).HasPrecision(18, 4);
+            e.HasOne<PlayerEntity>().WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.StandingOrders).WithOne(x => x.SponsorCompany).HasForeignKey(x => x.SponsorCompanyId);
+        });
+
+        modelBuilder.Entity<SponsorCompanyOrderEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.SponsorCompanyId, x.IsActive });
+            e.Property(x => x.LimitPrice).HasPrecision(18, 4);
         });
     }
 }

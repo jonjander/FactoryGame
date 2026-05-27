@@ -1,5 +1,6 @@
 using FactoryGame.Contracts.Boards;
 using FactoryGame.Contracts.Machines;
+using FactoryGame.Contracts.Pool;
 using FactoryGame.Web.Models;
 
 namespace FactoryGame.Web;
@@ -14,7 +15,8 @@ public static class MachineSettingsWarnings
         IReadOnlyList<ElementContentItem> elements,
         IReadOnlyList<MachineDto> planMachines,
         IReadOnlyList<ConnectionDto> connections,
-        IReadOnlyDictionary<string, MachineStoreItemDto> machineMeta)
+        IReadOnlyDictionary<string, MachineStoreItemDto> machineMeta,
+        IReadOnlyList<PoolVariantStackDto>? poolVariants = null)
     {
         if (elementId <= 0)
             return Array.Empty<string>();
@@ -24,6 +26,13 @@ public static class MachineSettingsWarnings
             return Array.Empty<string>();
 
         var warnings = new List<string>();
+
+        if (fieldJsonKey == "outElementId")
+        {
+            var poolWarning = GetPoolEmptyWarning(machine, elementId, element, poolVariants);
+            if (poolWarning != null)
+                warnings.Add(poolWarning);
+        }
 
         foreach (var downstream in GetDownstreamMachines(machine, fieldJsonKey, planMachines, connections, machineMeta))
         {
@@ -43,6 +52,40 @@ public static class MachineSettingsWarnings
 
         return warnings;
     }
+
+    private static string? GetPoolEmptyWarning(
+        MachineDto machine,
+        int elementId,
+        ElementContentItem element,
+        IReadOnlyList<PoolVariantStackDto>? poolVariants)
+    {
+        if (!IsSeaportOutMachine(machine.Type))
+            return null;
+
+        var dna = PlanMachineSettings.GetOutMaterialDna(machine);
+        decimal quantity;
+        if (poolVariants is { Count: > 0 })
+        {
+            quantity = poolVariants
+                .Where(v => v.ElementId == elementId && (dna == 0 || v.Dna == dna))
+                .Sum(v => v.Quantity);
+        }
+        else
+        {
+            return null;
+        }
+
+        if (quantity > 0)
+            return null;
+
+        return dna == 0
+            ? $"Poolen har inget kvar av {element.Symbol} ({element.Name}) — seaport kan inte mata in."
+            : $"Poolen har inget kvar av vald variant ({element.Symbol}) — seaport kan inte mata in.";
+    }
+
+    private static bool IsSeaportOutMachine(string machineType) =>
+        machineType.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+        || machineType.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase);
 
     private static string? GetIncompatibilityReason(string machineType, ElementDecodedProperties d)
     {

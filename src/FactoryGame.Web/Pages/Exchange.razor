@@ -3,6 +3,7 @@
 @using System.Net.Http.Json
 @using System.Text.Json
 @using FactoryGame.Contracts.Market
+@using FactoryGame.Contracts.Json
 @inject HttpClient Http
 @inject TokenStore Tokens
 @inject WalletState Wallet
@@ -15,7 +16,7 @@
     <h2>Börs</h2>
     <p class="muted">Handla grundämnen i din pool. Marknaden fylls på automatiskt när det saknas motpart.</p>
   <div class="exchange-header-actions">
-        <button type="button" class="secondary" @onclick="RefreshAsync" disabled="@(_busy || _placing)">Uppdatera</button>
+        <button type="button" class="secondary" @onclick="() => RefreshAsync()" disabled="@(_busy || _placing)">Uppdatera</button>
         @if (Wallet.Cash is { } cash)
         {
             <span class="muted exchange-wallet-hint">Kassa: <strong>@cash.ToString("0.##")</strong></span>
@@ -26,6 +27,26 @@
         <p class="error">@_error</p>
     }
 </div>
+
+@if (!string.IsNullOrEmpty(Tokens.BearerToken) && _sellInsights.Count > 0)
+{
+    <div class="panel exchange-insights">
+        <h3>Säljmöjligheter — företag som betalar bra</h3>
+        <p class="muted">Baserat på öppna köpordrar från sponsrade företag som matchar ditt poolinnehav.</p>
+        <ul class="exchange-insights-list">
+            @foreach (var insight in _sellInsights.Take(5))
+            {
+                <li>
+                    <strong>@insight.CompanyName</strong> köper
+                    <span class="fg-element-badge">@insight.Symbol</span> @insight.PhaseLabel
+                    @@ <strong>@insight.LimitPrice.ToString("0.##")</strong>
+                    (volym @insight.OpenQuantity)
+                    <button type="button" class="secondary" @onclick="() => ApplySellInsightAsync(insight)">Sälj nu</button>
+                </li>
+            }
+        </ul>
+    </div>
+}
 
 @if (string.IsNullOrEmpty(Tokens.BearerToken))
 {
@@ -214,20 +235,70 @@ else if (_summary.Count > 0)
                     }
                     else
                     {
-                        <table class="exchange-trades-table">
-                            <thead><tr><th>Sida</th><th>Limit</th><th>Kvar</th><th>Skapad</th></tr></thead>
-                            <tbody>
-                                @foreach (var o in _myOpenOrders)
-                                {
-                                    <tr>
-                                        <td>@(o.Side.Equals("Buy", StringComparison.OrdinalIgnoreCase) ? "Köp" : "Sälj")</td>
-                                        <td>@o.LimitPrice.ToString("0.##")</td>
-                                        <td>@o.QuantityRemaining / @o.OriginalQuantity</td>
-                                        <td>@o.CreatedAt.LocalDateTime.ToString("HH:mm")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        <ul class="exchange-open-order-list">
+                            @foreach (var o in _myOpenOrders)
+                            {
+                                var isBuy = o.Side.Equals("Buy", StringComparison.OrdinalIgnoreCase);
+                                var status = DescribeOpenOrderStatus(o, isBuy);
+                                var isEditing = _editingOrderId == o.Id;
+                                var isActing = _actingOrderId == o.Id;
+                                <li class="exchange-open-order-card @status.CssClass">
+                                    <div class="exchange-open-order-head">
+                                        <span class="exchange-open-order-badge @status.BadgeClass">@status.Badge</span>
+                                        <span class="exchange-open-order-side">@(isBuy ? "Köp" : "Sälj")</span>
+                                        <span class="exchange-open-order-qty">
+                                            <strong>@o.QuantityRemaining</strong> kvar av @o.OriginalQuantity st
+                                        </span>
+                                    </div>
+                                    <div class="exchange-open-order-limit">
+                                        Limitpris: <strong>@o.LimitPrice.ToString("0.##")</strong>
+                                        @if (o.QuantityRemaining < o.OriginalQuantity)
+                                        {
+                                            <span class="muted"> · delvis fylld</span>
+                                        }
+                                    </div>
+                                    <p class="exchange-open-order-status">@status.Message</p>
+                                    @if (status.Suggestion is { } suggestion)
+                                    {
+                                        <p class="exchange-open-order-suggestion">@suggestion</p>
+                                    }
+                                    <div class="exchange-open-order-actions">
+                                        @if (isBuy && _selected?.BestAsk is { } askForOrder)
+                                        {
+                                            <button type="button" class="secondary" disabled="@(_busy || _placing || isActing)"
+                                                    @onclick="() => AmendToAskAsync(o, askForOrder)">
+                                                Höj till ask (@askForOrder.ToString("0.##"))
+                                            </button>
+                                        }
+                                        @if (!isEditing)
+                                        {
+                                            <button type="button" class="secondary" disabled="@(_busy || _placing || isActing)"
+                                                    @onclick="() => StartEditPrice(o)">
+                                                Ändra pris
+                                            </button>
+                                        }
+                                        <button type="button" class="danger-outline" disabled="@(_busy || _placing || isActing)"
+                                                @onclick="() => CancelOrderAsync(o)">
+                                            @(isActing ? "Avbryter…" : "Avbryt order")
+                                        </button>
+                                    </div>
+                                    @if (isEditing)
+                                    {
+                                        <form class="exchange-open-order-edit" @onsubmit="() => SubmitAmendAsync(o)" @onsubmit:preventDefault="true">
+                                            <label for="@($"edit-price-{o.Id}")">Nytt limitpris</label>
+                                            <div class="exchange-open-order-edit-row">
+                                                <input id="@($"edit-price-{o.Id}")" type="number" step="0.01" min="0.01"
+                                                       @bind="_editingPrice" @bind:culture="CultureInfo.InvariantCulture" />
+                                                <button type="submit" disabled="@(_busy || _placing || isActing || _editingPrice <= 0)">
+                                                    Spara
+                                                </button>
+                                                <button type="button" class="secondary" disabled="@isActing" @onclick="CancelEditPrice">Avbryt</button>
+                                            </div>
+                                        </form>
+                                    }
+                                </li>
+                            }
+                        </ul>
                     }
                 </div>
 
@@ -235,7 +306,7 @@ else if (_summary.Count > 0)
                     <h4>Senaste avslut (spelare)</h4>
                     <p class="muted exchange-trades-hint">Riktiga handel — syntetisk kurshistorik visas inte här.</p>
                     <table class="exchange-trades-table">
-                        <thead><tr><th>Tid</th><th>Pris</th><th>Volym</th></tr></thead>
+                        <thead><tr><th>Tid</th><th>Pris</th><th>Volym</th><th>Motpart</th></tr></thead>
                         <tbody>
                             @if (_lastFill is { } fill)
                             {
@@ -243,11 +314,12 @@ else if (_summary.Count > 0)
                                     <td>Nyss</td>
                                     <td>@fill.Price.ToString("0.##")</td>
                                     <td>@fill.Quantity</td>
+                                    <td>@(_lastFillCounterparty ?? "—")</td>
                                 </tr>
                             }
                             @if (_trades.Count == 0 && _lastFill is null)
                             {
-                                <tr><td colspan="3" class="muted">Inga spelaravslut ännu för detta ämne.</td></tr>
+                                <tr><td colspan="4" class="muted">Inga spelaravslut ännu för detta ämne.</td></tr>
                             }
                             @foreach (var t in _trades)
                             {
@@ -255,6 +327,7 @@ else if (_summary.Count > 0)
                                     <td>@t.CreatedAt.LocalDateTime.ToString("HH:mm:ss")</td>
                                     <td>@t.Price.ToString("0.##")</td>
                                     <td>@t.Quantity</td>
+                                    <td>@FormatTradeCounterparty(t)</td>
                                 </tr>
                             }
                         </tbody>
@@ -267,7 +340,7 @@ else if (_summary.Count > 0)
 
 @code {
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonOpts = FactoryGameJson.Api;
 
     private const int ChartWidth = 320;
     private const int ChartHeight = 80;
@@ -281,6 +354,8 @@ else if (_summary.Count > 0)
     private readonly List<MarketTradeDto> _trades = new();
     private readonly List<MyOpenOrderDto> _myOpenOrders = new();
     private MarketTradeDto? _lastFill;
+    private string? _lastFillCounterparty;
+    private readonly List<MarketInsightDto> _sellInsights = new();
     private int _selectedId;
     private long _selectedDna;
     private MarketElementSummaryDto? _selected;
@@ -290,6 +365,9 @@ else if (_summary.Count > 0)
     private string _orderFeedback = "";
     private string _orderFeedbackKind = "";
     private string _orderDetails = "";
+    private Guid? _editingOrderId;
+    private Guid? _actingOrderId;
+    private decimal _editingPrice;
     private PeriodicTimer? _pollTimer;
     private CancellationTokenSource? _pollCts;
 
@@ -360,9 +438,9 @@ else if (_summary.Count > 0)
         catch (OperationCanceledException) { }
     }
 
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(bool afterOrder = false)
     {
-        if (_placing) return;
+        if (_placing && !afterOrder) return;
 
         _busy = true;
         _error = null;
@@ -399,6 +477,7 @@ else if (_summary.Count > 0)
 
             _selected = _summary.FirstOrDefault(s => IsSelected(s));
             await LoadVariantDetailAsync(_selectedId, _selectedDna);
+            await LoadInsightsAsync();
             await Wallet.RefreshAsync();
         }
         catch (Exception ex)
@@ -460,6 +539,51 @@ else if (_summary.Count > 0)
         {
             // Kurshistorik är sekundär — blockera inte övrig vy.
         }
+    }
+
+    private async Task LoadInsightsAsync()
+    {
+        try
+        {
+            var insights = await Http.GetFromJsonAsync<MarketInsightsResponse>("/v1/market/insights", JsonOpts);
+            _sellInsights.Clear();
+            if (insights?.SellOpportunities != null)
+                _sellInsights.AddRange(insights.SellOpportunities);
+        }
+        catch
+        {
+            _sellInsights.Clear();
+        }
+    }
+
+    private async Task ApplySellInsightAsync(MarketInsightDto insight)
+    {
+        var item = _summary.FirstOrDefault(s => s.ElementId == insight.ElementId && s.Dna == insight.Dna);
+        if (item != null)
+            await SelectVariantAsync(item);
+        else
+        {
+            _selectedId = insight.ElementId;
+            _selectedDna = insight.Dna;
+        }
+        _side = "sell";
+        _price = insight.LimitPrice;
+        _qty = Math.Min(1, insight.OpenQuantity);
+        _orderFeedback = $"Förifyllt från {insight.CompanyName}.";
+        _orderFeedbackKind = "info";
+    }
+
+    private string FormatTradeCounterparty(MarketTradeDto trade)
+    {
+        if (trade.BuyerLabel == "Du")
+            return trade.SellerLabel ?? "—";
+        if (trade.SellerLabel == "Du")
+            return trade.BuyerLabel ?? "—";
+        if (trade.BuyerIsSponsor)
+            return trade.BuyerLabel ?? "Företag";
+        if (trade.SellerIsSponsor)
+            return trade.SellerLabel ?? "Företag";
+        return trade.BuyerLabel ?? trade.SellerLabel ?? "—";
     }
 
     private async Task LoadTradesAsync(int elementId, long dna)
@@ -540,11 +664,173 @@ else if (_summary.Count > 0)
                 $"/v1/market/orders/mine?elementId={elementId}", JsonOpts);
             _myOpenOrders.Clear();
             if (list != null)
-                _myOpenOrders.AddRange(list.Where(o => o.Dna == dna));
+                _myOpenOrders.AddRange(list.Where(o => o.Dna == dna).OrderByDescending(o => o.CreatedAt));
         }
         catch
         {
             _myOpenOrders.Clear();
+        }
+    }
+
+    private sealed record OpenOrderStatus(string Badge, string BadgeClass, string Message, string? Suggestion, string CssClass);
+
+    private OpenOrderStatus DescribeOpenOrderStatus(MyOpenOrderDto order, bool isBuy)
+    {
+        if (_selected is null)
+            return new OpenOrderStatus("Öppen", "badge-wait", "Ordern ligger i orderboken.", null, "open-order-wait");
+
+        if (isBuy)
+        {
+            if (_selected.BestAsk is not { } ask)
+                return new OpenOrderStatus(
+                    "Väntar",
+                    "badge-wait",
+                    "Ingen säljare i boken ännu — ordern fylls när någon lägger ut till salu.",
+                    "Marknaden fylls på automatiskt med tiden, eller höj ditt limitpris.",
+                    "open-order-wait");
+
+            if (order.LimitPrice < ask)
+                return new OpenOrderStatus(
+                    "För lågt pris",
+                    "badge-blocked",
+                    $"Ditt limit {order.LimitPrice:0.##} är under bästa ask {ask:0.##} — ingen säljare matchar än.",
+                    $"Höj till minst {ask:0.##} för att köpa direkt mot boken.",
+                    "open-order-blocked");
+
+            return new OpenOrderStatus(
+                "Väntar på volym",
+                "badge-wait",
+                $"Priset räcker mot ask {ask:0.##}, men det finns inte tillräcklig volym just nu.",
+                "Ordern ligger kvar tills en säljare fyller resten.",
+                "open-order-wait");
+        }
+
+        if (_selected.BestBid is not { } bid)
+            return new OpenOrderStatus(
+                "Väntar",
+                "badge-wait",
+                "Ingen köpare i boken ännu.",
+                null,
+                "open-order-wait");
+
+        if (order.LimitPrice > bid)
+            return new OpenOrderStatus(
+                "För högt pris",
+                "badge-blocked",
+                $"Ditt limit {order.LimitPrice:0.##} är över bästa bid {bid:0.##}.",
+                $"Sänk till {bid:0.##} eller lägre för snabbare avslut.",
+                "open-order-blocked");
+
+        return new OpenOrderStatus(
+            "Väntar på volym",
+            "badge-wait",
+            "Priset matchar köpare men volymen räcker inte.",
+            null,
+            "open-order-wait");
+    }
+
+    private void StartEditPrice(MyOpenOrderDto order)
+    {
+        _editingOrderId = order.Id;
+        _editingPrice = order.LimitPrice;
+    }
+
+    private void CancelEditPrice()
+    {
+        _editingOrderId = null;
+    }
+
+    private async Task CancelOrderAsync(MyOpenOrderDto order)
+    {
+        _actingOrderId = order.Id;
+        _orderFeedback = "";
+        try
+        {
+            var res = await Http.PostAsync($"/v1/market/orders/{order.Id}/cancel", null);
+            var body = await res.Content.ReadAsStringAsync();
+            if (res.IsSuccessStatusCode)
+            {
+                _orderFeedbackKind = "ok";
+                _orderFeedback = "Ordern avbröts.";
+                Snackbar.Show("Order avbruten", SnackbarKind.Success);
+                _editingOrderId = null;
+                await RefreshAfterOrderAsync();
+            }
+            else
+            {
+                _orderFeedbackKind = "error";
+                _orderFeedback = ParseApiError(body, (int)res.StatusCode);
+                Snackbar.Show(_orderFeedback, SnackbarKind.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _orderFeedbackKind = "error";
+            _orderFeedback = ApiConnectionErrors.Format(ex);
+            Snackbar.Show(_orderFeedback, SnackbarKind.Error);
+        }
+        finally
+        {
+            _actingOrderId = null;
+        }
+    }
+
+    private Task SubmitAmendAsync(MyOpenOrderDto order) => AmendOrderAsync(order, _editingPrice);
+
+    private async Task AmendToAskAsync(MyOpenOrderDto order, decimal ask) => await AmendOrderAsync(order, ask);
+
+    private async Task AmendOrderAsync(MyOpenOrderDto order, decimal newPrice)
+    {
+        if (newPrice <= 0) return;
+
+        _actingOrderId = order.Id;
+        _orderFeedback = "";
+        try
+        {
+            var res = await Http.PostAsJsonAsync(
+                $"/v1/market/orders/{order.Id}/amend",
+                new AmendOrderRequest(newPrice));
+            var body = await res.Content.ReadAsStringAsync();
+            if (res.IsSuccessStatusCode)
+            {
+                var result = JsonSerializer.Deserialize<OrderActionResponse>(body, JsonOpts);
+                _editingOrderId = null;
+                if (result is { QuantityFilled: > 0, QuantityRemaining: 0 })
+                {
+                    _orderFeedbackKind = "ok";
+                    _orderFeedback = $"Order fylld efter prisändring: {result.QuantityFilled} st.";
+                    Snackbar.Show("Order fylld", SnackbarKind.Success);
+                }
+                else if (result is { QuantityFilled: > 0 })
+                {
+                    _orderFeedbackKind = "warn";
+                    _orderFeedback = $"Delvis fylld: {result.QuantityFilled} st. {result.QuantityRemaining} st kvar öppen.";
+                    Snackbar.Show("Order delvis fylld", SnackbarKind.Info);
+                }
+                else
+                {
+                    _orderFeedbackKind = "warn";
+                    _orderFeedback = $"Pris uppdaterat till {newPrice:0.##} — ordern väntar fortfarande på motpart.";
+                    Snackbar.Show("Pris uppdaterat", SnackbarKind.Info);
+                }
+                await RefreshAfterOrderAsync();
+            }
+            else
+            {
+                _orderFeedbackKind = "error";
+                _orderFeedback = ParseApiError(body, (int)res.StatusCode);
+                Snackbar.Show(_orderFeedback, SnackbarKind.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _orderFeedbackKind = "error";
+            _orderFeedback = ApiConnectionErrors.Format(ex);
+            Snackbar.Show(_orderFeedback, SnackbarKind.Error);
+        }
+        finally
+        {
+            _actingOrderId = null;
         }
     }
 
@@ -707,9 +993,12 @@ else if (_summary.Count > 0)
         return $"{sideLabel} öppen ({remaining} st): ingen köpare matchade (bästa bid {bid}).";
     }
 
-    private void SetLastFill(long quantity, decimal price)
+    private void SetLastFill(long quantity, decimal price, string? counterparty = null)
     {
-        _lastFill = new MarketTradeDto(Guid.Empty, _selectedId, _selectedDna, price, quantity, DateTimeOffset.UtcNow);
+        _lastFill = new MarketTradeDto(
+            Guid.Empty, _selectedId, _selectedDna, price, quantity, DateTimeOffset.UtcNow,
+            null, counterparty, false, false, null, null);
+        _lastFillCounterparty = counterparty;
     }
 
     private async Task RefreshAfterOrderAsync()
@@ -718,15 +1007,25 @@ else if (_summary.Count > 0)
         var savedKind = _orderFeedbackKind;
         var savedDetails = _orderDetails;
         var savedFill = _lastFill;
+        var savedFillCounterparty = _lastFillCounterparty;
 
-        await RefreshAsync();
+        await RefreshAsync(afterOrder: true);
         await LoadTradesAsync(_selectedId, _selectedDna);
         await Wallet.RefreshAsync();
+
+        if (savedFill is not null && _trades.FirstOrDefault(t =>
+                t.Quantity == savedFill.Quantity
+                && t.Price == savedFill.Price
+                && (DateTimeOffset.UtcNow - t.CreatedAt).TotalMinutes < 5) is { } matched)
+        {
+            savedFillCounterparty = FormatTradeCounterparty(matched);
+        }
 
         _orderFeedback = savedFeedback;
         _orderFeedbackKind = savedKind;
         _orderDetails = savedDetails;
         _lastFill = savedFill;
+        _lastFillCounterparty = savedFillCounterparty;
         if (_lastFill is { } lf && _trades.Any(t =>
                 t.Quantity == lf.Quantity
                 && t.Price == lf.Price

@@ -3,6 +3,7 @@
 @using FactoryGame.Contracts.Boards
 @using FactoryGame.Contracts.Machines
 @using FactoryGame.Contracts.Pool
+@using FactoryGame.Contracts.Json
 @using FactoryGame.Web.Components
 @using FactoryGame.Web.Models
 @implements IDisposable
@@ -32,11 +33,34 @@
     {
         <p class="error">@_error</p>
     }
-    <ul class="board-list">
+    <ul class="fg-board-tiles">
         @foreach (var b in _boards)
         {
-            <li>
-                <button type="button" class="secondary" @onclick="async () => await SelectBoardAsync(b.Id)">@b.Name (@b.Mode, rev @b.RevisionVersion, tick @b.SimulationTick)</button>
+            var selected = _selected == b.Id;
+            <li class="fg-board-tile @GetBoardTileCss(b) @(selected ? "fg-board-tile-selected" : "")">
+                <button type="button"
+                        class="fg-board-tile-main"
+                        @onclick="async () => await SelectBoardAsync(b.Id)"
+                        aria-pressed="@selected">
+                    <span class="fg-board-tile-head">
+                        <span class="fg-board-tile-status-dot" title="@b.StatusHint"></span>
+                        <span class="fg-board-tile-name">@b.Name</span>
+                        <span class="fg-status-pill @GetBoardStatusPillCss(b)">@GetBoardStatusLabel(b)</span>
+                    </span>
+                    <span class="fg-board-tile-meta muted">
+                        @b.PlanMachineCount maskin@(b.PlanMachineCount == 1 ? "" : "er")
+                        · @b.PlanConnectionCount rör
+                        · rev @b.RevisionVersion
+                        @if (b.SimulationTick > 0)
+                        {
+                            <span> · tick @b.SimulationTick</span>
+                        }
+                    </span>
+                    @if (!string.IsNullOrEmpty(b.StatusHint))
+                    {
+                        <span class="fg-board-tile-hint">@b.StatusHint</span>
+                    }
+                </button>
             </li>
         }
     </ul>
@@ -91,7 +115,25 @@
 @if (_selected != null)
 {
     <div class="panel fg-board">
-        <h3>Plan <span class="fg-id-short" title="@_selected.Value.ToString()">@DisplayIds.ShortGuid(_selected.Value)</span></h3>
+        <div class="fg-board-title-row">
+            @if (_renamingBoard)
+            {
+                <div class="fg-board-rename-row">
+                    <label for="fg-board-rename">Namn</label>
+                    <input id="fg-board-rename" @bind="_renameDraft" maxlength="120" />
+                    <button type="button" @onclick="SaveRenameAsync" disabled="@_busy">Spara namn</button>
+                    <button type="button" class="secondary" @onclick="CancelRename" disabled="@_busy">Avbryt</button>
+                </div>
+            }
+            else
+            {
+                <h3>
+                    @GetSelectedBoardName()
+                    <span class="fg-id-short muted" title="@_selected.Value.ToString()">@DisplayIds.ShortGuid(_selected.Value)</span>
+                </h3>
+                <button type="button" class="secondary" @onclick="BeginRename" disabled="@_busy">Byt namn</button>
+            }
+        </div>
 
         <div class="fg-toolbar">
             <button type="button" class="secondary" @onclick="ReloadPlanUiAsync" disabled="@_busy">Läs om plan från server</button>
@@ -289,7 +331,7 @@
 }
 
 @code {
-    private static readonly JsonSerializerOptions JsonRelaxed = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonRelaxed = FactoryGameJson.Api;
 
     private static readonly JsonSerializerOptions PlanJson = new()
     {
@@ -329,6 +371,8 @@
     private List<PoolVariantStackDto> _ownedPoolVariants = [];
     private bool _storeInfoVisible;
     private MachineStoreItemDto? _storeInfoItem;
+    private bool _renamingBoard;
+    private string _renameDraft = "";
 
     private sealed class MachineStorePayload
     {
@@ -469,6 +513,89 @@
 
     private string GetBoardModeCss() =>
         IsSelectedBoardRunning() ? "fg-board-mode-running" : "fg-board-mode-stopped";
+
+    private static string GetBoardTileCss(BoardSummaryDto board) => board.Health switch
+    {
+        "running" => "fg-board-tile-running",
+        "error" => "fg-board-tile-error",
+        "warning" => "fg-board-tile-warning",
+        _ => "fg-board-tile-stopped"
+    };
+
+    private static string GetBoardStatusPillCss(BoardSummaryDto board) => board.Health switch
+    {
+        "running" => "fg-status-running",
+        "error" => "fg-status-error",
+        "warning" => "fg-status-warning",
+        _ => "fg-status-stopped"
+    };
+
+    private static string GetBoardStatusLabel(BoardSummaryDto board) => board.Health switch
+    {
+        "running" => "Kör",
+        "error" => "Fel",
+        "warning" => "Varning",
+        _ => "Stoppad"
+    };
+
+    private string GetSelectedBoardName()
+    {
+        if (_selected is not { } id)
+            return "Plan";
+        return _boards.FirstOrDefault(b => b.Id == id)?.Name
+               ?? _boardInfo?.Name
+               ?? "Plan";
+    }
+
+    private void BeginRename()
+    {
+        _renameDraft = GetSelectedBoardName();
+        _renamingBoard = true;
+    }
+
+    private void CancelRename()
+    {
+        _renamingBoard = false;
+        _renameDraft = "";
+    }
+
+    private async Task SaveRenameAsync()
+    {
+        if (_selected is not { } boardId)
+            return;
+        if (string.IsNullOrWhiteSpace(_renameDraft))
+        {
+            _error = "Ange ett namn.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.PatchAsJsonAsync($"/v1/boards/{boardId}", new RenameBoardRequest(_renameDraft.Trim()));
+            if (!res.IsSuccessStatusCode)
+            {
+                _error = await res.Content.ReadAsStringAsync();
+                return;
+            }
+
+            _renamingBoard = false;
+            _renameDraft = "";
+            await LoadBoardsAsync();
+            if (_boardInfo != null)
+                _boardInfo = _boardInfo with { Name = GetSelectedBoardName() };
+            Snackbar.Show("Spelplanens namn uppdaterat.");
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
 
     private double GetEstimatedUnitsPerSecond() =>
         _boardInfo?.Throughput.TotalUnitsPerSecond ?? 0;
@@ -690,6 +817,8 @@
     private async Task SelectBoardAsync(Guid id)
     {
         _selected = id;
+        _renamingBoard = false;
+        _renameDraft = "";
         _snapshot = "";
         _saveHint = null;
         _boardInfo = null;

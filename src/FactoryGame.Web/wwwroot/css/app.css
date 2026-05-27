@@ -187,6 +187,24 @@ body {
     flex: 1;
 }
 
+.app-update-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem 1rem;
+    padding: 0.55rem 1.25rem;
+    background: #1a2a3d;
+    border-top: 1px solid #58a6ff;
+    color: #b6d4fe;
+    font-size: 0.85rem;
+}
+
+.app-update-banner button {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+}
+
 .app-footer {
     padding: 0.45rem 1.25rem 0.65rem;
     display: flex;
@@ -246,8 +264,134 @@ input, textarea, select {
     white-space: pre-wrap;
 }
 
-.board-list {
-    padding-left: 1.25rem;
+.board-list,
+.fg-board-tiles {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.fg-board-tile {
+    margin: 0;
+}
+
+.fg-board-tile-main {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #30363d;
+    background: #161b22;
+    cursor: pointer;
+}
+
+.fg-board-tile-main:hover {
+    border-color: #484f58;
+}
+
+.fg-board-tile-selected .fg-board-tile-main {
+    box-shadow: 0 0 0 1px #58a6ff;
+}
+
+.fg-board-tile-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.fg-board-tile-status-dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+    background: #8b949e;
+}
+
+.fg-board-tile-running .fg-board-tile-status-dot {
+    background: #3fb950;
+}
+
+.fg-board-tile-warning .fg-board-tile-status-dot {
+    background: #d29922;
+}
+
+.fg-board-tile-error .fg-board-tile-status-dot {
+    background: #f85149;
+}
+
+.fg-board-tile-running .fg-board-tile-main {
+    border-color: rgba(63, 185, 80, 0.45);
+}
+
+.fg-board-tile-warning .fg-board-tile-main {
+    border-color: rgba(210, 153, 34, 0.45);
+}
+
+.fg-board-tile-error .fg-board-tile-main {
+    border-color: rgba(248, 81, 73, 0.45);
+}
+
+.fg-board-tile-name {
+    font-weight: 600;
+    color: #e6edf3;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fg-board-tile-meta,
+.fg-board-tile-hint {
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.fg-board-tile-hint {
+    color: #c9d1d9;
+}
+
+.fg-board-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.fg-board-title-row h3 {
+    margin: 0;
+}
+
+.fg-board-rename-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.fg-board-rename-row input {
+    min-width: 180px;
+    flex: 1;
+}
+
+.fg-status-error {
+    background: #da3633;
+    color: #fff;
+}
+
+.fg-status-warning {
+    background: #9e6a03;
+    color: #fff;
 }
 
 .fg-store .fg-table-wrap {
@@ -658,21 +802,21 @@ pre.fg-snapshot {
 .pool-groups {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 .pool-element-group {
     border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 0.75rem;
+    border-radius: 6px;
+    padding: 0.45rem 0.55rem;
 }
 
 .pool-group-header {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 0.35rem 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .pool-group-total {
@@ -680,7 +824,7 @@ pre.fg-snapshot {
 }
 
 .pool-variant-table {
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
 }
 
 .fg-machine-settings-locked {
@@ -815,9 +959,57 @@ pre.fg-snapshot {
 }
 
 .fg-pipe-flowing {
-    stroke: #79c27a !important;
     animation: fg-pipe-dash 1.5s linear infinite;
     stroke-dasharray: 6 4;
+}
+
+.fg-pipe-phase-gas.fg-pipe-flowing,
+.fg-pipe-phase-gas:not(.fg-pipe-loop) {
+    stroke: #79c0ff !important;
+}
+
+.fg-pipe-phase-liquid.fg-pipe-flowing,
+.fg-pipe-phase-liquid:not(.fg-pipe-loop) {
+    stroke: #79c27a !important;
+}
+
+.fg-pipe-phase-solid.fg-pipe-flowing,
+.fg-pipe-phase-solid:not(.fg-pipe-loop) {
+    stroke: #e3b341 !important;
+}
+
+.fg-machine-condenser-active .fg-machine-body {
+    stroke: #79c0ff;
+    stroke-width: 1.5;
+    animation: fg-condenser-glow 1.4s ease-in-out infinite;
+}
+
+.fg-condenser-bubble {
+    fill: rgba(121, 192, 255, 0.85);
+    opacity: 0;
+}
+
+.fg-condenser-bubble-a {
+    animation: fg-condenser-rise 1.6s ease-out infinite;
+}
+
+.fg-condenser-bubble-b {
+    animation: fg-condenser-rise 1.6s ease-out infinite 0.45s;
+}
+
+.fg-condenser-bubble-c {
+    animation: fg-condenser-rise 1.6s ease-out infinite 0.9s;
+}
+
+@keyframes fg-condenser-glow {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.35); }
+}
+
+@keyframes fg-condenser-rise {
+    0% { opacity: 0; transform: translateY(6px); }
+    25% { opacity: 0.9; }
+    100% { opacity: 0; transform: translateY(-10px); }
 }
 
 @keyframes fg-pipe-dash {
@@ -1129,6 +1321,15 @@ input:disabled {
     max-width: none;
 }
 
+.exchange-insights-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+.exchange-insights-list li { padding: 0.35rem 0; border-bottom: 1px solid var(--border, #333); }
+.market-layout { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.market-leaderboard { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+.sponsor-logo-thumb { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 0.35rem; }
+.admin-form-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 0.75rem; }
+.admin-company-head { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+.admin-active-toggle { margin-left: auto; }
+
 .exchange-header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -1271,6 +1472,135 @@ input:disabled {
     margin-top: 0;
 }
 
+.exchange-open-order-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.exchange-open-order-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 0.75rem 0.85rem;
+    border-left: 4px solid #58a6ff;
+}
+
+.exchange-open-order-card.open-order-wait {
+    border-left-color: #d29922;
+}
+
+.exchange-open-order-card.open-order-blocked {
+    border-left-color: #f85149;
+}
+
+.exchange-open-order-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.exchange-open-order-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+}
+
+.exchange-open-order-badge.badge-wait {
+    background: rgba(210, 153, 34, 0.15);
+    border-color: #d29922;
+    color: #e3b341;
+}
+
+.exchange-open-order-badge.badge-blocked {
+    background: rgba(248, 81, 73, 0.12);
+    border-color: #f85149;
+    color: #f85149;
+}
+
+.exchange-open-order-side {
+    font-weight: 600;
+    color: #e6edf3;
+}
+
+.exchange-open-order-qty {
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.exchange-open-order-limit {
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+}
+
+.exchange-open-order-status {
+    margin: 0 0 0.25rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #c9d1d9;
+}
+
+.exchange-open-order-suggestion {
+    margin: 0 0 0.5rem;
+    font-size: 0.82rem;
+    color: #8b949e;
+}
+
+.exchange-open-order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.exchange-open-order-actions button {
+    font-size: 0.82rem;
+}
+
+button.danger-outline {
+    background: transparent;
+    border: 1px solid #f85149;
+    color: #f85149;
+}
+
+button.danger-outline:hover:not(:disabled) {
+    background: rgba(248, 81, 73, 0.12);
+}
+
+.exchange-open-order-edit {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px dashed #30363d;
+}
+
+.exchange-open-order-edit label {
+    display: block;
+    font-size: 0.8rem;
+    color: #8b949e;
+    margin-bottom: 0.25rem;
+}
+
+.exchange-open-order-edit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.exchange-open-order-edit-row input {
+    width: 7rem;
+    max-width: none;
+}
+
 .exchange-trades-hint {
     margin: 0 0 0.5rem;
     font-size: 0.8rem;
@@ -1283,60 +1613,145 @@ input:disabled {
 }
 
 /* Pool inventory */
-.pool-header-actions {
+.pool-page {
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.pool-title {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.2;
+}
+
+.pool-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.75rem 1.25rem;
-    margin-top: 0.5rem;
+    gap: 0.45rem 0.85rem;
+    margin-bottom: 0.55rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid #30363d;
+}
+
+.pool-toolbar .pool-refresh-btn {
+    margin-left: auto;
+    font-size: 0.8rem;
+    padding: 0.28rem 0.65rem;
 }
 
 .pool-stat {
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .pool-stat-total {
     color: #e6edf3;
 }
 
-.pool-holdings h3 {
-    margin-top: 0;
+.pool-error {
+    margin: 0 0 0.45rem;
+    font-size: 0.85rem;
+}
+
+.pool-empty {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.pool-table-wrap {
+    overflow: auto;
+    max-height: calc(100vh - 9.5rem);
+    margin: 0 -0.15rem;
 }
 
 .pool-holdings-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.84rem;
 }
 
 .pool-holdings-table th,
 .pool-holdings-table td {
-    padding: 0.45rem 0.5rem;
+    padding: 0.22rem 0.4rem;
     text-align: left;
-    border-bottom: 1px solid #30363d;
+    border-bottom: 1px solid #21262d;
     vertical-align: middle;
 }
 
-.pool-holdings-table th:last-child,
-.pool-holdings-table td.pool-actions {
+.pool-holdings-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #161b22;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #8b949e;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    border-bottom-color: #30363d;
+    white-space: nowrap;
+}
+
+.pool-holdings-table tbody tr:hover {
+    background: rgba(88, 166, 255, 0.06);
+}
+
+.pool-col-num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.pool-holdings-table th.pool-col-num {
     text-align: right;
 }
 
-.pool-name-cell {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.pool-col-rank {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.pool-num,
-.pool-rank {
-    font-variant-numeric: tabular-nums;
+.pool-col-action {
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.pool-element-cell {
+    white-space: nowrap;
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pool-element-cell .fg-element-badge {
+    margin-right: 0.35rem;
+    vertical-align: middle;
+}
+
+.pool-element-name {
+    vertical-align: middle;
 }
 
 .pool-info-btn {
-    font-size: 0.85rem;
-    padding: 0.25rem 0.65rem;
+    font-size: 0.75rem;
+    padding: 0.12rem 0.45rem;
+}
+
+@media (max-width: 720px) {
+    .pool-table-wrap {
+        max-height: none;
+    }
+
+    .pool-element-name {
+        display: none;
+    }
+
+    .pool-toolbar .pool-refresh-btn {
+        margin-left: 0;
+    }
 }
 
 .fg-modal-wide {
@@ -1493,3 +1908,655 @@ input:disabled {
     margin: 0.25rem 0 0;
     font-size: 0.85rem;
 }
+
+/* Wiki */
+.wiki-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.wiki-hero {
+    margin-bottom: 0;
+}
+
+.wiki-hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.wiki-title {
+    margin: 0 0 0.25rem;
+    font-size: 1.35rem;
+}
+
+.wiki-subtitle {
+    margin: 0;
+    max-width: 42rem;
+    line-height: 1.45;
+}
+
+.wiki-refresh {
+    flex-shrink: 0;
+}
+
+.wiki-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.82rem;
+    color: #8b949e;
+    margin-bottom: 0.45rem;
+}
+
+.wiki-daily-tip {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 3px solid #58a6ff;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.wiki-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.wiki-search {
+    flex: 1 1 220px;
+    max-width: none;
+}
+
+.wiki-search-clear {
+    font-size: 0.82rem;
+}
+
+.wiki-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.wiki-tab {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.wiki-tab-active {
+    background: #1c2d41;
+    border-color: #58a6ff;
+    color: #e6edf3;
+}
+
+.wiki-layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) 1fr;
+    gap: 0.85rem;
+    align-items: start;
+}
+
+@media (max-width: 860px) {
+    .wiki-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.wiki-sidebar {
+    margin-bottom: 0;
+    position: sticky;
+    top: 0.75rem;
+    max-height: calc(100vh - 5rem);
+    overflow: auto;
+}
+
+.wiki-sidebar-title {
+    margin: 0 0 0.65rem;
+    font-size: 0.95rem;
+}
+
+.wiki-sidebar-subtitle {
+    margin: 1rem 0 0.45rem;
+    font-size: 0.82rem;
+    color: #8b949e;
+}
+
+.wiki-sidebar-hint {
+    margin: 0.35rem 0 0.5rem;
+    font-size: 0.78rem;
+}
+
+.wiki-quick-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.wiki-quick-links a,
+.wiki-link-btn {
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 0.88rem;
+}
+
+.wiki-link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+}
+
+.wiki-link-btn:hover,
+.wiki-quick-links a:hover {
+    text-decoration: underline;
+}
+
+.wiki-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+
+.wiki-chip {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.wiki-chip-active {
+    border-color: #58a6ff;
+    color: #e6edf3;
+    background: #1c2d41;
+}
+
+.wiki-sidebar-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.wiki-sidebar-list li.selected .wiki-sidebar-item {
+    border-color: #58a6ff;
+    background: #1c2d41;
+}
+
+.wiki-sidebar-item {
+    width: 100%;
+    text-align: left;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 0.45rem 0.55rem;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+}
+
+.wiki-sidebar-emoji {
+    font-size: 1rem;
+}
+
+.wiki-sidebar-item-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wiki-sidebar-phase {
+    font-size: 0.68rem;
+}
+
+.wiki-main {
+    min-width: 0;
+}
+
+.wiki-overview h3 {
+    margin-top: 0;
+}
+
+.wiki-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.65rem;
+    margin: 1rem 0;
+}
+
+.wiki-feature-card {
+    text-align: left;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 0.85rem;
+    cursor: pointer;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.wiki-feature-card:hover {
+    border-color: #58a6ff;
+    transform: translateY(-2px);
+}
+
+.wiki-feature-icon {
+    font-size: 1.5rem;
+}
+
+.wiki-feature-heat:hover { border-color: #f0883e; }
+.wiki-feature-sep:hover { border-color: #79c27a; }
+.wiki-feature-logistics:hover { border-color: #39d353; }
+.wiki-feature-elements:hover { border-color: #bc8cff; }
+
+.wiki-highlight-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #58a6ff;
+    background: #1c2d41;
+    margin-top: 0.75rem;
+}
+
+.wiki-highlight-banner p {
+    margin: 0;
+    flex: 1 1 auto;
+}
+
+.wiki-machine-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.65rem;
+}
+
+.wiki-machine-card {
+    margin-bottom: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    color: inherit;
+    width: 100%;
+}
+
+.wiki-machine-card:hover {
+    border-color: #58a6ff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.wiki-machine-card h4 {
+    margin: 0.5rem 0 0.25rem;
+    font-size: 0.95rem;
+}
+
+.wiki-machine-card p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.wiki-detail {
+    margin-bottom: 0;
+}
+
+.wiki-detail-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.wiki-detail-header h3 {
+    margin: 0 0 0.25rem;
+}
+
+.wiki-detail-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+}
+
+.wiki-type-mono {
+    font-family: ui-monospace, monospace;
+    font-size: 0.82rem;
+}
+
+.wiki-detail-summary,
+.wiki-detail-narrative {
+    line-height: 1.55;
+    margin: 0 0 1rem;
+}
+
+.wiki-section-label {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    color: #8b949e;
+}
+
+.wiki-tips-list {
+    margin: 0 0 1rem;
+    padding-left: 1.2rem;
+    line-height: 1.5;
+    font-size: 0.9rem;
+}
+
+.wiki-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.65rem;
+    align-items: center;
+}
+
+.secondary-link {
+    background: #21262d !important;
+    border: 1px solid #30363d !important;
+}
+
+.wiki-empty-detail {
+    margin-bottom: 0;
+}
+
+.wiki-fallback-card,
+.wiki-dna-explainer {
+    margin-bottom: 0;
+    border-left: 4px solid #d29922;
+}
+
+.wiki-dna-explainer {
+    border-left-color: #bc8cff;
+}
+
+.wiki-dna-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+}
+
+.wiki-legend-chip {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    color: #e6edf3;
+}
+
+.wiki-phase-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.wiki-phase-bar-row {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr 1.5rem;
+    gap: 0.4rem;
+    align-items: center;
+    font-size: 0.78rem;
+}
+
+.wiki-phase-bar-track {
+    height: 0.45rem;
+    background: #0d1117;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.wiki-phase-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.wiki-phase-fill-gas { background: linear-gradient(90deg, #388bfd, #79c0ff); }
+.wiki-phase-fill-liquid { background: linear-gradient(90deg, #238636, #79c27a); }
+.wiki-phase-fill-solid { background: linear-gradient(90deg, #9e6a03, #e3b341); }
+
+.wiki-port-diagram {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0 0 1rem;
+    padding: 0.75rem;
+    background: #0d1117;
+    border: 1px dashed #30363d;
+    border-radius: 8px;
+}
+
+.wiki-port-node {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+}
+
+.wiki-port-in {
+    background: rgba(35, 134, 54, 0.2);
+    color: #79c27a;
+    border: 1px solid #238636;
+}
+
+.wiki-port-out {
+    background: rgba(31, 111, 235, 0.2);
+    color: #79c0ff;
+    border: 1px solid #1f6feb;
+}
+
+.wiki-port-pipe {
+    width: 1.5rem;
+    height: 3px;
+    background: linear-gradient(90deg, #238636, #1f6feb);
+    border-radius: 2px;
+    animation: wiki-pipe-flow 1.2s linear infinite;
+}
+
+@keyframes wiki-pipe-flow {
+    0% { opacity: 0.5; transform: scaleX(0.85); }
+    50% { opacity: 1; transform: scaleX(1); }
+    100% { opacity: 0.5; transform: scaleX(0.85); }
+}
+
+.wiki-port-box {
+    font-size: 1.35rem;
+    padding: 0.15rem 0.45rem;
+}
+
+/* Machine icon */
+.wiki-machine-icon-wrap {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.wiki-machine-icon-svg {
+    width: 100%;
+    max-width: 160px;
+    height: auto;
+    display: block;
+}
+
+.wiki-machine-body-rect {
+    animation: wiki-machine-hum 2.4s ease-in-out infinite;
+}
+
+@keyframes wiki-machine-hum {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.12); }
+}
+
+.wiki-machine-icon-emoji {
+    position: absolute;
+    top: -0.35rem;
+    right: 0.15rem;
+    font-size: 1.1rem;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+
+.wiki-machine-icon-heat .wiki-machine-body-rect { stroke: #f0883e; }
+.wiki-machine-icon-phase .wiki-machine-body-rect { stroke: #58a6ff; }
+.wiki-machine-icon-separation .wiki-machine-body-rect { stroke: #79c27a; }
+.wiki-machine-icon-logistics .wiki-machine-body-rect { stroke: #39d353; }
+
+/* Element orb */
+.wiki-element-orb {
+    position: relative;
+    width: 7rem;
+    height: 7rem;
+    flex-shrink: 0;
+}
+
+.wiki-orb-glow {
+    position: absolute;
+    inset: 10%;
+    border-radius: 50%;
+    filter: blur(12px);
+    opacity: 0.45;
+}
+
+.wiki-element-orb-gas .wiki-orb-glow { background: #388bfd; }
+.wiki-element-orb-liquid .wiki-orb-glow { background: #238636; }
+.wiki-element-orb-solid .wiki-orb-glow { background: #d29922; }
+
+.wiki-orb-shell {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wiki-orb-nucleus {
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 35% 30%, #fff2, #0000 45%), #161b22;
+    border: 2px solid #58a6ff;
+    box-shadow: inset 0 0 12px rgba(88, 166, 255, 0.25);
+    z-index: 2;
+}
+
+.wiki-orb-symbol {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #79c0ff;
+}
+
+.wiki-orb-phase {
+    position: absolute;
+    bottom: -0.15rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.68rem;
+    white-space: nowrap;
+}
+
+.wiki-orb-orbit {
+    position: absolute;
+    border: 1px solid rgba(121, 192, 255, 0.45);
+    border-radius: 50%;
+    animation: wiki-orbit-spin 3s linear infinite;
+}
+
+.wiki-orb-orbit-a { width: 100%; height: 55%; animation-duration: 2.2s; }
+.wiki-orb-orbit-b { width: 85%; height: 85%; animation-duration: 3.5s; animation-direction: reverse; }
+.wiki-orb-orbit-c { width: 60%; height: 100%; animation-duration: 2.8s; }
+
+@keyframes wiki-orbit-spin {
+    to { transform: rotate(360deg); }
+}
+
+.wiki-orb-drip {
+    position: absolute;
+    width: 0.45rem;
+    height: 0.65rem;
+    background: #79c27a;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    opacity: 0.7;
+    animation: wiki-drip-fall 1.8s ease-in infinite;
+}
+
+.wiki-orb-drip-a { top: 15%; left: 20%; animation-delay: 0s; }
+.wiki-orb-drip-b { top: 10%; right: 22%; animation-delay: 0.7s; }
+
+@keyframes wiki-drip-fall {
+    0% { transform: translateY(0); opacity: 0; }
+    20% { opacity: 0.8; }
+    100% { transform: translateY(2.5rem); opacity: 0; }
+}
+
+.wiki-orb-crystal {
+    position: absolute;
+    width: 0.55rem;
+    height: 0.55rem;
+    background: #e3b341;
+    transform: rotate(45deg);
+    opacity: 0.75;
+    animation: wiki-crystal-pulse 2s ease-in-out infinite;
+}
+
+.wiki-orb-crystal-a { top: 12%; left: 18%; }
+.wiki-orb-crystal-b { top: 20%; right: 15%; animation-delay: 0.4s; }
+.wiki-orb-crystal-c { bottom: 25%; left: 12%; animation-delay: 0.8s; }
+
+@keyframes wiki-crystal-pulse {
+    0%, 100% { transform: rotate(45deg) scale(1); opacity: 0.5; }
+    50% { transform: rotate(45deg) scale(1.2); opacity: 1; }
+}
+
+.wiki-element-detail-header {
+    align-items: flex-start;
+}
+
+.wiki-dna-chart .wiki-dna-bar-phase { background: linear-gradient(180deg, #bc8cff, #8957e5); }
+.wiki-dna-chart .wiki-dna-bar-explosive { background: linear-gradient(180deg, #f85149, #da3633); }
+.wiki-dna-chart .wiki-dna-bar-fire { background: linear-gradient(180deg, #f0883e, #bd561d); }
+.wiki-dna-chart .wiki-dna-bar-toxic { background: linear-gradient(180deg, #3fb950, #238636); }
+.wiki-dna-chart .wiki-dna-bar-boil { background: linear-gradient(180deg, #58a6ff, #1f6feb); }
+.wiki-dna-chart .wiki-dna-bar-freeze { background: linear-gradient(180deg, #79c0ff, #388bfd); }
+.wiki-dna-chart .wiki-dna-bar-family { background: linear-gradient(180deg, #8b949e, #484f58); }
+
+.wiki-legend-chip.wiki-dna-bar-phase { background: #8957e5; }
+.wiki-legend-chip.wiki-dna-bar-explosive { background: #da3633; }
+.wiki-legend-chip.wiki-dna-bar-fire { background: #bd561d; }
+.wiki-legend-chip.wiki-dna-bar-toxic { background: #238636; }
+.wiki-legend-chip.wiki-dna-bar-boil { background: #1f6feb; }
+.wiki-legend-chip.wiki-dna-bar-freeze { background: #388bfd; }

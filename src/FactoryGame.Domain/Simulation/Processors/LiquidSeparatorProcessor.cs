@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FactoryGame.Domain.Dna;
 
 namespace FactoryGame.Domain.Simulation.Processors;
@@ -15,7 +14,8 @@ internal sealed class LiquidSeparatorProcessor : IMachineProcessor
         if (machine.IsBlocked)
             return;
 
-        var pkt = FlowHelper.PullFromInput(machine, "in");
+        var inBudget = ctx.GetPortInputBudget(MachineType, "in", settingsJson);
+        var pkt = FlowHelper.PullFromInputBudget(machine, "in", inBudget);
         if (pkt == null)
             return;
 
@@ -29,11 +29,11 @@ internal sealed class LiquidSeparatorProcessor : IMachineProcessor
 
         var spread = DnaTransforms.MeasureDnaSpreadPermille(pkt.Dna);
         var splitStrength = ComputeSplitStrengthPermille(spread);
-        var total = Math.Min(pkt.Quantity, ctx.UnitsPerTick);
+        var total = pkt.Quantity;
 
         if (splitStrength == 0)
         {
-            PassthroughDense(machine, pkt, total);
+            PassthroughDense(machine, ctx, settingsJson, pkt, total);
             return;
         }
 
@@ -44,6 +44,11 @@ internal sealed class LiquidSeparatorProcessor : IMachineProcessor
         var densePermille = ComputeDensePermille(decoded.FreezePoint, cut, splitStrength);
         var denseQty = ClampSplit(total * densePermille / 1000m, total, splitStrength);
         var lightQty = total - denseQty;
+
+        var denseBudget = ctx.GetPortOutputBudget(MachineType, "out1", settingsJson);
+        var lightBudget = ctx.GetPortOutputBudget(MachineType, "out2", settingsJson);
+        denseQty = Math.Min(denseQty, denseBudget);
+        lightQty = Math.Min(lightQty, lightBudget);
 
         var densePkt = new MaterialPacket
         {
@@ -63,29 +68,36 @@ internal sealed class LiquidSeparatorProcessor : IMachineProcessor
         var outDense = machine.GetOrCreateOutput("out1");
         var outLight = machine.GetOrCreateOutput("out2");
 
-        if (!outDense.TryEnqueue(densePkt))
+        if (denseQty > 0 && !outDense.TryEnqueue(densePkt))
         {
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
             return;
         }
 
-        if (!outLight.TryEnqueue(lightPkt))
+        if (lightQty > 0 && !outLight.TryEnqueue(lightPkt))
         {
-            _ = outDense.TryDequeue();
+            if (denseQty > 0)
+                _ = outDense.TryDequeue();
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
         }
     }
 
-    private static void PassthroughDense(MachineRuntimeState machine, MaterialPacket pkt, decimal qty)
+    private static void PassthroughDense(
+        MachineRuntimeState machine,
+        TickContext ctx,
+        string? settingsJson,
+        MaterialPacket pkt,
+        decimal qty)
     {
+        var budget = ctx.GetPortOutputBudget("LiquidSeparator", "out1", settingsJson);
         var pass = new MaterialPacket
         {
             ElementId = pkt.ElementId,
             Dna = pkt.Dna,
-            Quantity = qty,
+            Quantity = Math.Min(qty, budget),
             Quality = pkt.Quality
         };
-        if (!machine.GetOrCreateOutput("out1").TryEnqueue(pass))
+        if (!FlowHelper.TryPushOutputBudget(machine, "out1", pass, budget))
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
     }
 

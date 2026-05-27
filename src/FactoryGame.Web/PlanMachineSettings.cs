@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FactoryGame.Contracts.Boards;
 
@@ -24,10 +25,18 @@ internal static class PlanMachineSettings
     {
         if (machine.Settings is not { ValueKind: JsonValueKind.Object } settings)
             return defaultValue;
-        if (settings.TryGetProperty(key, out var el) && el.TryGetInt64(out var v))
-            return v;
+        if (settings.TryGetProperty(key, out var el))
+            return ReadLongElement(el);
         return defaultValue;
     }
+
+    private static long ReadLongElement(JsonElement el) =>
+        el.ValueKind switch
+        {
+            JsonValueKind.String => long.TryParse(el.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var s) ? s : 0,
+            JsonValueKind.Number => el.GetInt64(),
+            _ => 0
+        };
 
     public static int GetSorterPortElement(MachineDto machine, string portKey)
     {
@@ -56,7 +65,10 @@ internal static class PlanMachineSettings
     public static MachineDto WithLong(MachineDto machine, string key, long value)
     {
         var dict = CloneSettings(machine);
-        dict[key] = JsonSerializer.SerializeToElement(value);
+        if (key.Equals("outMaterialDna", StringComparison.Ordinal))
+            dict[key] = JsonSerializer.SerializeToElement(value.ToString(CultureInfo.InvariantCulture));
+        else
+            dict[key] = JsonSerializer.SerializeToElement(value);
         return machine with { Settings = JsonSerializer.SerializeToElement(dict) };
     }
 

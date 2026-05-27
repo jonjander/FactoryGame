@@ -1,0 +1,297 @@
+@page "/admin"
+@using System.Net.Http.Json
+@using System.Net.Http.Headers
+@using FactoryGame.Contracts.Admin
+@inject HttpClient Http
+@inject AdminTokenStore AdminTokens
+@inject BrowserStorage Storage
+
+<PageTitle>Admin</PageTitle>
+
+<div class="panel">
+    <h2>Admin — sponsrade företag</h2>
+    <p class="muted">Kräver bootstrap-token (<code>X-Admin-Token</code>). Sidan är inte länkad i menyn — lås ned senare med riktig auth.</p>
+    @if (string.IsNullOrEmpty(AdminTokens.Token))
+    {
+        <form @onsubmit="SaveTokenAsync" @onsubmit:preventDefault="true">
+            <label for="admin-token">Admin-token</label>
+            <input id="admin-token" type="password" @bind="_tokenInput" />
+            <button type="submit">Spara token</button>
+        </form>
+    }
+    else
+    {
+        <p>Token sparad. <button type="button" class="secondary" @onclick="ClearTokenAsync">Byt token</button></p>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(AdminTokens.Token))
+{
+    @if (_error is { } err)
+    {
+        <div class="panel"><p class="error">@err</p></div>
+    }
+
+    <div class="panel admin-create-company">
+        <h3>Skapa företag</h3>
+        <form @onsubmit="CreateCompanyAsync" @onsubmit:preventDefault="true">
+            <div class="admin-form-grid">
+                <label>Namn <input @bind="_newName" required /></label>
+                <label>Beskrivning <textarea @bind="_newDescription" rows="2"></textarea></label>
+                <label>Logo-URL <input @bind="_newLogoUrl" /></label>
+                <label>Läge
+                    <select @bind="_newFundingMode">
+                        <option value="Budget">Budget</option>
+                        <option value="Utopia">Utopi (obegränsad)</option>
+                    </select>
+                </label>
+                <label>Budget <input type="number" step="0.01" @bind="_newBudget" disabled="@(_newFundingMode == "Utopia")" /></label>
+                <label>Exposure tier (1–5) <input type="number" min="1" max="5" @bind="_newTier" /></label>
+            </div>
+            <button type="submit" disabled="@_busy">Skapa företag</button>
+        </form>
+    </div>
+
+    @if (_companies.Count > 0)
+    {
+        @foreach (var company in _companies)
+        {
+            <div class="panel admin-company-card">
+                <div class="admin-company-head">
+                    @if (!string.IsNullOrEmpty(company.LogoUrl))
+                    {
+                        <img src="@company.LogoUrl" alt="" class="sponsor-logo-thumb" />
+                    }
+                    <div>
+                        <h3>@company.Name</h3>
+                        <p class="muted">@company.Description</p>
+                        <p class="muted">
+                            @company.FundingMode · Tier @company.ExposureTier ·
+                            Budget @FormatBudget(company) ·
+                            Volym @company.Stats.TotalVolume · Avslut @company.Stats.TradeCount
+                        </p>
+                    </div>
+                    <label class="admin-active-toggle">
+                        <input type="checkbox" checked="@company.IsActive" @onchange="e => ToggleActiveAsync(company, e)" />
+                        Aktiv
+                    </label>
+                </div>
+
+                <h4>Stående order</h4>
+                @if (!_standingOrders.TryGetValue(company.Id, out var orders) || orders.Count == 0)
+                {
+                    <p class="muted">Inga stående order.</p>
+                }
+                else
+                {
+                    <table class="exchange-trades-table">
+                        <thead><tr><th>Element</th><th>Sida</th><th>Limit</th><th>Målvolym</th><th>Aktiv</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var o in orders)
+                            {
+                                <tr>
+                                    <td>@o.ElementId / @o.Dna</td>
+                                    <td>@o.Side</td>
+                                    <td>@o.LimitPrice.ToString("0.##")</td>
+                                    <td>@o.TargetQuantity</td>
+                                    <td>@(o.IsActive ? "Ja" : "Nej")</td>
+                                    <td><button type="button" class="danger-outline" @onclick="() => DeleteOrderAsync(company.Id, o.Id)">Ta bort</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+
+                <details>
+                    <summary>Lägg till stående order</summary>
+                    <form @onsubmit="() => CreateOrderAsync(company.Id)" @onsubmit:preventDefault="true">
+                        <div class="admin-form-grid">
+                            <label>ElementId <input type="number" @bind="_orderElementId" /></label>
+                            <label>Dna <input type="number" @bind="_orderDna" /></label>
+                            <label>Sida
+                                <select @bind="_orderSide">
+                                    <option value="buy">Köp</option>
+                                    <option value="sell">Sälj</option>
+                                </select>
+                            </label>
+                            <label>Limit <input type="number" step="0.01" @bind="_orderPrice" /></label>
+                            <label>Målvolym <input type="number" @bind="_orderQty" /></label>
+                        </div>
+                        <button type="submit" disabled="@_busy">Lägg till order</button>
+                    </form>
+                </details>
+            </div>
+        }
+    }
+}
+
+@code {
+    private string _tokenInput = "";
+    private bool _busy;
+    private string? _error;
+    private readonly List<SponsorCompanyDto> _companies = new();
+    private readonly Dictionary<Guid, List<SponsorCompanyOrderDto>> _standingOrders = new();
+
+    private string _newName = "";
+    private string _newDescription = "";
+    private string _newLogoUrl = "";
+    private string _newFundingMode = "Budget";
+    private decimal _newBudget = 100_000m;
+    private int _newTier = 3;
+
+    private int _orderElementId = 1;
+    private long _orderDna;
+    private string _orderSide = "buy";
+    private decimal _orderPrice = 10m;
+    private long _orderQty = 50;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AdminTokens.LoadAsync();
+        if (!string.IsNullOrEmpty(AdminTokens.Token))
+            await LoadCompaniesAsync();
+    }
+
+    private async Task SaveTokenAsync()
+    {
+        await AdminTokens.SetAsync(_tokenInput);
+        _tokenInput = "";
+        await LoadCompaniesAsync();
+    }
+
+    private async Task ClearTokenAsync()
+    {
+        await AdminTokens.ClearAsync();
+        _companies.Clear();
+        _standingOrders.Clear();
+    }
+
+    private async Task LoadCompaniesAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var list = await SendAsync<List<SponsorCompanyDto>>(HttpMethod.Get, "/v1/admin/companies");
+            _companies.Clear();
+            if (list != null)
+            {
+                _companies.AddRange(list);
+                foreach (var c in _companies)
+                {
+                    var orders = await SendAsync<List<SponsorCompanyOrderDto>>(
+                        HttpMethod.Get, $"/v1/admin/companies/{c.Id}/orders");
+                    _standingOrders[c.Id] = orders ?? new List<SponsorCompanyOrderDto>();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CreateCompanyAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var body = new CreateSponsorCompanyRequest(
+                _newName,
+                _newDescription,
+                _newLogoUrl,
+                _newFundingMode,
+                _newFundingMode == "Utopia" ? null : _newBudget,
+                _newTier);
+            await SendAsync<SponsorCompanyDto>(HttpMethod.Post, "/v1/admin/companies", body);
+            _newName = "";
+            _newDescription = "";
+            await LoadCompaniesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CreateOrderAsync(Guid companyId)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var body = new CreateSponsorCompanyOrderRequest(
+                _orderElementId, _orderDna, _orderSide, _orderPrice, _orderQty);
+            await SendAsync<SponsorCompanyOrderDto>(
+                HttpMethod.Post, $"/v1/admin/companies/{companyId}/orders", body);
+            await LoadCompaniesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteOrderAsync(Guid companyId, Guid orderId)
+    {
+        _busy = true;
+        try
+        {
+            await SendAsync<object?>(HttpMethod.Delete, $"/v1/admin/companies/{companyId}/orders/{orderId}");
+            await LoadCompaniesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ToggleActiveAsync(SponsorCompanyDto company, ChangeEventArgs e)
+    {
+        var active = e.Value is bool b && b;
+        await SendAsync<SponsorCompanyDto>(
+            HttpMethod.Patch,
+            $"/v1/admin/companies/{company.Id}",
+            new UpdateSponsorCompanyRequest(null, null, null, null, null, null, null, active));
+        await LoadCompaniesAsync();
+    }
+
+    private async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body = null)
+    {
+        using var req = new HttpRequestMessage(method, url);
+        req.Headers.Add("X-Admin-Token", AdminTokens.Token);
+        if (body != null)
+            req.Content = JsonContent.Create(body);
+        var res = await Http.SendAsync(req);
+        if (!res.IsSuccessStatusCode)
+        {
+            var text = await res.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"{(int)res.StatusCode}: {text}");
+        }
+        if (res.StatusCode == System.Net.HttpStatusCode.NoContent)
+            return default;
+        return await res.Content.ReadFromJsonAsync<T>();
+    }
+
+    private static string FormatBudget(SponsorCompanyDto c) =>
+        c.FundingMode.Equals("Utopia", StringComparison.OrdinalIgnoreCase)
+            ? "∞"
+            : (c.BudgetRemaining?.ToString("0.##") ?? "0");
+}

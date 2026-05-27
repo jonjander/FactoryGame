@@ -92,6 +92,8 @@ public sealed class PlayerSessionMiddleware(RequestDelegate next)
     private static bool IsPublic(HttpContext context)
     {
         var path = context.Request.Path;
+        if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/app/version"))
+            return true;
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/content"))
             return true;
         if (context.Request.Method == HttpMethods.Get && path.StartsWithSegments("/v1/market"))
@@ -102,6 +104,8 @@ public sealed class PlayerSessionMiddleware(RequestDelegate next)
             return true;
         }
         if (path == GuestAuthPath && context.Request.Method == HttpMethods.Post)
+            return true;
+        if (path.StartsWithSegments("/v1/admin"))
             return true;
         return false;
     }

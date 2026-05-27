@@ -1,0 +1,43 @@
+@using FactoryGame.Web.Models
+@using FactoryGame.Web.Services
+
+<div class="wiki-element-orb wiki-element-orb-@PhaseSlug" aria-hidden="true">
+    <div class="wiki-orb-glow"></div>
+    <div class="wiki-orb-shell">
+        @if (PhaseSlug == "gas")
+        {
+            <span class="wiki-orb-orbit wiki-orb-orbit-a"></span>
+            <span class="wiki-orb-orbit wiki-orb-orbit-b"></span>
+            <span class="wiki-orb-orbit wiki-orb-orbit-c"></span>
+        }
+        else if (PhaseSlug == "liquid")
+        {
+            <span class="wiki-orb-drip wiki-orb-drip-a"></span>
+            <span class="wiki-orb-drip wiki-orb-drip-b"></span>
+        }
+        else
+        {
+            <span class="wiki-orb-crystal wiki-orb-crystal-a"></span>
+            <span class="wiki-orb-crystal wiki-orb-crystal-b"></span>
+            <span class="wiki-orb-crystal wiki-orb-crystal-c"></span>
+        }
+        <span class="wiki-orb-nucleus">
+            <span class="wiki-orb-symbol">@Element.Symbol</span>
+        </span>
+    </div>
+    <span class="wiki-orb-phase @WikiPresentation.PhaseCssClass(Element.Decoded.Phase)">
+        @WikiPresentation.PhaseLabelSv(Element.Decoded.Phase)
+    </span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ElementContentItem Element { get; set; } = null!;
+
+    private string PhaseSlug => Element.Decoded.Phase.ToLowerInvariant() switch
+    {
+        "liquid" => "liquid",
+        "gas" => "gas",
+        _ => "solid"
+    };
+}

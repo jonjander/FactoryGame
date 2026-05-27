@@ -2,6 +2,27 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.22
+
+- **Simulering — rate-motor:** per-maskin genomströmning, port-ratio och effektiv rate (permille); transfer begränsas per rörkoppling.
+- **Nya maskiner:** Tank (buffert small/medium/large), Junction (1→2 fördelning), RateLimiter (max flöde).
+- **Drifthastighet:** `operationRatePermille` 50/80/100 % på processmaskiner.
+- **Tids-DNA:** värme/kyl/kondens över flera tick; snabb drift riskerar overshoot.
+- **Keyframe-state:** `BoardLineState` RuleVersion 2 (tank/junction/processing-slot).
+
+## 0.2.21
+
+- **Spelplaner — lista:** kort/tiles med statusfärg (kör, varning, fel/stoppad), maskin-/rörantal och kort statusrad.
+- **Spelplaner — namn:** byt namn på sparad plan (`PATCH /v1/boards/{id}`) direkt i fabrik-vyn.
+- **Seaport — pool:** varning i maskininställningar och fabrikanalys när valt ut-element saknas i poolen.
+
+## 0.2.20
+
+- **Sponsrade företag (reklam):** admin-CRUD (`/admin`, `/v1/admin/companies`), flera stående order per företag, budget- eller utopi-läge.
+- **Börs:** blockering sponsor↔sponsor, motpartsnamn på avslut, säljmöjligheter-panel (`/v1/market/insights`).
+- **Marknad:** analys-sida `/market` med topplistor spelare/företag (`/v1/market/leaderboards`), företagsprofil `/v1/market/sponsors/{id}`.
+- **Tester:** `SponsorCompanyMarketTests` (spelare↔sponsor, anti-sponsor-match, utopi spend).
+
 ## 0.2.19
 
 - **Pool — DNA-varianter:** en stack per unikt DNA `(ElementId, Dna)`; grupperad pool-vy med fas (gasform/flytande/fast).

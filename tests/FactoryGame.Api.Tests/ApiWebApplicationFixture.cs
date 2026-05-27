@@ -17,8 +17,9 @@ public sealed class ApiWebApplicationFixture : IAsyncLifetime
             b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
             b.UseSetting("GameEconomy:SimulationTickIntervalSeconds", "600");
             b.UseSetting("MarketLiquidity:BackgroundRefreshEnabled", "false");
-            b.UseSetting("MarketLiquidity:RefreshOnSummaryRequest", "true");
+            b.UseSetting("MarketLiquidity:RefreshOnSummaryRequest", "false");
             b.UseSetting("MarketLiquidity:ElementRefreshCooldownMinutes", "0");
+            b.UseSetting("SponsorCompany:BackgroundRefreshEnabled", "false");
             b.UseSetting("Admin:BootstrapToken", "test-bootstrap");
         });
         return Task.CompletedTask;

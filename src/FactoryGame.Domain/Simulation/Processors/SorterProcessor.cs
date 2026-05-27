@@ -11,7 +11,7 @@ internal sealed class SorterProcessor : IMachineProcessor
         if (machine.IsBlocked)
             return;
 
-        var pkt = FlowHelper.PullFromInput(machine, "in");
+        var pkt = FlowHelper.PullFromInputBudget(machine, "in", ctx.GetPortInputBudget(MachineType, "in", settingsJson));
         if (pkt == null)
             return;
 
@@ -24,8 +24,8 @@ internal sealed class SorterProcessor : IMachineProcessor
         }
 
         var outPort = ResolveOutPort(pkt.ElementId, settingsJson);
-        pkt.Quantity = Math.Min(pkt.Quantity, ctx.UnitsPerTick);
-        if (!machine.GetOrCreateOutput(outPort).TryEnqueue(pkt))
+        var outBudget = ctx.GetPortOutputBudget(MachineType, outPort, settingsJson);
+        if (!FlowHelper.TryPushOutputBudget(machine, outPort, pkt, outBudget))
             machine.GetOrCreateInput("in").TryEnqueue(pkt);
     }
 

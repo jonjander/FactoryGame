@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+using FactoryGame.Contracts.Json;
+
 namespace FactoryGame.Contracts.Market;
 
 public sealed record MarketElementSummaryDto(
     int ElementId,
-    long Dna,
+    [property: JsonConverter(typeof(DnaJsonConverter))] long Dna,
     string Symbol,
     string Phase,
     string PhaseLabel,
@@ -17,7 +20,7 @@ public sealed record MarketDepthLevelDto(decimal Price, long BidQuantity, long A
 
 public sealed record MarketDepthDto(
     int ElementId,
-    long Dna,
+    [property: JsonConverter(typeof(DnaJsonConverter))] long Dna,
     decimal? BestBid,
     decimal? BestAsk,
     IReadOnlyList<MarketDepthLevelDto> Levels);
@@ -29,11 +32,3 @@ public sealed record MarketCandleDto(
     decimal Low,
     decimal Close,
     long Volume);
-
-public sealed record MarketTradeDto(
-    Guid Id,
-    int ElementId,
-    long Dna,
-    decimal Price,
-    long Quantity,
-    DateTimeOffset CreatedAt);

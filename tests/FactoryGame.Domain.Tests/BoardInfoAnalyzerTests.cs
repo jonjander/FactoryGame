@@ -83,6 +83,24 @@ public sealed class BoardInfoAnalyzerTests
         Assert.Contains(report.Issues, i => i.Code == "dna_incompatible");
     }
 
+    [Fact]
+    public void Analyze_warns_when_seaport_out_element_missing_from_pool()
+    {
+        var settings = JsonSerializer.SerializeToElement(new { outElementId = 7 });
+        var machines = new[]
+        {
+            new MachineInfo("sea1", "SeaportConnector", settings),
+            new MachineInfo("mix1", "Mixer", null)
+        };
+        var connections = new[] { new ConnectionInfo("sea1", "out", "mix1", "in1") };
+        var pool = new Dictionary<int, decimal> { [7] = 0m };
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines, connections, IsRunning: false, TickIntervalSeconds: 1, PoolQuantities: pool));
+
+        Assert.Contains(report.Issues, i => i.Code == "pool_empty" && i.MachineId == "sea1");
+    }
+
     private static int? ElementCatalogElementIdForDna(long dna)
     {
         foreach (var e in FactoryGame.Domain.Content.ElementCatalog.All)

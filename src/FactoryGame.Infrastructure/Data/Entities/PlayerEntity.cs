@@ -9,6 +9,9 @@ public class PlayerEntity
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    /// <summary>Backing account for a sponsor company; not a human player.</summary>
+    public bool IsSponsorAccount { get; set; }
+
     public PlayerBalanceEntity Balance { get; set; } = null!;
 
     public InventoryPoolEntity Pool { get; set; } = null!;

@@ -6,23 +6,32 @@ export function startPointerDrag(ref) {
     stopPointerDrag();
     dotNetRef = ref;
     moveHandler = (e) => {
+        if (e.cancelable) {
+            e.preventDefault();
+        }
         dotNetRef.invokeMethodAsync("OnDocumentPointerMove", e.clientX, e.clientY);
     };
     upHandler = (e) => {
-        dotNetRef.invokeMethodAsync("OnDocumentPointerUp");
+        if (e.cancelable) {
+            e.preventDefault();
+        }
+        const refSnapshot = dotNetRef;
         stopPointerDrag();
+        refSnapshot.invokeMethodAsync("OnDocumentPointerUp");
     };
-    document.addEventListener("mousemove", moveHandler);
-    document.addEventListener("mouseup", upHandler);
+    document.addEventListener("pointermove", moveHandler);
+    document.addEventListener("pointerup", upHandler);
+    document.addEventListener("pointercancel", upHandler);
 }
 
 export function stopPointerDrag() {
     if (moveHandler) {
-        document.removeEventListener("mousemove", moveHandler);
+        document.removeEventListener("pointermove", moveHandler);
         moveHandler = null;
     }
     if (upHandler) {
-        document.removeEventListener("mouseup", upHandler);
+        document.removeEventListener("pointerup", upHandler);
+        document.removeEventListener("pointercancel", upHandler);
         upHandler = null;
     }
     dotNetRef = null;

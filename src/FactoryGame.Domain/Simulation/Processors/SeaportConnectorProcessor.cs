@@ -68,8 +68,12 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
         try
         {
             using var doc = JsonDocument.Parse(settingsJson);
-            if (doc.RootElement.TryGetProperty("outMaterialDna", out var el) && el.TryGetInt64(out var dna))
-                return dna;
+            if (doc.RootElement.TryGetProperty("outMaterialDna", out var el))
+            {
+                var dna = MachineSettingsJson.ReadInt64(el);
+                if (dna != 0)
+                    return dna;
+            }
         }
         catch
         {

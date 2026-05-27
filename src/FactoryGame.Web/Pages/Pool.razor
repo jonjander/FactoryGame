@@ -11,83 +11,87 @@
                           Element="_analysisElement"
                           OnClose="CloseAnalysisAsync" />
 
-<div class="panel pool-header">
-    <h2>Seaport-pool</h2>
-    <p class="muted">Ditt materialager för fabrik och börs. Värden baseras på senaste marknadspris.</p>
-    <div class="pool-header-actions">
-        <button type="button" class="secondary" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
-        @if (_overview is not null)
-        {
-            <span class="pool-stat muted">Volym: <strong>@_overview.UsedVolume</strong> / @_overview.MaxVolume</span>
-            <span class="pool-stat pool-stat-total">Totalt uppskattat värde: <strong>@_overview.TotalEstimatedValue.ToString("0.##")</strong></span>
-        }
-    </div>
-    @if (!string.IsNullOrEmpty(_error))
-    {
-        <p class="error">@_error</p>
-    }
-</div>
-
 @if (string.IsNullOrEmpty(Tokens.BearerToken))
 {
-    <div class="panel">
-        <p class="muted">Du måste <a href="/">logga in som gäst</a> för att se poolen.</p>
+    <div class="panel pool-page">
+        <div class="pool-toolbar">
+            <h2 class="pool-title">Seaport-pool</h2>
+        </div>
+        <p class="muted pool-empty">Du måste <a href="/">logga in som gäst</a> för att se poolen.</p>
     </div>
 }
 else if (_overview is null && !_busy)
 {
-    <div class="panel"><p class="muted">Kunde inte läsa poolen.</p></div>
+    <div class="panel pool-page">
+        <div class="pool-toolbar">
+            <h2 class="pool-title">Seaport-pool</h2>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+        </div>
+        <p class="muted pool-empty">Kunde inte läsa poolen.</p>
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="error pool-error">@_error</p>
+        }
+    </div>
 }
 else if (GetGroups().Count == 0 && !_busy)
 {
-    <div class="panel">
-        <p class="muted">Inget material i poolen. Öppna sidan igen efter inloggning om du nyss skapade konto — startpaket läggs i poolen automatiskt.</p>
+    <div class="panel pool-page">
+        <div class="pool-toolbar">
+            <h2 class="pool-title">Seaport-pool</h2>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+        </div>
+        <p class="muted pool-empty">Inget material i poolen. Öppna sidan igen efter inloggning om du nyss skapade konto — startpaket läggs i poolen automatiskt.</p>
     </div>
 }
 else if (_overview is not null)
 {
-    <div class="panel pool-holdings">
-        <h3>Innehav</h3>
-        <div class="pool-groups">
-            @foreach (var group in GetGroups().OrderBy(g => g.DisplayName))
-            {
-                <section class="pool-element-group">
-                    <header class="pool-group-header">
-                        <span class="fg-element-badge">@group.Symbol</span>
-                        <strong>@group.DisplayName</strong>
-                        <span class="muted pool-group-total">@group.TotalQuantity st totalt</span>
-                    </header>
-                    <table class="pool-holdings-table pool-variant-table">
-                        <thead>
-                            <tr>
-                                <th>Variant</th>
-                                <th>Antal</th>
-                                <th>Marknadsvärde/enhet</th>
-                                <th>Radvärde</th>
-                                <th>Börs-rank</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in group.Variants.OrderBy(v => v.Phase, StringComparer.Ordinal))
-                            {
-                                <tr>
-                                    <td class="pool-name-cell">
-                                        <span class="fg-phase-badge fg-phase-@row.Phase.ToLowerInvariant()">@row.PhaseLabel</span>
-                                    </td>
-                                    <td><strong>@row.Quantity</strong></td>
-                                    <td class="pool-num">@row.LastPrice.ToString("0.##")</td>
-                                    <td class="pool-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
-                                    <td class="pool-rank">#@row.PriceRank <span class="muted">av @row.CatalogSize</span></td>
-                                    <td class="pool-actions">
-                                        <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row.ElementId)">Info</button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </section>
-            }
+    <div class="panel pool-page">
+        <div class="pool-toolbar">
+            <h2 class="pool-title">Seaport-pool</h2>
+            <span class="pool-stat muted">Volym <strong>@_overview.UsedVolume</strong>/@_overview.MaxVolume</span>
+            <span class="pool-stat pool-stat-total">Värde <strong>@_overview.TotalEstimatedValue.ToString("0.##")</strong></span>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+        </div>
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="error pool-error">@_error</p>
+        }
+        <div class="pool-table-wrap">
+            <table class="pool-holdings-table">
+                <thead>
+                    <tr>
+                        <th>Ämne</th>
+                        <th>Variant</th>
+                        <th class="pool-col-num">Antal</th>
+                        <th class="pool-col-num">Pris/enh</th>
+                        <th class="pool-col-num">Radvärde</th>
+                        <th class="pool-col-rank">Rank</th>
+                        <th class="pool-col-action"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in GetFlatRows())
+                    {
+                        <tr>
+                            <td class="pool-element-cell">
+                                <span class="fg-element-badge">@row.Symbol</span>
+                                <span class="pool-element-name">@row.DisplayName</span>
+                            </td>
+                            <td>
+                                <span class="fg-phase-badge fg-phase-@row.Phase.ToLowerInvariant()">@row.PhaseLabel</span>
+                            </td>
+                            <td class="pool-col-num"><strong>@row.Quantity</strong></td>
+                            <td class="pool-col-num">@row.LastPrice.ToString("0.##")</td>
+                            <td class="pool-col-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
+                            <td class="pool-col-rank">#@row.PriceRank <span class="muted">/@row.CatalogSize</span></td>
+                            <td class="pool-col-action">
+                                <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row.ElementId)">Info</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
 }
@@ -101,6 +105,27 @@ else if (_overview is not null)
     private ElementContentItem? _analysisElement;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private IEnumerable<PoolFlatRow> GetFlatRows()
+    {
+        return GetGroups()
+            .OrderBy(g => g.DisplayName)
+            .SelectMany(g => g.Variants
+                .OrderBy(v => v.Phase, StringComparer.Ordinal)
+                .Select(v => new PoolFlatRow(g.Symbol, g.DisplayName, v)));
+    }
+
+    private sealed record PoolFlatRow(string Symbol, string DisplayName, PoolVariantStackDto Variant)
+    {
+        public int ElementId => Variant.ElementId;
+        public string Phase => Variant.Phase;
+        public string PhaseLabel => Variant.PhaseLabel;
+        public long Quantity => Variant.Quantity;
+        public decimal LastPrice => Variant.LastPrice;
+        public decimal LineValue => Variant.LineValue;
+        public int PriceRank => Variant.PriceRank;
+        public int CatalogSize => Variant.CatalogSize;
+    }
 
     private IReadOnlyList<PoolElementGroupDto> GetGroups()
     {

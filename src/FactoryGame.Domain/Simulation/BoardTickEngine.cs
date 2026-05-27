@@ -17,6 +17,7 @@ public static class BoardTickEngine
         {
             Tick = tick,
             UnitsPerTick = unitsPerTick,
+            Plan = plan,
             Pool = pool
         };
 
@@ -37,7 +38,7 @@ public static class BoardTickEngine
             {
                 if (!machineMeta.TryGetValue(machineId, out _))
                     continue;
-                TransferInputs(plan, state, state.Machines[machineId], ctx.UnitsPerTick);
+                TransferInputs(plan, state, machineMeta, state.Machines[machineId], ctx);
             }
         }
 
@@ -69,17 +70,32 @@ public static class BoardTickEngine
     private static void TransferInputs(
         SimulationPlan plan,
         BoardLineState state,
+        IReadOnlyDictionary<string, SimulationMachine> machineMeta,
         MachineRuntimeState target,
-        decimal maxQty)
+        TickContext ctx)
     {
         foreach (var c in plan.Connections.Where(x => x.ToId == target.MachineId))
         {
             if (!state.Machines.TryGetValue(c.FromId, out var source))
                 continue;
+            if (!machineMeta.TryGetValue(c.FromId, out var sourceMeta))
+                continue;
+            if (!machineMeta.TryGetValue(c.ToId, out var targetMeta))
+                continue;
             if (!source.OutputPorts.TryGetValue(c.FromPort, out var fromBuf))
                 continue;
             if (!target.InputPorts.TryGetValue(c.ToPort, out var toBuf))
                 continue;
+
+            var maxQty = MachineRateCatalog.GetConnectionTransferBudget(
+                sourceMeta.Type,
+                c.FromPort,
+                sourceMeta.SettingsJson,
+                targetMeta.Type,
+                c.ToPort,
+                targetMeta.SettingsJson,
+                ctx.UnitsPerTick);
+
             FlowHelper.TryMovePortToPort(fromBuf, toBuf, maxQty);
         }
     }

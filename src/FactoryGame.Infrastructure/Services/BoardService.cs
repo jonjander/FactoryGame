@@ -44,7 +44,70 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .Where(b => b.PlayerId == playerId)
             .OrderBy(b => b.Name)
             .ToListAsync(ct);
-        return boards.Select(ToSummary).ToList();
+        if (boards.Count == 0)
+            return Array.Empty<BoardSummaryDto>();
+
+        var poolQty = await LoadPoolQuantitiesAsync(playerId, ct);
+        var boardIds = boards.Select(b => b.Id).ToList();
+        var revisions = await db.BoardRevisions.AsNoTracking()
+            .Where(r => boardIds.Contains(r.BoardId))
+            .ToListAsync(ct);
+        var revisionByBoard = revisions
+            .GroupBy(r => r.BoardId)
+            .ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Version));
+
+        var runningIds = boards
+            .Where(b => b.Mode == BoardMode.Running)
+            .Select(b => b.Id)
+            .ToHashSet();
+        var latestKeyframes = runningIds.Count == 0
+            ? new Dictionary<Guid, BoardKeyframeEntity>()
+            : await db.BoardKeyframes.AsNoTracking()
+                .Where(k => runningIds.Contains(k.BoardId))
+                .GroupBy(k => k.BoardId)
+                .Select(g => g.OrderByDescending(k => k.Tick).First())
+                .ToDictionaryAsync(k => k.BoardId, ct);
+
+        return boards
+            .Select(board =>
+            {
+                BoardPlanDto plan = new(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+                if (board.RevisionVersion > 0
+                    && revisionByBoard.TryGetValue(board.Id, out var versions)
+                    && versions.TryGetValue(board.RevisionVersion, out var revision))
+                {
+                    plan = JsonSerializer.Deserialize<BoardPlanDto>(revision.PlanJson, Json)
+                           ?? plan;
+                }
+
+                BoardLineState? runtime = null;
+                SeaportTickDelta? delta = null;
+                if (board.Mode == BoardMode.Running
+                    && latestKeyframes.TryGetValue(board.Id, out var kf))
+                {
+                    runtime = BoardLineStateSerializer.Deserialize(kf.LineStateJson);
+                    delta = BoardLineStateSerializer.DeserializeDelta(kf.SeaportDeltaJson);
+                }
+
+                return BuildSummary(board, plan, poolQty, runtime, delta);
+            })
+            .ToList();
+    }
+
+    public async Task RenameBoardAsync(Guid playerId, Guid boardId, string name, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Name is required.");
+
+        var trimmed = name.Trim();
+        if (trimmed.Length > 120)
+            throw new InvalidOperationException("Name must be at most 120 characters.");
+
+        var board = await db.Boards.FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct)
+            ?? throw new InvalidOperationException("Board not found.");
+
+        board.Name = trimmed;
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<BoardPlanDto?> GetLatestPlanAsync(Guid playerId, Guid boardId, CancellationToken ct)
@@ -380,6 +443,84 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         }
     }
 
-    private static BoardSummaryDto ToSummary(BoardEntity b) =>
-        new(b.Id, b.Name, b.Mode.ToString(), b.RevisionVersion, b.SimulationTick);
+    private async Task<Dictionary<int, decimal>> LoadPoolQuantitiesAsync(Guid playerId, CancellationToken ct) =>
+        await db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId == playerId)
+            .GroupBy(s => s.ElementId)
+            .Select(g => new { ElementId = g.Key, Quantity = g.Sum(s => (decimal)s.Quantity) })
+            .ToDictionaryAsync(x => x.ElementId, x => x.Quantity, ct);
+
+    private BoardSummaryDto BuildSummary(
+        BoardEntity board,
+        BoardPlanDto plan,
+        IReadOnlyDictionary<int, decimal> poolQty,
+        BoardLineState? runtime = null,
+        SeaportTickDelta? delta = null)
+    {
+        var machines = plan.Machines.Select(m => new MachineInfo(m.Id, m.Type, m.Settings)).ToList();
+        var connections = plan.Connections
+            .Select(c => new ConnectionInfo(c.FromId, c.FromPort, c.ToId, c.ToPort))
+            .ToList();
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines,
+            connections,
+            board.Mode == BoardMode.Running,
+            _economy.SimulationTickIntervalSeconds,
+            runtime,
+            delta,
+            poolQty));
+
+        var errorCount = report.Issues.Count(i => i.Severity == "error");
+        var warningCount = report.Issues.Count(i => i.Severity == "warning");
+        var health = ComputeBoardHealth(board.Mode == BoardMode.Running, errorCount, warningCount);
+        var statusHint = BuildStatusHint(board.Mode, errorCount, warningCount, plan);
+
+        return new BoardSummaryDto(
+            board.Id,
+            board.Name,
+            board.Mode.ToString(),
+            board.RevisionVersion,
+            board.SimulationTick,
+            plan.Machines.Count,
+            plan.Connections.Count,
+            health,
+            errorCount,
+            warningCount,
+            statusHint);
+    }
+
+    private static string ComputeBoardHealth(bool isRunning, int errorCount, int warningCount)
+    {
+        if (errorCount > 0)
+            return "error";
+        if (warningCount > 0)
+            return "warning";
+        return isRunning ? "running" : "ok";
+    }
+
+    private static string BuildStatusHint(
+        BoardMode mode,
+        int errorCount,
+        int warningCount,
+        BoardPlanDto plan)
+    {
+        var parts = new List<string>();
+        parts.Add(mode == BoardMode.Running ? "Kör" : "Stoppad");
+
+        if (plan.Machines.Count == 0 && plan.Connections.Count == 0)
+            parts.Add("tom plan");
+        else if (errorCount > 0)
+            parts.Add(errorCount == 1 ? "1 blockerare" : $"{errorCount} blockerare");
+        else if (warningCount > 0)
+            parts.Add(warningCount == 1 ? "1 varning" : $"{warningCount} varningar");
+
+        return string.Join(" · ", parts);
+    }
+
+    private BoardSummaryDto ToSummary(BoardEntity b) =>
+        BuildSummary(
+            b,
+            new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>()),
+            new Dictionary<int, decimal>());
 }

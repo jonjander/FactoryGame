@@ -45,7 +45,10 @@ public static class MachinePortCatalog
             ],
             ["SeaportConnector"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
             ["SeaportIn"] = [new("out", PortDirection.Out)],
-            ["SeaportOut"] = [new("in", PortDirection.In)]
+            ["SeaportOut"] = [new("in", PortDirection.In)],
+            ["Tank"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
+            ["Junction"] = [new("in", PortDirection.In), new("out1", PortDirection.Out), new("out2", PortDirection.Out)],
+            ["RateLimiter"] = [new("in", PortDirection.In), new("out", PortDirection.Out)]
         };
 }
 

@@ -1,5 +1,8 @@
 namespace FactoryGame.Contracts.Boards;
 
+using System.Text.Json.Serialization;
+using FactoryGame.Contracts.Json;
+
 public sealed record BoardInfoDto(
     Guid BoardId,
     string Name,
@@ -53,8 +56,8 @@ public sealed record MachinePortFlowDto(
     string? OutputElementSymbol,
     string? InputPhase,
     string? OutputPhase,
-    long? InputDna,
-    long? OutputDna,
+    [property: JsonConverter(typeof(NullableDnaJsonConverter))] long? InputDna,
+    [property: JsonConverter(typeof(NullableDnaJsonConverter))] long? OutputDna,
     string? TransformNote,
     string Summary,
     string ProcessStatus,

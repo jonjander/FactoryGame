@@ -143,6 +143,10 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 - Server ska **validera** att samma grundamne inte ar valt pa mer an en av port 1–3 (annars otydlig konfiguration); ogiltig konfiguration ska blockeras vid sparning/start.
 - Tom port (inga valda grundamnen) tar **inte** emot nagot via "match" — endast explicit listade grundamnen gar dit; ovrigt till port 4.
 - Samtliga maskiner ska ha tydlig throughput och process-tid som kan balanseras via konfig.
+- `Tank` (1:1): buffert med konfigurerbar storlek (liten/medium/stor); decouplar flöden med olika rate.
+- `Junction` (1:2): en ingang, tva utgangar; fordelar material varannan eller viktat efter downstream-kapacitet.
+- `RateLimiter` (1:1): begransar flode till konfigurerad max-rate.
+- **Framtida:** `Valve`/`Kran` med cron-schema (ej MVP; krav TBD sim-tid vs UTC).
 
 ### F23 - Maskininstallningar och tuning
 - Spelaren ska **inte** kunna andra maskininstallningar medan spelplanen ar `Running`. Andringar sker endast i `Edit`-lage.
@@ -153,6 +157,10 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
   - `Mixer`: ratio mellan input 1 och input 2, mix-intensitet, mix-tid
   - `Separator`/`Destilator`: cut-points, reflux/returgrad, processhastighet
   - `Cooler`: kylkapacitet, maltemperatur, kyltid
+  - `operationRatePermille`: drift-hastighet 50/80/100 % pa processmaskiner dar det ar realistiskt
+  - `tankSize`: liten/medium/stor pa Tank
+  - `maxRatePermille`: max flode pa RateLimiter
+- Varme/kyl/kondens sker over flera tick; snabb drift kan ge overshoot och samre kvalitet, langsam drift ger finare DNA-kontroll.
 - Installningarna ska valideras server-side mot tillatna intervall och maskinniva/upplasningar.
 - Installningar ska ingå i simuleringen och i spelplanens versionssnapshot.
 - Små andringar i installningar ska kunna ge stora skillnader i output (hog skill ceiling).

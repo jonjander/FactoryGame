@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using FactoryGame.Api.Auth;
 using FactoryGame.Api.Diagnostics;
@@ -11,6 +12,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
+});
 
 var logMaxLines = builder.Configuration.GetValue<int?>("Diagnostics:RecentLogMaxLines") ?? 4000;
 var logBuffer = new RecentLogBuffer(logMaxLines);
@@ -146,6 +153,7 @@ app.MapHealthChecks("/health").WithName("Health");
 
 app.MapDiagnosticsEndpoints();
 
+app.MapAppEndpoints();
 app.MapAuthEndpoints();
 app.MapPlayerEndpoints();
 app.MapContentEndpoints();

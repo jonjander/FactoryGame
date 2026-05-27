@@ -1,11 +1,12 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using FactoryGame.Contracts.Json;
 
 namespace FactoryGame.Web.Services;
 
 public sealed class WalletState(HttpClient http, TokenStore tokens)
 {
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions Json = FactoryGameJson.Api;
 
     public decimal? Cash { get; private set; }
 

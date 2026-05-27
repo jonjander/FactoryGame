@@ -23,4 +23,8 @@ public class TradeExecutionEntity
     public DateTimeOffset CreatedAt { get; set; }
 
     public bool IsSynthetic { get; set; }
+
+    public Guid? BuyerSponsorCompanyId { get; set; }
+
+    public Guid? SellerSponsorCompanyId { get; set; }
 }

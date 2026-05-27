@@ -10,8 +10,21 @@ public sealed record BoardPlanDto(IReadOnlyList<MachineDto> Machines, IReadOnlyL
 
 public sealed record CreateBoardRequest(string Name);
 
+public sealed record RenameBoardRequest(string Name);
+
 public sealed record SavePlanRequest(BoardPlanDto Plan);
 
-public sealed record BoardSummaryDto(Guid Id, string Name, string Mode, int RevisionVersion, long SimulationTick);
+public sealed record BoardSummaryDto(
+    Guid Id,
+    string Name,
+    string Mode,
+    int RevisionVersion,
+    long SimulationTick,
+    int PlanMachineCount = 0,
+    int PlanConnectionCount = 0,
+    string Health = "ok",
+    int ErrorCount = 0,
+    int WarningCount = 0,
+    string? StatusHint = null);
 
 public sealed record BoardSnapshotDto(Guid BoardId, long Tick, string Note, string Mode);
