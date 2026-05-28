@@ -22,12 +22,11 @@ public static class AdminEndpoints
                 if (auth != null)
                     return auth;
 
-                var rows = await db.Players.AsNoTracking().ToListAsync(ct);
-                var players = rows
-                    .OrderByDescending(p => p.CreatedAt.UtcDateTime.Ticks)
+                var players = await db.Players.AsNoTracking()
+                    .OrderByDescending(p => p.CreatedAtUtcTicks)
                     .Take(200)
                     .Select(p => new { p.Id, p.CreatedAt, p.IsSponsorAccount })
-                    .ToList();
+                    .ToListAsync(ct);
                 return Results.Ok(players);
             })
             .WithName("AdminListPlayers")

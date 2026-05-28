@@ -29,6 +29,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.GuestDeviceKeyHash).IsUnique();
+            e.HasIndex(x => x.CreatedAtUtcTicks);
             e.HasOne(x => x.Balance).WithOne(x => x.Player).HasForeignKey<PlayerBalanceEntity>(x => x.PlayerId);
             e.HasOne(x => x.Pool).WithOne(x => x.Player).HasForeignKey<InventoryPoolEntity>(x => x.PlayerId);
         });
@@ -156,5 +157,38 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.SponsorCompanyId, x.IsActive });
             e.Property(x => x.LimitPrice).HasPrecision(18, 4);
         });
+    }
+
+    public override int SaveChanges()
+    {
+        SyncPlayerCreatedAtUtcTicks();
+        return base.SaveChanges();
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        SyncPlayerCreatedAtUtcTicks();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        SyncPlayerCreatedAtUtcTicks();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        SyncPlayerCreatedAtUtcTicks();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void SyncPlayerCreatedAtUtcTicks()
+    {
+        foreach (var entry in ChangeTracker.Entries<PlayerEntity>())
+        {
+            if (entry.State is EntityState.Added or EntityState.Modified)
+                entry.Entity.CreatedAtUtcTicks = entry.Entity.CreatedAt.UtcTicks;
+        }
     }
 }

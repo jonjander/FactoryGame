@@ -2,6 +2,12 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.3.2
+
+- **Admin:** `GET /v1/admin/players` sorterar i databasen via indexerat `CreatedAtUtcTicks` (ingen in-memory-sortering).
+- **Börs:** `ExchangeService` använder `CreateExecutionStrategy()` så marknadsordrar fungerar med SQL Server retry.
+- **Lokal dev:** `appsettings.Local.json` laddas valfritt vid startup.
+
 ## 0.3.1
 
 - **UI — Konto:** ny sida `/transactions` med ekonomihistorik; nav-länk i huvudmenyn.

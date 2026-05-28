@@ -9,8 +9,11 @@ public interface IDatabaseSchemaInitializer
 
 internal sealed class SqlServerDatabaseSchemaInitializer : IDatabaseSchemaInitializer
 {
-    public Task EnsureSchemaAsync(AppDbContext db, CancellationToken cancellationToken = default) =>
-        db.Database.MigrateAsync(cancellationToken);
+    public async Task EnsureSchemaAsync(AppDbContext db, CancellationToken cancellationToken = default)
+    {
+        await db.Database.MigrateAsync(cancellationToken);
+        await PlayerSchemaPatches.BackfillCreatedAtUtcTicksAsync(db, cancellationToken);
+    }
 }
 
 internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializer
@@ -21,6 +24,7 @@ internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializ
         await ApplyMarketLiquidityPatchesAsync(db, cancellationToken);
         await ApplyPoolDnaPatchesAsync(db, cancellationToken);
         await ApplySponsorCompanyPatchesAsync(db, cancellationToken);
+        await ApplyPlayerCreatedAtUtcTicksPatchAsync(db, cancellationToken);
     }
 
     private static async Task ApplyMarketLiquidityPatchesAsync(AppDbContext db, CancellationToken ct)
@@ -129,6 +133,14 @@ internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializ
             "CREATE INDEX IF NOT EXISTS IX_TradeExecutions_BuyerSponsorCompanyId ON TradeExecutions (BuyerSponsorCompanyId);", ct);
         await db.Database.ExecuteSqlRawAsync(
             "CREATE INDEX IF NOT EXISTS IX_TradeExecutions_SellerSponsorCompanyId ON TradeExecutions (SellerSponsorCompanyId);", ct);
+    }
+
+    private static async Task ApplyPlayerCreatedAtUtcTicksPatchAsync(AppDbContext db, CancellationToken ct)
+    {
+        await TryAddColumnAsync(db, "Players", "CreatedAtUtcTicks", "INTEGER NOT NULL DEFAULT 0", ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE INDEX IF NOT EXISTS IX_Players_CreatedAtUtcTicks ON Players (CreatedAtUtcTicks);", ct);
+        await PlayerSchemaPatches.BackfillCreatedAtUtcTicksAsync(db, ct);
     }
 
     private static async Task TryAddColumnAsync(AppDbContext db, string table, string column, string definition, CancellationToken ct)

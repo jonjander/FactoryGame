@@ -9,6 +9,9 @@ public class PlayerEntity
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    /// <summary>UTC ticks mirror of <see cref="CreatedAt"/> for indexed server-side sort.</summary>
+    public long CreatedAtUtcTicks { get; set; }
+
     /// <summary>Backing account for a sponsor company; not a human player.</summary>
     public bool IsSponsorAccount { get; set; }
 

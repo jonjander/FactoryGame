@@ -22,7 +22,22 @@ public sealed class ExchangeService(AppDbContext db)
 
     private const long VolumePerUnit = 1;
 
-
+    private Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
+        db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var result = await action(ct);
+                await tx.CommitAsync(ct);
+                return result;
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        });
 
     public async Task<PlaceOrderResponse> PlaceOrderAsync(Guid playerId, PlaceOrderRequest request, CancellationToken ct = default)
 
@@ -90,122 +105,57 @@ public sealed class ExchangeService(AppDbContext db)
 
 
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-
+        return await ExecuteInTransactionAsync(async ctInner =>
         {
-
             if (side == OrderSide.Sell)
-
             {
-
-                await RemoveFromPoolAsync(playerId, request.ElementId, dna, request.Quantity, ct);
-
+                await RemoveFromPoolAsync(playerId, request.ElementId, dna, request.Quantity, ctInner);
             }
-
             else
-
             {
-
                 var cost = request.LimitPrice * request.Quantity;
-
-                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ct);
-
+                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ctInner);
                 if (balance.Cash < cost)
-
                     throw new InvalidOperationException("Insufficient cash for buy.");
-
-                var pool = await db.InventoryPools.FirstAsync(p => p.PlayerId == playerId, ct);
-
+                var pool = await db.InventoryPools.FirstAsync(p => p.PlayerId == playerId, ctInner);
                 if (pool.UsedVolume + request.Quantity * VolumePerUnit > pool.MaxVolume)
-
                     throw new InvalidOperationException("Pool volume would exceed max; buy blocked.");
-
             }
-
-
 
             var order = new MarketOrderEntity
-
             {
-
                 Id = Guid.NewGuid(),
-
                 PlayerId = playerId,
-
                 ElementId = request.ElementId,
-
                 Dna = dna,
-
                 Side = side,
-
                 LimitPrice = request.LimitPrice,
-
                 QuantityRemaining = request.Quantity,
-
                 OriginalQuantity = request.Quantity,
-
                 Status = OrderStatus.Open,
-
                 CreatedAt = DateTimeOffset.UtcNow,
-
                 IdempotencyKey = request.IdempotencyKey
-
             };
-
             db.MarketOrders.Add(order);
+            await db.SaveChangesAsync(ctInner);
 
-            await db.SaveChangesAsync(ct);
+            await MatchOrdersForVariantAsync(request.ElementId, dna, ctInner);
 
-
-
-            await MatchOrdersForVariantAsync(request.ElementId, dna, ct);
-
-
-
-            await db.SaveChangesAsync(ct);
-
-            await tx.CommitAsync(ct);
-
-
+            await db.SaveChangesAsync(ctInner);
 
             var updated = await db.MarketOrders.AsNoTracking()
-
-                .FirstAsync(o => o.Id == order.Id, ct);
-
+                .FirstAsync(o => o.Id == order.Id, ctInner);
             var quantityFilled = updated.OriginalQuantity - updated.QuantityRemaining;
-
             return new PlaceOrderResponse(
-
                 updated.Id,
-
                 updated.QuantityRemaining,
-
                 updated.Status.ToString(),
-
                 quantityFilled,
-
                 quantityFilled > 0
-
-                    ? await GetAverageFillPriceAsync(updated.Id, ct)
-
+                    ? await GetAverageFillPriceAsync(updated.Id, ctInner)
                     : null,
-
                 updated.OriginalQuantity);
-
-        }
-
-        catch
-
-        {
-
-            await tx.RollbackAsync(ct);
-
-            throw;
-
-        }
-
+        }, ct);
     }
 
 
@@ -635,167 +585,74 @@ public sealed class ExchangeService(AppDbContext db)
 
 
     public async Task<OrderActionResponse> CancelOrderAsync(Guid playerId, Guid orderId, CancellationToken ct = default)
-
     {
-
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-
+        return await ExecuteInTransactionAsync(async ctInner =>
         {
-
             var order = await db.MarketOrders.FirstOrDefaultAsync(
-
-                o => o.Id == orderId && o.PlayerId == playerId, ct);
-
+                o => o.Id == orderId && o.PlayerId == playerId, ctInner);
             if (order == null)
-
                 throw new InvalidOperationException("Order not found.");
-
             if (order.IsSynthetic)
-
                 throw new InvalidOperationException("Cannot cancel synthetic order.");
-
             if (order.Status != OrderStatus.Open || order.QuantityRemaining <= 0)
-
                 throw new InvalidOperationException("Order is not open.");
 
-
-
             var remaining = order.QuantityRemaining;
-
             if (order.Side == OrderSide.Sell && remaining > 0)
-
-                await AddToBuyerPoolAsync(order.PlayerId, order.ElementId, order.Dna, remaining, ct);
-
-
+                await AddToBuyerPoolAsync(order.PlayerId, order.ElementId, order.Dna, remaining, ctInner);
 
             order.Status = OrderStatus.Cancelled;
-
             order.QuantityRemaining = 0;
-
-            await db.SaveChangesAsync(ct);
-
-            await tx.CommitAsync(ct);
-
-
+            await db.SaveChangesAsync(ctInner);
 
             return new OrderActionResponse(order.Id, order.Status.ToString(), 0, order.OriginalQuantity - remaining, null, order.LimitPrice, order.OriginalQuantity);
-
-        }
-
-        catch
-
-        {
-
-            await tx.RollbackAsync(ct);
-
-            throw;
-
-        }
-
+        }, ct);
     }
 
 
 
     public async Task<OrderActionResponse> AmendOrderPriceAsync(Guid playerId, Guid orderId, decimal newLimitPrice, CancellationToken ct = default)
-
     {
-
         if (newLimitPrice <= 0)
-
             throw new ArgumentException("Limit price must be positive.", nameof(newLimitPrice));
 
-
-
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-
+        return await ExecuteInTransactionAsync(async ctInner =>
         {
-
             var order = await db.MarketOrders.FirstOrDefaultAsync(
-
-                o => o.Id == orderId && o.PlayerId == playerId, ct);
-
+                o => o.Id == orderId && o.PlayerId == playerId, ctInner);
             if (order == null)
-
                 throw new InvalidOperationException("Order not found.");
-
             if (order.IsSynthetic)
-
                 throw new InvalidOperationException("Cannot amend synthetic order.");
-
             if (order.Status != OrderStatus.Open || order.QuantityRemaining <= 0)
-
                 throw new InvalidOperationException("Order is not open.");
 
-
-
             var oldLimit = order.LimitPrice ?? 0m;
-
             if (order.Side == OrderSide.Buy && newLimitPrice > oldLimit)
-
             {
-
                 var extraCost = (newLimitPrice - oldLimit) * order.QuantityRemaining;
-
-                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ct);
-
+                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ctInner);
                 if (balance.Cash < extraCost)
-
                     throw new InvalidOperationException("Insufficient cash for higher buy limit.");
-
             }
 
-
-
             order.LimitPrice = newLimitPrice;
+            await db.SaveChangesAsync(ctInner);
 
-            await db.SaveChangesAsync(ct);
+            await MatchOrdersForVariantAsync(order.ElementId, order.Dna, ctInner);
+            await db.SaveChangesAsync(ctInner);
 
-
-
-            await MatchOrdersForVariantAsync(order.ElementId, order.Dna, ct);
-
-            await db.SaveChangesAsync(ct);
-
-            await tx.CommitAsync(ct);
-
-
-
-            var updated = await db.MarketOrders.AsNoTracking().FirstAsync(o => o.Id == orderId, ct);
-
+            var updated = await db.MarketOrders.AsNoTracking().FirstAsync(o => o.Id == orderId, ctInner);
             var filled = updated.OriginalQuantity - updated.QuantityRemaining;
-
             return new OrderActionResponse(
-
                 updated.Id,
-
                 updated.Status.ToString(),
-
                 updated.QuantityRemaining,
-
                 filled,
-
-                filled > 0 ? await GetAverageFillPriceAsync(updated.Id, ct) : null,
-
+                filled > 0 ? await GetAverageFillPriceAsync(updated.Id, ctInner) : null,
                 updated.LimitPrice,
-
                 updated.OriginalQuantity);
-
-        }
-
-        catch
-
-        {
-
-            await tx.RollbackAsync(ct);
-
-            throw;
-
-        }
-
+        }, ct);
     }
 
 
@@ -880,132 +737,62 @@ public sealed class ExchangeService(AppDbContext db)
 
 
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-
+        return await ExecuteInTransactionAsync(async ctInner =>
         {
-
             if (side == OrderSide.Sell)
-
             {
-
-                await RemoveFromPoolAsync(company.PlayerId, request.ElementId, dna, request.Quantity, ct);
-
+                await RemoveFromPoolAsync(company.PlayerId, request.ElementId, dna, request.Quantity, ctInner);
             }
-
             else
-
             {
-
                 var cost = request.LimitPrice * request.Quantity;
-
                 if (company.FundingMode == SponsorFundingMode.Budget
-
                     && (company.BudgetRemaining is not { } budget || budget < cost))
-
                     throw new InvalidOperationException("Insufficient sponsor budget for buy.");
 
-
-
-                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == company.PlayerId, ct);
-
+                var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == company.PlayerId, ctInner);
                 if (company.FundingMode != SponsorFundingMode.Utopia && balance.Cash < cost)
-
                     throw new InvalidOperationException("Insufficient cash for buy.");
 
-
-
                 if (company.FundingMode == SponsorFundingMode.Utopia && balance.Cash < cost)
-
                     balance.Cash = cost;
 
-
-
-                var pool = await db.InventoryPools.FirstAsync(p => p.PlayerId == company.PlayerId, ct);
-
+                var pool = await db.InventoryPools.FirstAsync(p => p.PlayerId == company.PlayerId, ctInner);
                 if (pool.UsedVolume + request.Quantity * VolumePerUnit > pool.MaxVolume)
-
                     throw new InvalidOperationException("Pool volume would exceed max; buy blocked.");
-
             }
 
-
-
             var order = new MarketOrderEntity
-
             {
-
                 Id = Guid.NewGuid(),
-
                 PlayerId = company.PlayerId,
-
                 SponsorCompanyId = sponsorCompanyId,
-
                 ElementId = request.ElementId,
-
                 Dna = dna,
-
                 Side = side,
-
                 LimitPrice = request.LimitPrice,
-
                 QuantityRemaining = request.Quantity,
-
                 OriginalQuantity = request.Quantity,
-
                 Status = OrderStatus.Open,
-
                 CreatedAt = DateTimeOffset.UtcNow,
-
                 IdempotencyKey = request.IdempotencyKey
-
             };
-
             db.MarketOrders.Add(order);
+            await db.SaveChangesAsync(ctInner);
 
-            await db.SaveChangesAsync(ct);
+            await MatchOrdersForVariantAsync(request.ElementId, dna, ctInner);
+            await db.SaveChangesAsync(ctInner);
 
-
-
-            await MatchOrdersForVariantAsync(request.ElementId, dna, ct);
-
-            await db.SaveChangesAsync(ct);
-
-            await tx.CommitAsync(ct);
-
-
-
-            var updated = await db.MarketOrders.AsNoTracking().FirstAsync(o => o.Id == order.Id, ct);
-
+            var updated = await db.MarketOrders.AsNoTracking().FirstAsync(o => o.Id == order.Id, ctInner);
             var quantityFilled = updated.OriginalQuantity - updated.QuantityRemaining;
-
             return new PlaceOrderResponse(
-
                 updated.Id,
-
                 updated.QuantityRemaining,
-
                 updated.Status.ToString(),
-
                 quantityFilled,
-
-                quantityFilled > 0 ? await GetAverageFillPriceAsync(updated.Id, ct) : null,
-
+                quantityFilled > 0 ? await GetAverageFillPriceAsync(updated.Id, ctInner) : null,
                 updated.OriginalQuantity);
-
-        }
-
-        catch
-
-        {
-
-            await tx.RollbackAsync(ct);
-
-            throw;
-
-        }
-
+        }, ct);
     }
 
 
