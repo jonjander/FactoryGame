@@ -2,6 +2,10 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.2.23
+
+- **Gästinloggning:** `/v1/market/insights` kräver session i middleware — fixar utloggning direkt efter inloggning på börsen.
+
 ## 0.2.22
 
 - **Simulering — rate-motor:** per-maskin genomströmning, port-ratio och effektiv rate (permille); transfer begränsas per rörkoppling.

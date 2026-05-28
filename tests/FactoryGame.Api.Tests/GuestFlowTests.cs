@@ -41,4 +41,19 @@ public sealed class GuestFlowTests : IClassFixture<ApiWebApplicationFixture>
             new PlaceOrderRequest(1, ElementCatalogLookup.CatalogDnaFor(1), "buy", 10m, 5, "int-buy-1"));
         buy.EnsureSuccessStatusCode();
     }
+
+    [Fact]
+    public async Task Guest_session_can_load_market_insights()
+    {
+        var client = _fixture.Factory.CreateClient();
+        var auth = await client.PostAsJsonAsync("/v1/auth/guest",
+            new GuestAuthRequest("insights-" + Guid.NewGuid().ToString("N")));
+        auth.EnsureSuccessStatusCode();
+        var body = await auth.Content.ReadFromJsonAsync<GuestAuthResponse>();
+        Assert.NotNull(body);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
+
+        var insights = await client.GetAsync("/v1/market/insights");
+        insights.EnsureSuccessStatusCode();
+    }
 }
