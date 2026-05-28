@@ -10,10 +10,9 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         var conn = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
         var resolution = DbConnectionResolver.Resolve(string.IsNullOrWhiteSpace(conn) ? null : conn);
 
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(resolution.ConnectionString)
-            .Options;
+        var options = new DbContextOptionsBuilder<AppDbContext>();
+        DbContextOptionsConfigurator.Configure(options, resolution);
 
-        return new AppDbContext(options);
+        return new AppDbContext(options.Options);
     }
 }

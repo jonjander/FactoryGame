@@ -22,7 +22,7 @@ disable-model-invocation: true
   `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net/diagnostics/recent-logs`  
   Svar: `text/plain` med rader sedan processstart. I **Production** krävs appinställning **`Diagnostics__ExposeRecentLogEndpoint` = `true`** (Azure Portal → Configuration); i **Development** är endpointen alltid på. Agenten kan anropa denna URL (t.ex. `WebFetch`) efter att användaren rapporterat beteende i molnet.
 
-Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen kör. **Blazor PWA** servas från samma värd som API (rot + `MapFallbackToFile`). **Gäst-inloggning** (`POST /v1/auth/guest`) kräver att SQLite/EF-start fungerar i miljön — vid fel (t.ex. 500) se Azure Log stream och `ConnectionStrings__DefaultConnection` (tom = in-memory; fil-sökväg för beständig data).
+Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen kör. **Blazor PWA** servas från samma värd som API (rot + `MapFallbackToFile`). **Gäst-inloggning** (`POST /v1/auth/guest`) kräver att EF-start mot databasen fungerar — vid fel (t.ex. 500) se Azure Log stream och `ConnectionStrings__DefaultConnection` (Azure SQL med `Authentication=Active Directory Default`; Web App managed identity ska ha DB-behörighet).
 
 ## Deploy (hur koden hamnar här)
 

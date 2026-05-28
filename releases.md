@@ -2,6 +2,13 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.3.0
+
+- **Databas — SQL Server:** dual-provider (SQL Server lokalt/Azure, SQLite in-memory för tester/Docker).
+- **EF Core migrations:** `InitialSqlServer` — schema migreras vid startup (`Migrate()`) mot SQL Server.
+- **Konfiguration:** `appsettings.Local.example.json` för lokal SQL Server; Azure SQL med `Authentication=Active Directory Default` (managed identity).
+- **P2 backlog:** SQLite-lås vid långkörande API adresserat via server-DB.
+
 ## 0.2.23
 
 - **Gästinloggning:** `/v1/market/insights` kräver session i middleware — fixar utloggning direkt efter inloggning på börsen.

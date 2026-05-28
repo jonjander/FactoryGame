@@ -7,6 +7,12 @@ public interface IDatabaseSchemaInitializer
     Task EnsureSchemaAsync(AppDbContext db, CancellationToken cancellationToken = default);
 }
 
+internal sealed class SqlServerDatabaseSchemaInitializer : IDatabaseSchemaInitializer
+{
+    public Task EnsureSchemaAsync(AppDbContext db, CancellationToken cancellationToken = default) =>
+        db.Database.MigrateAsync(cancellationToken);
+}
+
 internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializer
 {
     public async Task EnsureSchemaAsync(AppDbContext db, CancellationToken cancellationToken = default)

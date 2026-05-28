@@ -28,9 +28,14 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlite(dbResolution.ConnectionString));
+            DbContextOptionsConfigurator.Configure(options, dbResolution));
 
-        services.AddSingleton<IDatabaseSchemaInitializer, SqliteDatabaseSchemaInitializer>();
+        services.AddSingleton<IDatabaseSchemaInitializer>(dbResolution.Provider switch
+        {
+            DatabaseProvider.SqlServer => new SqlServerDatabaseSchemaInitializer(),
+            DatabaseProvider.Sqlite => new SqliteDatabaseSchemaInitializer(),
+            _ => throw new InvalidOperationException($"Unsupported database provider: {dbResolution.Provider}.")
+        });
 
         services.AddScoped<PlayerPoolBootstrapService>();
         services.AddScoped<GuestAuthService>();

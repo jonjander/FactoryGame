@@ -360,9 +360,9 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ### Rekommenderad stack
 - Backend: ASP.NET Core på **.NET 10** (teamets målram; följ Microsofts supportcykel).
 - Frontend: Blazor Web App eller separat SPA (t.ex. React) med .NET API.
-- Persistens: **Entity Framework Core** mot **SQLite** i nuvarande repo (in-memory som standard i utveckling; fil for bestandig lokal/moln-data).
-- Drift / CI / paritetstester: samma SQLite-modell om inget annat beslutas; lang sikt kan **SQL Server** eller annan relations-DB valjas utan att andra krav andras i onodan.
-- **Utvecklingsfas:** **SQLite** (fil eller `:memory:`). Under utveckling ska det ga att **seedea eller aterstalla** tillstand genom att **ladda upp och ladda ner en fil** direkt fran webbappen (t.ex. SQLite-databasfil eller versionerad snapshot som API:t kan importera).
+- Persistens: **Entity Framework Core** med **SQL Server** (Azure SQL) i produktion och lokal dev; **SQLite** in-memory for integrationstester och Docker-default.
+- Drift: Azure SQL med managed identity (`Authentication=Active Directory Default`); schema via EF Core migrations vid startup.
+- **Utvecklingsfas:** lokal SQL Server via `appsettings.Local.json`; SQLite-fil/import (snapshot) kan aterfinnas for enklare seed men ar inte primar driftlangre.
 - Cache (valfritt i MVP): Redis.
 
 ### Arkitekturprinciper
@@ -407,7 +407,6 @@ Spelet ska vara latt att komma in i, ge tydlig progression och fungera bra pa de
 ## 11. Oppna fragor (att besluta)
 - Ska MVP vara single-player eller enkel asynkron multiplayer?
 - Ska frontend byggas i Blazor eller separat JS-ramverk?
-- Vilken **SQL-provider** ska vara primar i produktion nar SQLite inte racker (t.ex. SQL Server), givet att EF Core ar gemensamt lager?
 - Vilken molnplattform ska anvandas for hosting?
 - Transport for keyframes: polling, SSE eller WebSockets/SignalR?
 - Ska marknadspriser vara rena orderbokspriser eller finns referens-/styrpris fran server?
