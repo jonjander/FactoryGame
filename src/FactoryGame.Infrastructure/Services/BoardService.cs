@@ -220,22 +220,6 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
 
         ValidateConnectionEndpoints(plan);
 
-        var cost = plan.Machines.Count * _economy.MachinePlacementCost;
-        var balance = await db.PlayerBalances.FirstAsync(b => b.PlayerId == playerId, ct);
-        if (balance.Cash < cost)
-            throw new InvalidOperationException("Insufficient cash for economic audit at start.");
-
-        balance.Cash -= cost;
-        db.EconomyTransactions.Add(new EconomyTransactionEntity
-        {
-            Id = Guid.NewGuid(),
-            PlayerId = playerId,
-            Type = "BoardStartAudit",
-            CashDelta = -cost,
-            CreatedAt = DateTimeOffset.UtcNow,
-            Metadata = boardId.ToString()
-        });
-
         board.Mode = BoardMode.Running;
         board.SimulationTick = await GetGlobalTickAsync(ct);
         await db.SaveChangesAsync(ct);

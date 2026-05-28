@@ -2,6 +2,16 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.3.1
+
+- **UI — Konto:** ny sida `/transactions` med ekonomihistorik; nav-länk i huvudmenyn.
+- **UI — Börs:** onboarding-panel (kärnloopen) som kan stängas permanent.
+- **UI — Home:** enhetsnyckel sparas i webbläsaren mellan besök.
+- **Ekonomi:** maskinköp inkluderar `MachinePlacementCost`; borttagen dubbel debitering vid fabrikstart.
+- **Balans:** `BaseIncomeAmount` 15, intervall 3 min.
+- **Fabrikanalys:** tydligare seaport-varningar (saknad connector, saknat outElementId).
+- **Diagnostik:** `/diagnostics/recent-logs` registreras alltid (403 i Production utan inställning).
+
 ## 0.3.0
 
 - **Databas — SQL Server:** dual-provider (SQL Server lokalt/Azure, SQLite in-memory för tester/Docker).

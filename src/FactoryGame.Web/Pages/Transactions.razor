@@ -1,0 +1,124 @@
+@page "/transactions"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject TokenStore Tokens
+
+<PageTitle>Transaktioner</PageTitle>
+
+@if (string.IsNullOrEmpty(Tokens.BearerToken))
+{
+    <div class="panel">
+        <h2>Transaktioner</h2>
+        <p class="muted">Du måste <a href="/">logga in som gäst</a> för att se transaktioner.</p>
+    </div>
+}
+else
+{
+    <div class="panel">
+        <div class="pool-toolbar">
+            <h2>Transaktioner</h2>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+        </div>
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="error">@_error</p>
+        }
+        @if (_busy)
+        {
+            <p class="muted">Laddar…</p>
+        }
+        else if (_transactions.Count == 0)
+        {
+            <p class="muted">Inga transaktioner ännu.</p>
+        }
+        else
+        {
+            <div class="pool-table-wrap">
+                <table class="pool-holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Tid</th>
+                            <th>Typ</th>
+                            <th class="pool-col-num">Belopp</th>
+                            <th>Detalj</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in _transactions)
+                        {
+                            <tr>
+                                <td class="muted" style="white-space:nowrap">@FormatTime(tx.CreatedAt)</td>
+                                <td>@FormatType(tx.Type)</td>
+                                <td class="pool-col-num @(tx.CashDelta >= 0 ? "tx-positive" : "tx-negative")">
+                                    <strong>@(tx.CashDelta >= 0 ? "+" : "")@tx.CashDelta.ToString("0.##")</strong>
+                                </td>
+                                <td class="muted">@tx.Metadata</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="muted" style="margin-top:0.5rem">Visar de @_transactions.Count senaste transaktionerna.</p>
+        }
+    </div>
+}
+
+@code {
+    private bool _busy;
+    private string? _error;
+    private List<TransactionRow> _transactions = [];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (string.IsNullOrEmpty(Tokens.BearerToken))
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var res = await Http.GetAsync("/v1/me/transactions");
+            if (!res.IsSuccessStatusCode)
+            {
+                _error = res.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    ? "Kunde inte läsa transaktioner (är du inloggad?)"
+                    : "Kunde inte läsa transaktioner.";
+                return;
+            }
+
+            _transactions = await res.Content.ReadFromJsonAsync<List<TransactionRow>>() ?? [];
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string FormatTime(DateTimeOffset dt) =>
+        dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    private static string FormatType(string type) => type switch
+    {
+        "MachinePurchase" => "Maskinköp",
+        "BoardStartAudit" => "Fabriksstart",
+        "MachinePlacement" => "Maskinplacering",
+        "BaseIncome" => "Basinkomst",
+        "MarketBuy" => "Börsköp",
+        "MarketSell" => "Börssälj",
+        "MarketTrade" => "Börssälj",
+        _ => type
+    };
+
+    private sealed record TransactionRow(
+        Guid Id,
+        string Type,
+        decimal CashDelta,
+        DateTimeOffset CreatedAt,
+        string? Metadata);
+}

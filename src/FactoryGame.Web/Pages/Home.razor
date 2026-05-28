@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject TokenStore Tokens
 @inject NavigationManager Nav
+@inject BrowserStorage Storage
 
 <PageTitle>FactoryGame</PageTitle>
 
@@ -9,7 +10,7 @@
     <h1>FactoryGame</h1>
     <p class="muted">MVP-klient: gästinloggning mot API, sedan Börs / Pool / Fabrik.</p>
 
-    <label>Enhetsnyckel (sparas i webbläsaren via hash på servern)</label>
+    <label>Enhetsnyckel (sparas i webbläsaren — ditt inloggnings-ID)</label>
     <input @bind="_deviceKey" placeholder="min-enhet" />
 
     <div style="margin-top:0.75rem;">
@@ -41,6 +42,11 @@
     protected override async Task OnInitializedAsync()
     {
         await Tokens.LoadAsync();
+
+        var savedKey = await Storage.GetAsync("fg_device_key");
+        if (!string.IsNullOrEmpty(savedKey))
+            _deviceKey = savedKey;
+
         if (string.IsNullOrEmpty(Tokens.BearerToken))
             return;
 
@@ -98,6 +104,7 @@
                 return;
             }
 
+            await Storage.SetAsync("fg_device_key", _deviceKey.Trim());
             await Tokens.SetTokenAsync(body.SessionToken);
             _status = "Inloggad — laddar börsen…";
             Nav.NavigateTo("/exchange");

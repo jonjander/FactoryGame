@@ -4,7 +4,7 @@
     "requiresMarketBuy": false,
     "plan": {
       "machines": [
-        { "id": "seaportconnector1", "type": "SeaportConnector" },
+        { "id": "seaportconnector1", "type": "SeaportConnector", "settings": { "outElementId": 1 } },
         { "id": "boiler1", "type": "Boiler" }
       ],
       "connections": [

@@ -8,9 +8,29 @@
 @inject TokenStore Tokens
 @inject WalletState Wallet
 @inject SnackbarService Snackbar
+@inject BrowserStorage Storage
 @implements IDisposable
 
 <PageTitle>Börs</PageTitle>
+
+@if (_showOnboarding)
+{
+    <div class="panel" style="border-left:3px solid var(--accent,#4a9eff);margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem">
+            <div>
+                <h3 style="margin:0 0 0.5rem">Välkommen till FactoryGame — kärnloopen</h3>
+                <ol style="margin:0;padding-left:1.25rem;line-height:1.8">
+                    <li><strong>Köp</strong> grundämnen här på Börs (välj ämne → ange pris → Köp)</li>
+                    <li>Köpt material hamnar i din <a href="/pool">Pool</a></li>
+                    <li>Bygg en <a href="/boards">Fabrik</a>: köp maskiner, koppla SeaportConnector → maskin → SeaportConnector</li>
+                    <li>Ange vilket ämne SeaportConnector ska hämta och starta fabriken</li>
+                    <li><strong>Sälj</strong> processade ämnen tillbaka på Börs för vinst</li>
+                </ol>
+            </div>
+            <button type="button" class="secondary" style="white-space:nowrap" @onclick="DismissOnboardingAsync">Stäng</button>
+        </div>
+    </div>
+}
 
 <div class="exchange-header panel">
     <h2>Börs</h2>
@@ -345,6 +365,7 @@ else if (_summary.Count > 0)
     private const int ChartWidth = 320;
     private const int ChartHeight = 80;
 
+    private bool _showOnboarding;
     private bool _busy;
     private bool _placing;
     private string? _error;
@@ -420,11 +441,19 @@ else if (_summary.Count > 0)
 
     protected override async Task OnInitializedAsync()
     {
+        var dismissed = await Storage.GetAsync("fg_onboarding_dismissed");
+        _showOnboarding = string.IsNullOrEmpty(dismissed) && !string.IsNullOrEmpty(Tokens.BearerToken);
         await Wallet.RefreshAsync();
         await RefreshAsync();
         _pollCts = new CancellationTokenSource();
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(60));
         _ = PollLoopAsync(_pollCts.Token);
+    }
+
+    private async Task DismissOnboardingAsync()
+    {
+        _showOnboarding = false;
+        await Storage.SetAsync("fg_onboarding_dismissed", "1");
     }
 
     private async Task PollLoopAsync(CancellationToken ct)

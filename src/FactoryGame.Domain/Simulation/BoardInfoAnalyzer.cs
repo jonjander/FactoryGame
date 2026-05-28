@@ -69,11 +69,11 @@ public static class BoardInfoAnalyzer
             CollectSorterDnaIssues(m, machineById, connFrom, issues);
         }
 
-        if (!machines.Any(m => IsSeaportType(m.Type)))
+        if (machines.Count > 0 && !machines.Any(m => IsSeaportType(m.Type)))
         {
-            issues.Add(BoardIssue.Info(
+            issues.Add(BoardIssue.Warning(
                 "no_seaport",
-                "Ingen seaport-anslutning på planen (Seaport connector / in / ut).",
+                "Planen saknar seaport-anslutning — material kan inte flöda till/från poolen.",
                 null));
         }
 
@@ -302,9 +302,6 @@ public static class BoardInfoAnalyzer
         IReadOnlyDictionary<int, decimal>? poolQuantities,
         List<BoardIssue> issues)
     {
-        if (poolQuantities == null)
-            return;
-
         foreach (var m in machines)
         {
             if (!m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
@@ -316,6 +313,19 @@ public static class BoardInfoAnalyzer
 
             var elementId = SeaportConnectorProcessor.ParseOutElementId(m.Settings?.GetRawText());
             if (elementId <= 0)
+            {
+                // SeaportConnector with out port connected but no outElementId — factory will idle.
+                if (m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
+                {
+                    issues.Add(BoardIssue.Warning(
+                        "seaport_no_element",
+                        $"Seaport «{m.Id}» saknar konfigurerad variant (outElementId) — välj ett ämne i inställningarna, annars kör fabriken idle.",
+                        m.Id));
+                }
+                continue;
+            }
+
+            if (poolQuantities == null)
                 continue;
 
             if (poolQuantities.GetValueOrDefault(elementId) > 0)
