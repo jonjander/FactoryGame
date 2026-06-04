@@ -1,135 +1,144 @@
 # FactoryGame — arbetslag (subagenter)
 
-Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cursor (t.ex. med **Task** / bakgrundsagenter). Varje roll har syfte, typisk modell och en kort uppstartsprompt du kan klistra in.
+Det här dokumentet beskriver **roller** för delegering i Cursor (Task / bakgrundsagenter). Spelet är uppdelat i **komponenter** (specialister) och **mellanchefer** (integration och arkitektur).
+
+## Organisation
+
+```mermaid
+flowchart TB
+  subgraph leads [Mellanchefer]
+    INT[factory-game-integration-lead]
+    ARC[factory-game-architect]
+    DEV[factory-game-dev-lead]
+  end
+  subgraph components [Komponenter]
+    REQ[factory-game-requirements]
+    SIM[factory-game-simulation]
+    MKT[factory-game-market]
+    API[factory-game-api-platform]
+    WEB[factory-game-web-client]
+  end
+  subgraph quality [Kvalitet]
+    TST[factory-game-tester]
+    MCP[factory-game-playtester]
+  end
+  INT --> SIM
+  INT --> MKT
+  INT --> API
+  INT --> WEB
+  INT --> REQ
+  ARC --> INT
+  DEV --> INT
+  DEV --> MCP
+  DEV --> TST
+```
+
+| Typ | Agent | När |
+|-----|-------|-----|
+| **Mellanchef** | `factory-game-integration-lead` | Feature går över sim/API/web/börs; DTO-paritet; “API OK men UI fel” |
+| **Mellanchef** | `factory-game-architect` | Stor refactor; säkerhet/determinism/ekonomi-granskning (readonly) |
+| **Mellanchef** | `factory-game-dev-lead` | Lokal utvecklingsloop, balans, backlog |
+| **Komponent** | `factory-game-requirements` | KRAVSPEC, scope, terminologi |
+| **Komponent** | `factory-game-simulation` | Tick, maskiner, DNA, sorter |
+| **Komponent** | `factory-game-market` | Börs, pool, wallet, transaktioner |
+| **Komponent** | `factory-game-api-platform` | Endpoints, EF, Infrastructure, Contracts |
+| **Komponent** | `factory-game-web-client` | Blazor, canvas, offline, wiki-UI |
+| **Kvalitet** | `factory-game-tester` | xUnit Domain/Api |
+| **Kvalitet** | `factory-game-playtester` | MCP mot API, kravparitet |
+
+**Drift:** Repo-ägaren verifierar i **Azure** — se `.cursor/rules/factory-game-team.mdc`. Agenten kör `dotnet build` / `dotnet test` i Cursor. `@factory-game-azure-test`.
+
+---
 
 ## När du delegerar
 
-1. Välj roll nedan utifrån uppgiften.
-2. Ange **readonly** om ändringar inte ska göras.
-3. Bifoga sökvägar: `KRAVSPEC.md`, relevanta `.cs`-filer, eller `.cursor/skills/...`.
-
-**Drift/felsökning:** Repo-ägaren verifierar i **Azure** (`https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net`), inte genom lokal `dotnet run`. Be inte om localhost-körning hos användaren. Efter användarens Azure-test: hämta gärna **`GET .../diagnostics/recent-logs`** (om endpoint påslagen) enligt `.cursor/rules/factory-game-team.mdc`. **Agenten** kör `dotnet build` / `dotnet test` i Cursor. Se `@factory-game-azure-test`.
-
----
-
-## 1. Krav & speldesign (`requirements`)
-
-- **Syfte:** Hålla `KRAVSPEC.md` och spelregler konsistenta; fånga motsägelser.
-- **Cursor:** `explore` (readonly) eller `generalPurpose` för doc-ändringar.
-- **Skills:** `factory-game-krav-arkitektur`
-
-**Uppstartsprompt:**
-
-> Läs `KRAVSPEC.md`. [Beskriv beslut eller fråga.] Uppdatera endast kravdokumentation om användaren bett om det; annars lista gap och förslag.
+1. **En komponent** → motsvarande specialist-subagent + `@factory-game-*` skill.
+2. **Två eller fler lager** → `factory-game-integration-lead` först; den delegerar vidare.
+3. **Stor eller riskfylld ändring** → `factory-game-architect` (readonly), sedan integration eller specialist.
+4. Ange **readonly** för spaning/granskning.
+5. Bifoga `KRAVSPEC.md`, relevanta `.cs`-filer, eller `.cursor/skills/...`.
 
 ---
 
-## 2. Simulering & regelmotor (`simulation`)
+## Komponenter (specialister)
 
-- **Syfte:** Tick-loop, DNA/bitwise-maskiner, sorter, determinism, start/audit.
-- **Cursor:** `generalPurpose` eller `shell` (tester/build).
-- **Skills:** `factory-game-server-sim`
+### Krav & speldesign — `factory-game-requirements`
 
-**Uppstartsprompt:**
+- **Skill:** `factory-game-krav-arkitektur`
+- **Äger:** `KRAVSPEC.md`, produktgränser, acceptanskriterier
+- **Prompt:** Läs `KRAVSPEC.md`. [Fråga.] Uppdatera krav endast om användaren bett om det; annars gap + vilken specialist som ska implementera.
 
-> Implementera eller granska server-simulering enligt `KRAVSPEC.md` och skill `factory-game-server-sim`. Föreslög endast deterministiska lösningar; inga hårdkodade specialfall per grundämne-id.
+### Simulering — `factory-game-simulation`
 
----
+- **Skill:** `factory-game-server-sim`
+- **Äger:** `src/FactoryGame.Domain/Simulation/`
+- **Prompt:** Implementera/granska sim enligt `KRAVSPEC.md` och `@factory-game-server-sim`. Deterministiskt; inga specialfall per grundämne-id.
 
-## 3. Börs & seaport (`market`)
+### Börs & seaport — `factory-game-market`
 
-- **Syfte:** Orderbok, spot, pool, transaktionslogg, idempotens.
-- **Cursor:** `generalPurpose`.
-- **Skills:** `factory-game-bors-seaport`
+- **Skill:** `factory-game-bors-seaport`
+- **Äger:** matchning, pool, marknads- och wallet-tjänster
+- **Prompt:** Börs/seaport enligt `KRAVSPEC.md` och `@factory-game-bors-seaport`. Separera matchning från fabrik-tick.
 
-**Uppstartsprompt:**
+### API & plattform — `factory-game-api-platform`
 
-> Designa eller implementera börs/seaport-flöde enligt `KRAVSPEC.md` och `factory-game-bors-seaport`. Separera matchningsmotor från fabrik-tick.
+- **Skill:** `factory-game-api-platform`
+- **Äger:** `FactoryGame.Api`, `Infrastructure`, `Contracts`
+- **Prompt:** Endpoints/persistens/DTO enligt `@factory-game-api-platform`. Domänregler i Domain, inte i SQL-lager.
 
----
+### Webklient — `factory-game-web-client`
 
-## 4. Webklient & PWA (`client`)
-
-- **Syfte:** Keyframes, offline, merge, fabrik-UI, CLI → samma API.
-- **Cursor:** `generalPurpose`.
-- **Skills:** `factory-game-web-klient`
-
-**Uppstartsprompt:**
-
-> Bygg eller granska webklient enligt `KRAVSPEC.md` och `factory-game-web-klient`. Server är alltid auktoritativ; dokumentera synk- och merge-beteende.
+- **Skill:** `factory-game-web-klient`
+- **Äger:** `src/FactoryGame.Web/`
+- **Prompt:** Klient enligt `KRAVSPEC.md` och `@factory-game-web-klient`. Server auktoritativ; dokumentera synk/merge.
 
 ---
 
-## 5. Kodbas-spaning (`scout`)
+## Mellanchefer
 
-- **Syfte:** Hitta filer, mönster, referenser utan att ändra kod.
-- **Cursor:** `explore`, `readonly: true`, `subagent_type: explore`.
+### Integration — `factory-game-integration-lead`
 
-**Uppstartsprompt:**
+- **Skill:** `factory-game-integration-lead`
+- **Äger:** tvärgående flöden (bräda start→keyframes, Contracts↔Web↔MCP, ekonomi helhet)
+- **Prompt:** Koordinera [feature] över lager. Delegera implementation till rätt specialist; verifiera helheten med tester/MCP.
 
-> Medium noggrannhet: kartlägg var [X] hanteras i repot. Returnera filvägar och korta citat; inga ändringar.
+### Arkitektur — `factory-game-architect`
 
----
+- **Skill:** `factory-game-architect`
+- **Äger:** readonly granskning mot krav (säkerhet, determinism, ekonomi-race, offline)
+- **Prompt:** Granska [ändring/PR] mot `KRAVSPEC.md`. Critical/Warning/Suggestion + rekommenderad specialist. Implementera inte utan explicit mandat.
 
-## 6. Build, test, CI (`build`)
+### Utvecklingsledare (lokal loop) — `factory-game-dev-lead`
 
-- **Syfte:** `dotnet build/test`, fixa kompileringsfel efter ändringar.
-- **Cursor:** `shell` eller subagent **`factory-game-tester`** för xUnit-specifikt arbete.
-
-**Uppstartsprompt:**
-
-> Kör build och tester i `FactoryGame`-roten **i Cursor**; rapportera fel och föreslå minimal fix. Be inte repo-ägaren köra lokalt — driftverifiering sker mot Azure enligt `.cursor/rules/factory-game-team.mdc` / `@factory-game-azure-test`. För nya eller trasiga xUnit-tester: delegera till `factory-game-tester` och `@factory-game-tester`.
-
----
-
-## 6b. xUnit-tester (`tester`)
-
-- **Syfte:** Skapa meningsfulla Domain/Api-tester, felsöka fallerande eller flaky tester, hålla testmönster konsekventa.
-- **Cursor:** Subagent **`factory-game-tester`** (`.cursor/agents/`) eller `shell` + skill.
-- **Skills:** `factory-game-tester` (inte samma som MCP-playtest).
-
-**Uppstartsprompt:**
-
-> Använd subagenten `factory-game-tester` eller `@factory-game-tester`. Läs befintliga tester under `tests/`. Skapa endast värdefulla tester; kör `dotnet test` med filter; fixa rotorsak vid failure. MCP-playtest är separat (`factory-game-playtester`).
+- **Skills:** `factory-game-dev-lead`, `factory-game-mcp-playtest`, `factory-game-mcp-server`
+- **Prompt:** Kör lokal loop enligt `@factory-game-dev-lead`. Delegera xUnit → `factory-game-tester`, tvärgående fix → `factory-game-integration-lead`.
 
 ---
 
-## 7. Arkitektur-granskning (`review`)
+## Kvalitet & spaning
 
-- **Syfte:** End-to-end granskning (säkerhet API, determinism, ekonomi-race).
-- **Cursor:** `generalPurpose`, gärna `readonly: true` första pass.
+### Kodbas-spaning (`scout`)
 
-**Uppstartsprompt:**
+- **Cursor:** `explore`, `readonly: true`
+- **Prompt:** Kartlägg var [X] hanteras. Returnera filvägar och citat; inga ändringar.
 
-> Granska [PR/branch] mot `KRAVSPEC.md`: server-auktoritet, transaktioner, determinism, börs offline vs ordrar på server. Leverera prioriterad lista risker + förslag.
+### Build & CI (`build`)
 
----
+- **Prompt:** `dotnet build/test` i Cursor. xUnit → `factory-game-tester`.
 
-## 8. Test- & utvecklingsledare (`dev-lead`)
+### xUnit — `factory-game-tester`
 
-- **Syfte:** Orkestrera lokal build → API → MCP-spelloopar → findings → fix → omstart; gradvis avancerade scenarier, balansnoteringar, backlog för stora ändringar.
-- **Cursor:** Subagent **`factory-game-dev-lead`** (`.cursor/agents/`) eller `generalPurpose` med `@factory-game-dev-lead`.
-- **Skills:** `factory-game-dev-lead`, `factory-game-mcp-playtest`, `factory-game-mcp-server`; delegera xUnit till `factory-game-tester`, krav-MCP till `factory-game-playtester`.
+- **Skill:** `factory-game-tester`
+- **Prompt:** `@factory-game-tester`. Meningsfulla tester; `dotnet test` med filter. Inte MCP-playtest.
 
-**Uppstartsprompt:**
+### MCP / Azure — `factory-game-playtester`
 
-> Kör lokal loop enligt `@factory-game-dev-lead`: `dotnet run` (http-profil), `factorygame-local`, `npm run playtest:local`. Iterera minimal fabrik → ekonomi → börs; fixa buggar direkt; dokumentera större punkter i `docs/dev-lead-backlog.md`. Håll dig till localhost (ägaren synkar Azure manuellt).
-
----
-
-## 9. Headless API / MCP (`mcp-playtest`)
-
-- **Syfte:** Köra spelflöden via Cursor MCP (`factorygame`) mot HTTP-API:t utan PWA — auth, boards, börs, plånbok, innehåll, admin/diagnostik enligt verktyg i `tools/factorygame-mcp/`.
-- **Cursor:** Subagent **`factory-game-playtester`** (`.cursor/agents/`) eller `generalPurpose` med MCP aktiverat.
-- **Skills:** `factory-game-mcp-server` (verktyg och begränsningar), `factory-game-mcp-playtest` (flöden), `factory-game-azure-test` (bas-URL).
-
-**Uppstartsprompt:**
-
-> Använd subagenten `factory-game-playtester` eller läs `.cursor/skills/factory-game-mcp-server/SKILL.md` + `KRAVSPEC.md`. Kör MCP-verktyg mot Azure; `npm run build`, `npm run smoke` och `npm run playtest` i `tools/factorygame-mcp/`. Rapportera HTTP-status, kravparitet och MCP-gap; checka inte in tokens.
+- **Skills:** `factory-game-mcp-server`, `factory-game-mcp-playtest`, `factory-game-azure-test`
+- **Prompt:** MCP mot Azure; `npm run build/smoke/playtest` i `tools/factorygame-mcp/`. Ingen token i repo.
 
 ---
 
-## Skills-index (projekt)
+## Skills-index
 
 | Skill | Katalog |
 |-------|---------|
@@ -137,18 +146,28 @@ Det här dokumentet beskriver **roller** som motsvarar hur du kan delegera i Cur
 | Server-sim | `.cursor/skills/factory-game-server-sim/` |
 | Börs & seaport | `.cursor/skills/factory-game-bors-seaport/` |
 | Webklient | `.cursor/skills/factory-game-web-klient/` |
+| API & plattform | `.cursor/skills/factory-game-api-platform/` |
+| Integration (mellanchef) | `.cursor/skills/factory-game-integration-lead/` |
+| Arkitektur (mellanchef) | `.cursor/skills/factory-game-architect/` |
 | Azure test-API | `.cursor/skills/factory-game-azure-test/` |
-| MCP-server (verktyg, begränsningar) | `.cursor/skills/factory-game-mcp-server/` |
-| MCP headless playtest | `.cursor/skills/factory-game-mcp-playtest/` |
-| xUnit-tester (Domain/Api) | `.cursor/skills/factory-game-tester/` |
-| Dev-lead (lokal utvecklingsloop) | `.cursor/skills/factory-game-dev-lead/` |
+| MCP-server | `.cursor/skills/factory-game-mcp-server/` |
+| MCP playtest | `.cursor/skills/factory-game-mcp-playtest/` |
+| xUnit | `.cursor/skills/factory-game-tester/` |
+| Dev-lead (lokal loop) | `.cursor/skills/factory-game-dev-lead/` |
 
 ## Subagenter (projekt)
 
-| Subagent | Fil |
-|----------|-----|
-| Dev-lead (lokal test/utv-loop) | `.cursor/agents/factory-game-dev-lead.md` |
-| Playtester (MCP, krav, GUI-paritet) | `.cursor/agents/factory-game-playtester.md` |
-| Tester (xUnit, skapa & felsök) | `.cursor/agents/factory-game-tester.md` |
+| Subagent | Fil | Typ |
+|----------|-----|-----|
+| Requirements | `.cursor/agents/factory-game-requirements.md` | Komponent |
+| Simulation | `.cursor/agents/factory-game-simulation.md` | Komponent |
+| Market | `.cursor/agents/factory-game-market.md` | Komponent |
+| API platform | `.cursor/agents/factory-game-api-platform.md` | Komponent |
+| Web client | `.cursor/agents/factory-game-web-client.md` | Komponent |
+| Integration lead | `.cursor/agents/factory-game-integration-lead.md` | Mellanchef |
+| Architect | `.cursor/agents/factory-game-architect.md` | Mellanchef |
+| Dev-lead | `.cursor/agents/factory-game-dev-lead.md` | Mellanchef |
+| Tester | `.cursor/agents/factory-game-tester.md` | Kvalitet |
+| Playtester | `.cursor/agents/factory-game-playtester.md` | Kvalitet |
 
-Aktivera en skill explicit i chatten (t.ex. `@factory-game-server-sim`) eller nämna den i delegeringsprompten.
+Aktivera med `@factory-game-server-sim` eller delegera med Task till `factory-game-simulation` (subagent-namn = filens `name` i frontmatter).

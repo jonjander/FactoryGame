@@ -87,10 +87,15 @@ Klassificera: API-bugg, sim-bugg, MCP-bugg, balans, dokumentationsgap.
 
 | Uppgift | Till |
 |---------|------|
+| Tvärgående (API+Web+sim+börs) | `factory-game-integration-lead` |
 | xUnit, regress | `factory-game-tester` |
 | Headless MCP mot krav | `factory-game-playtester` |
-| Sim/DNA/tick | `@factory-game-server-sim` |
-| Börs | `@factory-game-bors-seaport` |
+| Sim/DNA/tick | `factory-game-simulation` / `@factory-game-server-sim` |
+| Börs | `factory-game-market` / `@factory-game-bors-seaport` |
+| Endpoints/EF/DTO | `factory-game-api-platform` |
+| Blazor/canvas | `factory-game-web-client` |
+| Krav/scope | `factory-game-requirements` |
+| Stor refactor-granskning | `factory-game-architect` (readonly först) |
 
 ## Avslut
 
