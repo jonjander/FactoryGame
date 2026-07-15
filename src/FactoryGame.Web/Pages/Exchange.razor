@@ -4,11 +4,14 @@
 @using System.Text.Json
 @using FactoryGame.Contracts.Market
 @using FactoryGame.Contracts.Json
+@using FactoryGame.Web.Models
+@using FactoryGame.Web.Services
 @inject HttpClient Http
 @inject TokenStore Tokens
 @inject WalletState Wallet
 @inject SnackbarService Snackbar
 @inject BrowserStorage Storage
+@inject NavigationManager Nav
 @implements IDisposable
 
 <PageTitle>Börs</PageTitle>
@@ -379,6 +382,8 @@ else if (_summary.Count > 0)
     private readonly List<MarketInsightDto> _sellInsights = new();
     private int _selectedId;
     private long _selectedDna;
+    private int? _pendingElementId;
+    private long? _pendingDna;
     private MarketElementSummaryDto? _selected;
     private string _side = "buy";
     private decimal _price = 10m;
@@ -441,6 +446,7 @@ else if (_summary.Count > 0)
 
     protected override async Task OnInitializedAsync()
     {
+        ApplyTradeQueryFromUri();
         var dismissed = await Storage.GetAsync("fg_onboarding_dismissed");
         _showOnboarding = string.IsNullOrEmpty(dismissed) && !string.IsNullOrEmpty(Tokens.BearerToken);
         await Wallet.RefreshAsync();
@@ -497,6 +503,14 @@ else if (_summary.Count > 0)
 
             if (_summary.Count == 0)
                 return;
+
+            if (!TryApplyPendingSelection()
+                && _pendingElementId is int pendingId
+                && _pendingDna is long pendingDna)
+            {
+                await EnsurePendingBuyRowAsync(pendingId, pendingDna);
+                TryApplyPendingSelection();
+            }
 
             if (_selectedId == 0 || _selectedDna == 0 || _summary.All(s => !IsSelected(s)))
             {
@@ -1089,6 +1103,96 @@ else if (_summary.Count > 0)
         }
 
         return body.Length > 200 ? body[..200] + "…" : body;
+    }
+
+    private void ApplyTradeQueryFromUri()
+    {
+        var query = Nav.ToAbsoluteUri(Nav.Uri).Query;
+        if (string.IsNullOrEmpty(query))
+            return;
+
+        foreach (var part in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length != 2)
+                continue;
+
+            var key = Uri.UnescapeDataString(kv[0]);
+            var value = Uri.UnescapeDataString(kv[1]);
+            if (key.Equals("elementId", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var elementId)
+                && elementId > 0)
+            {
+                _pendingElementId = elementId;
+                _selectedId = elementId;
+                _side = "buy";
+            }
+            else if (key.Equals("dna", StringComparison.OrdinalIgnoreCase)
+                     && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var dna)
+                     && dna != 0)
+            {
+                _pendingDna = dna;
+                _selectedDna = dna;
+            }
+        }
+    }
+
+    private bool TryApplyPendingSelection()
+    {
+        if (_pendingElementId is not int elementId || _pendingDna is not long dna)
+            return false;
+
+        var match = _summary.FirstOrDefault(s => s.ElementId == elementId && s.Dna == dna);
+        if (match == null)
+            return false;
+
+        _selectedId = elementId;
+        _selectedDna = dna;
+        _side = "buy";
+        _selected = match;
+        return true;
+    }
+
+    private async Task EnsurePendingBuyRowAsync(int elementId, long dna)
+    {
+        if (_summary.Any(s => s.ElementId == elementId && s.Dna == dna))
+            return;
+
+        try
+        {
+            var elements = await Http.GetFromJsonAsync<List<ElementContentItem>>(
+                "/v1/content/elements?locale=sv", JsonOpts);
+            var element = elements?.FirstOrDefault(e => e.Id == elementId);
+            if (element == null)
+                return;
+
+            var depth = await Http.GetFromJsonAsync<MarketDepthDto>(
+                $"/v1/market/elements/{elementId}/depth?dna={dna}", JsonOpts);
+
+            var phaseKey = element.Decoded.Phase;
+            var row = new MarketElementSummaryDto(
+                elementId,
+                dna,
+                element.Symbol,
+                phaseKey,
+                WikiPresentation.PhaseLabelSv(phaseKey),
+                element.Name,
+                0,
+                depth?.BestAsk ?? depth?.BestBid ?? 10m,
+                null,
+                depth?.BestBid,
+                depth?.BestAsk);
+
+            _summary.Insert(0, row);
+            _selectedId = elementId;
+            _selectedDna = dna;
+            _side = "buy";
+            _selected = row;
+        }
+        catch
+        {
+            // Behåll befintlig börsvy om förifyllning misslyckas.
+        }
     }
 
     public void Dispose()

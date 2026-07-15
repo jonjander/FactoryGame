@@ -6,12 +6,14 @@
 @using FactoryGame.Contracts.Json
 @using FactoryGame.Web.Components
 @using FactoryGame.Web.Models
+@using FactoryGame.Web.Services
 @implements IDisposable
 @inject HttpClient Http
 @inject OfflineCommandQueue Queue
 @inject BrowserStorage Storage
 @inject WalletState Wallet
 @inject SnackbarService Snackbar
+@inject BoardIssueMuteStore IssueMutes
 
 <PageTitle>Fabrik</PageTitle>
 
@@ -43,7 +45,7 @@
                         @onclick="async () => await SelectBoardAsync(b.Id)"
                         aria-pressed="@selected">
                     <span class="fg-board-tile-head">
-                        <span class="fg-board-tile-status-dot" title="@b.StatusHint"></span>
+                        <span class="fg-board-tile-status-dot" title="@GetDisplayStatusHint(b)"></span>
                         <span class="fg-board-tile-name">@b.Name</span>
                         <span class="fg-status-pill @GetBoardStatusPillCss(b)">@GetBoardStatusLabel(b)</span>
                     </span>
@@ -56,9 +58,12 @@
                             <span> · tick @b.SimulationTick</span>
                         }
                     </span>
-                    @if (!string.IsNullOrEmpty(b.StatusHint))
+                    @{
+                        var displayHint = GetDisplayStatusHint(b);
+                    }
+                    @if (!string.IsNullOrEmpty(displayHint))
                     {
-                        <span class="fg-board-tile-hint">@b.StatusHint</span>
+                        <span class="fg-board-tile-hint">@displayHint</span>
                     }
                 </button>
             </li>
@@ -154,15 +159,19 @@
                     <span class="muted">Redigera plan, spara och starta simulering</span>
                 }
             </div>
-            <BoardInfoPanel Info="_boardInfo" />
+            <BoardInfoPanel Info="_boardInfo"
+                            VisibleIssues="GetVisibleBoardIssues()"
+                            MutedIssueKeys="_mutedIssueKeys"
+                            OnToggleIssueMute="ToggleIssueMuteAsync" />
         }
 
         @if (TryDeserializePlan(out var canvasPlan))
         {
             <div class="panel fg-sub fg-factory-view">
                 <h4>Fabrik (visuell)</h4>
-                <FactoryCanvas @key="_planJson"
+                <FactoryCanvas @key="_selected"
                                Plan="canvasPlan"
+                               ElementCatalog="_elements"
                                ReadOnly="@IsSelectedBoardRunning()"
                                IsFactoryRunning="@IsSelectedBoardRunning()"
                                UnitsPerSecond="@GetEstimatedUnitsPerSecond()"
@@ -170,7 +179,7 @@
                                LatestKeyframe="_latestKeyframe"
                                SeaportPortFlows="@(_boardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
                                MachinePortFlows="@(_boardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
-                               BoardIssues="@(_boardInfo?.Issues ?? Array.Empty<BoardIssueDto>())"
+                               BoardIssues="@GetVisibleBoardIssues()"
                                SelectedMachineId="@_settingsMachineId"
                                SelectedMachineIdChanged="OnCanvasMachineSelectedAsync"
                                PlanChanged="OnCanvasPlanChangedAsync"
@@ -373,6 +382,8 @@
     private MachineStoreItemDto? _storeInfoItem;
     private bool _renamingBoard;
     private string _renameDraft = "";
+    private HashSet<string> _mutedIssueKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<Guid, IReadOnlyList<BoardIssueDto>> _issuesByBoardId = new();
 
     private sealed class MachineStorePayload
     {
@@ -391,7 +402,34 @@
         await LoadInventoryAsync();
         await EnsureElementsAsync();
         await LoadPoolOwnershipAsync();
+        await IssueMutes.EnsureLoadedAsync();
+        _mutedIssueKeys = IssueMutes.MutedKeys.ToHashSet(StringComparer.Ordinal);
+        if (_mutedIssueKeys.Count > 0)
+            await PrefetchIssuesForWarnedBoardsAsync();
         StartPollingIfRunning();
+    }
+
+    /// <summary>When warnings are muted in storage, refresh issue cache so tiles need not be opened first.</summary>
+    private async Task PrefetchIssuesForWarnedBoardsAsync()
+    {
+        foreach (var board in _boards.Where(b =>
+                     b.WarningCount > 0 || string.Equals(b.Health, "warning", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (_issuesByBoardId.ContainsKey(board.Id))
+                continue;
+            try
+            {
+                var info = await Http.GetFromJsonAsync<BoardInfoDto>($"/v1/boards/{board.Id}/info", JsonRelaxed);
+                if (info != null)
+                    CacheBoardIssues(board.Id, info.Issues);
+            }
+            catch
+            {
+                /* offline or unauthorized */
+            }
+        }
+
+        ApplyClientHealthOverrides();
     }
 
     public void Dispose()
@@ -462,14 +500,106 @@
     private async Task OnCanvasPlanChangedAsync(BoardPlanDto plan)
     {
         _planJson = SerializePlan(plan);
-        await SyncBoardInfoFromEditorAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnCanvasLayoutCommittedAsync()
     {
         if (IsSelectedBoardRunning())
             return;
+        await SyncBoardInfoFromEditorAsync();
         await SavePlanQuietAsync();
+    }
+
+    private IReadOnlyList<BoardIssueDto> GetVisibleBoardIssues()
+    {
+        if (_selected is not { } boardId)
+            return Array.Empty<BoardIssueDto>();
+        return FilterVisibleIssues(GetRawIssuesForBoard(boardId));
+    }
+
+    private IReadOnlyList<BoardIssueDto> FilterVisibleIssues(IReadOnlyList<BoardIssueDto>? issues)
+    {
+        if (issues == null || issues.Count == 0)
+            return Array.Empty<BoardIssueDto>();
+        return issues
+            .Where(i => i.Severity != "warning"
+                        || !_mutedIssueKeys.Contains(BoardIssueMuteStore.IssueKey(i.Code, i.MachineId)))
+            .ToList();
+    }
+
+    private IReadOnlyList<BoardIssueDto>? GetRawIssuesForBoard(Guid boardId)
+    {
+        if (_selected == boardId && _boardInfo?.Issues != null)
+            return _boardInfo.Issues;
+        return _issuesByBoardId.TryGetValue(boardId, out var cached) ? cached : null;
+    }
+
+    private void CacheBoardIssues(Guid boardId, IReadOnlyList<BoardIssueDto>? issues)
+    {
+        if (issues == null)
+            return;
+        _issuesByBoardId[boardId] = issues;
+    }
+
+    private void ApplyClientHealthOverrides()
+    {
+        for (var i = 0; i < _boards.Count; i++)
+        {
+            var board = _boards[i];
+            var raw = GetRawIssuesForBoard(board.Id);
+            if (raw == null)
+                continue;
+
+            var visible = FilterVisibleIssues(raw);
+            var health = ComputeHealthFromVisible(board, visible);
+            var hint = BuildStatusHintFromVisible(board, visible);
+            var errors = visible.Count(x => x.Severity == "error");
+            var warnings = visible.Count(x => x.Severity == "warning");
+            _boards[i] = board with
+            {
+                Health = health,
+                StatusHint = hint,
+                ErrorCount = errors,
+                WarningCount = warnings
+            };
+        }
+    }
+
+    private static string ComputeHealthFromVisible(BoardSummaryDto board, IReadOnlyList<BoardIssueDto> visible)
+    {
+        if (visible.Any(i => i.Severity == "error"))
+            return "error";
+        if (visible.Any(i => i.Severity == "warning"))
+            return "warning";
+        if (board.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase))
+            return "running";
+        return "ok";
+    }
+
+    private static string BuildStatusHintFromVisible(BoardSummaryDto board, IReadOnlyList<BoardIssueDto> visible)
+    {
+        var errors = visible.Count(i => i.Severity == "error");
+        var warnings = visible.Count(i => i.Severity == "warning");
+        var parts = new List<string>
+        {
+            board.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase) ? "Kör" : "Stoppad"
+        };
+        if (board.PlanMachineCount == 0 && board.PlanConnectionCount == 0)
+            parts.Add("tom plan");
+        else if (errors > 0)
+            parts.Add(errors == 1 ? "1 blockerare" : $"{errors} blockerare");
+        else if (warnings > 0)
+            parts.Add(warnings == 1 ? "1 varning" : $"{warnings} varningar");
+        return string.Join(" · ", parts);
+    }
+
+    private async Task ToggleIssueMuteAsync(BoardIssueDto issue)
+    {
+        await IssueMutes.ToggleMuteAsync(issue.Code, issue.MachineId);
+        _mutedIssueKeys = IssueMutes.MutedKeys.ToHashSet(StringComparer.Ordinal);
+        ApplyClientHealthOverrides();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnCanvasConnectionAddedAsync((string FromId, string FromPort, string ToId, string ToPort) pipe) =>
@@ -514,7 +644,23 @@
     private string GetBoardModeCss() =>
         IsSelectedBoardRunning() ? "fg-board-mode-running" : "fg-board-mode-stopped";
 
-    private static string GetBoardTileCss(BoardSummaryDto board) => board.Health switch
+    private string GetEffectiveBoardHealth(BoardSummaryDto board)
+    {
+        var raw = GetRawIssuesForBoard(board.Id);
+        if (raw != null)
+            return ComputeHealthFromVisible(board, FilterVisibleIssues(raw));
+        return board.Health;
+    }
+
+    private string GetDisplayStatusHint(BoardSummaryDto board)
+    {
+        var raw = GetRawIssuesForBoard(board.Id);
+        if (raw != null)
+            return BuildStatusHintFromVisible(board, FilterVisibleIssues(raw));
+        return board.StatusHint ?? "";
+    }
+
+    private string GetBoardTileCss(BoardSummaryDto board) => GetEffectiveBoardHealth(board) switch
     {
         "running" => "fg-board-tile-running",
         "error" => "fg-board-tile-error",
@@ -522,7 +668,7 @@
         _ => "fg-board-tile-stopped"
     };
 
-    private static string GetBoardStatusPillCss(BoardSummaryDto board) => board.Health switch
+    private string GetBoardStatusPillCss(BoardSummaryDto board) => GetEffectiveBoardHealth(board) switch
     {
         "running" => "fg-status-running",
         "error" => "fg-status-error",
@@ -530,7 +676,7 @@
         _ => "fg-status-stopped"
     };
 
-    private static string GetBoardStatusLabel(BoardSummaryDto board) => board.Health switch
+    private string GetBoardStatusLabel(BoardSummaryDto board) => GetEffectiveBoardHealth(board) switch
     {
         "running" => "Kör",
         "error" => "Fel",
@@ -775,6 +921,7 @@
         {
             var res = await Http.GetFromJsonAsync<List<BoardSummaryDto>>("/v1/boards");
             _boards = res ?? new List<BoardSummaryDto>();
+            ApplyClientHealthOverrides();
         }
         catch (Exception ex)
         {
@@ -821,8 +968,11 @@
         _renameDraft = "";
         _snapshot = "";
         _saveHint = null;
-        _boardInfo = null;
-        _latestKeyframe = null;
+        if (_boardInfo?.BoardId != id)
+        {
+            _boardInfo = null;
+            _latestKeyframe = null;
+        }
         ResetPipeSelection();
         await ReloadPlanUiAsync();
         await LoadBoardInfoAsync();
@@ -870,6 +1020,11 @@
             try
             {
                 _boardInfo = await Http.GetFromJsonAsync<BoardInfoDto>($"/v1/boards/{boardId}/info", JsonRelaxed);
+                if (_boardInfo != null)
+                {
+                    CacheBoardIssues(boardId, _boardInfo.Issues);
+                    ApplyClientHealthOverrides();
+                }
             }
             catch
             {
@@ -891,7 +1046,14 @@
         {
             var res = await Http.PostAsJsonAsync($"/v1/boards/{boardId}/info/preview", new SavePlanRequest(plan));
             if (res.IsSuccessStatusCode)
+            {
                 _boardInfo = await res.Content.ReadFromJsonAsync<BoardInfoDto>(JsonRelaxed);
+                if (_boardInfo != null)
+                {
+                    CacheBoardIssues(boardId, _boardInfo.Issues);
+                    ApplyClientHealthOverrides();
+                }
+            }
         }
         catch
         {

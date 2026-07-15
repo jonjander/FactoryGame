@@ -4,7 +4,7 @@ using FactoryGame.Contracts.Json;
 
 namespace FactoryGame.Web.Services;
 
-public sealed class WalletState(HttpClient http, TokenStore tokens)
+public sealed class WalletState(IHttpClientFactory httpFactory, TokenStore tokens)
 {
     private static readonly JsonSerializerOptions Json = FactoryGameJson.Api;
 
@@ -23,7 +23,7 @@ public sealed class WalletState(HttpClient http, TokenStore tokens)
 
         try
         {
-            var w = await http.GetFromJsonAsync<WalletJson>("/v1/me/wallet", Json, ct);
+            var w = await httpFactory.CreateClient("api").GetFromJsonAsync<WalletJson>("/v1/me/wallet", Json, ct);
             Cash = w?.cash;
         }
         catch

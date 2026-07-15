@@ -105,7 +105,7 @@ public static class MachinePortFlowAnalyzer
                         if (inPkt != null)
                         {
                             dnaChanged = inPkt.Dna != outPkt.Dna;
-                            transformNote = BuildRuntimeTransformNote(machine.Type, inPkt, outPkt);
+                            transformNote = BuildRuntimeTransformNote(machine, inPkt, outPkt);
                             processStatus = dnaChanged || inputPhase != outputPhase
                                 ? MaterialProcessStatus.Transformed
                                 : MaterialProcessStatus.Processing;
@@ -205,7 +205,7 @@ public static class MachinePortFlowAnalyzer
         return null;
     }
 
-    private static string? BuildRuntimeTransformNote(string machineType, MaterialPacket inPkt, MaterialPacket outPkt)
+    private static string? BuildRuntimeTransformNote(MachineInfo machine, MaterialPacket inPkt, MaterialPacket outPkt)
     {
         var inPhase = MaterialPhaseLabels.DecodePhase(inPkt.Dna);
         var outPhase = MaterialPhaseLabels.DecodePhase(outPkt.Dna);
@@ -216,7 +216,7 @@ public static class MachinePortFlowAnalyzer
 
         if (inPkt.Dna != outPkt.Dna)
             return MaterialFlowTrace.PredictOutput(
-                new MachineInfo("", machineType, null), "out", inPkt.ElementId,
+                machine, "out", inPkt.ElementId,
                 MaterialFlowTrace.SymbolFor(inPkt.ElementId), inPkt.Dna).TransformNote;
 
         return null;

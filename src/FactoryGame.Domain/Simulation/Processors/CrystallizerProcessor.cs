@@ -25,6 +25,13 @@ internal sealed class CrystallizerProcessor : IMachineProcessor
         if (pkt == null)
             return;
 
+        var decoded = DnaDecoder.Decode(pkt.Dna);
+        if (decoded.Phase == MaterialPhase.Solid)
+        {
+            Passthrough(machine, ctx, settingsJson, pkt);
+            return;
+        }
+
         var block = FlowHelper.CheckDnaBlock(machine.MachineType, pkt);
         if (block != null)
         {
@@ -65,7 +72,14 @@ internal sealed class CrystallizerProcessor : IMachineProcessor
 
         var cut = ResolveCutFreeze(settingsJson);
         var chill = ResolveChillDelta(settingsJson);
-        var (outDna, _) = DnaTransforms.Crystallize(pkt.Dna, cut, chill);
+        var (outDna, crystallized) = DnaTransforms.Crystallize(pkt.Dna, cut, chill);
+
+        if (!crystallized)
+        {
+            pkt.Dna = outDna;
+            slot.ElapsedTicks = 0;
+            return;
+        }
 
         var outPkt = new MaterialPacket
         {

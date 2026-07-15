@@ -1,5 +1,7 @@
 using System.Text.Json;
 using FactoryGame.Domain.Content;
+using FactoryGame.Domain.Dna;
+using FactoryGame.Domain.Names;
 using FactoryGame.Domain.Simulation.Processors;
 
 namespace FactoryGame.Domain.Simulation;
@@ -109,16 +111,30 @@ public static class SeaportPortFlowAnalyzer
                 elementSymbol = traced.ElementSymbol;
             }
 
+            var depositPhase = pkt != null
+                ? MaterialPhaseLabels.PhaseLabelSv(MaterialPhaseLabels.DecodePhase(pkt.Dna))
+                : ResolvePredictedDepositPhase(linkedMachineId, linkedPort, machineById, connections, runtime);
             var path = FormatPath(linkedMachineId, linkedPort, m.Id, portName);
             summary = elementSymbol != null
-                ? $"Till pool: {elementSymbol} via {path}"
+                ? depositPhase != null
+                    ? $"Till pool: {elementSymbol} ({depositPhase}) via {path}"
+                    : $"Till pool: {elementSymbol} via {path}"
                 : $"Till pool via {path} (element ej bestämt i förväg)";
         }
         else
         {
             var poolElementId = SeaportConnectorProcessor.ParseOutElementId(m.Settings?.GetRawText());
             elementId = poolElementId > 0 ? poolElementId : null;
-            elementSymbol = elementId != null ? SymbolFor(elementId.Value) : null;
+            if (elementId is > 0)
+            {
+                elementSymbol = SymbolFor(elementId.Value);
+                var materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(
+                    m.Settings?.GetRawText(), elementId.Value);
+                var displayName = ElementNameGenerator.Generate(
+                    materialDna > 0 ? materialDna : ElementCatalogLookup.CatalogDnaFor(elementId.Value), "sv");
+                if (!string.IsNullOrEmpty(elementSymbol))
+                    elementSymbol = $"{elementSymbol} ({displayName})";
+            }
 
             if (isRunning && lastDelta != null && lastDelta.WithdrawnFromPool.Count > 0)
             {
@@ -233,6 +249,38 @@ public static class SeaportPortFlowAnalyzer
 
         var match = ElementCatalog.All.FirstOrDefault(e => e.Dna == dna);
         return match.Id > 0 ? (match.Id, match.Symbol) : (traced.ElementId, traced.ElementSymbol);
+    }
+
+    private static string? ResolvePredictedDepositPhase(
+        string? linkedMachineId,
+        string? linkedPort,
+        IReadOnlyDictionary<string, MachineInfo> machineById,
+        IReadOnlyList<ConnectionInfo> connections,
+        BoardLineState? runtime)
+    {
+        if (linkedMachineId == null || linkedPort == null)
+            return null;
+        if (!machineById.TryGetValue(linkedMachineId, out var machine))
+            return null;
+
+        var traced = MaterialFlowTrace.TraceUpstream(
+            linkedMachineId, linkedPort, machineById, connections, runtime);
+        if (traced.ElementId == null)
+            return null;
+
+        long? inputDna = null;
+        var inPort = MaterialFlowTrace.ResolveUpstreamInputPort(machine.Type, linkedPort);
+        if (inPort != null)
+        {
+            var inPkt = MaterialFlowTrace.TryReadPacket(runtime, linkedMachineId, inPort, isOutput: false);
+            inputDna = inPkt?.Dna;
+        }
+
+        var predicted = MaterialFlowTrace.PredictOutput(
+            machine, linkedPort, traced.ElementId, traced.ElementSymbol, inputDna);
+        return predicted.OutputPhase == null
+            ? null
+            : MaterialPhaseLabels.PhaseLabelSv(predicted.OutputPhase);
     }
 
     private static string? ResolveUpstreamInputPort(string machineType, string outPort) =>

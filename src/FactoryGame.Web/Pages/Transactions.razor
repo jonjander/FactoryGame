@@ -1,5 +1,7 @@
 @page "/transactions"
+@using System.Globalization
 @using System.Net.Http.Json
+@using FactoryGame.Contracts.Player
 @inject HttpClient Http
 @inject TokenStore Tokens
 
@@ -8,7 +10,7 @@
 @if (string.IsNullOrEmpty(Tokens.BearerToken))
 {
     <div class="panel">
-        <h2>Transaktioner</h2>
+        <h2>Konto</h2>
         <p class="muted">Du måste <a href="/">logga in som gäst</a> för att se transaktioner.</p>
     </div>
 }
@@ -16,9 +18,23 @@ else
 {
     <div class="panel">
         <div class="pool-toolbar">
-            <h2>Transaktioner</h2>
+            <h2>Konto</h2>
             <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
         </div>
+
+        <div class="tx-filters">
+            <label class="tx-filter-field">
+                <span class="muted">Datum från</span>
+                <input type="date" @bind="_dateFrom" @bind:format="yyyy-MM-dd" />
+            </label>
+            <label class="tx-filter-field">
+                <span class="muted">Datum till</span>
+                <input type="date" @bind="_dateTo" @bind:format="yyyy-MM-dd" />
+            </label>
+            <button type="button" class="secondary" @onclick="ApplyFiltersAsync" disabled="@_busy">Filtrera</button>
+            <button type="button" class="secondary" @onclick="ClearFiltersAsync" disabled="@_busy">Rensa filter</button>
+        </div>
+
         @if (!string.IsNullOrEmpty(_error))
         {
             <p class="error">@_error</p>
@@ -27,11 +43,11 @@ else
         {
             <p class="muted">Laddar…</p>
         }
-        else if (_transactions.Count == 0)
+        else if (_page?.Items.Count == 0)
         {
-            <p class="muted">Inga transaktioner ännu.</p>
+            <p class="muted">Inga transaktioner för valt filter.</p>
         }
-        else
+        else if (_page is not null)
         {
             <div class="pool-table-wrap">
                 <table class="pool-holdings-table">
@@ -44,7 +60,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var tx in _transactions)
+                        @foreach (var tx in _page.Items)
                         {
                             <tr>
                                 <td class="muted" style="white-space:nowrap">@FormatTime(tx.CreatedAt)</td>
@@ -58,17 +74,54 @@ else
                     </tbody>
                 </table>
             </div>
-            <p class="muted" style="margin-top:0.5rem">Visar de @_transactions.Count senaste transaktionerna.</p>
+
+            <div class="tx-pager">
+                <button type="button" class="secondary" disabled="@(_busy || _pageNumber <= 1)" @onclick="() => GoToPageAsync(_pageNumber - 1)">Föregående</button>
+                <span class="muted">
+                    Sida @_pageNumber av @TotalPages · @_page.TotalCount transaktion(er)
+                </span>
+                <button type="button" class="secondary" disabled="@(_busy || _pageNumber >= TotalPages)" @onclick="() => GoToPageAsync(_pageNumber + 1)">Nästa</button>
+            </div>
         }
     </div>
 }
 
 @code {
+    private const int PageSize = 25;
+
     private bool _busy;
     private string? _error;
-    private List<TransactionRow> _transactions = [];
+    private PlayerTransactionsPageDto? _page;
+    private int _pageNumber = 1;
+    private DateTime? _dateFrom;
+    private DateTime? _dateTo;
+
+    private int TotalPages =>
+        _page == null || _page.TotalCount == 0
+            ? 1
+            : (int)Math.Ceiling(_page.TotalCount / (double)PageSize);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task ApplyFiltersAsync()
+    {
+        _pageNumber = 1;
+        await LoadAsync();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        _dateFrom = null;
+        _dateTo = null;
+        _pageNumber = 1;
+        await LoadAsync();
+    }
+
+    private async Task GoToPageAsync(int page)
+    {
+        _pageNumber = Math.Max(1, page);
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
@@ -79,7 +132,8 @@ else
         _error = null;
         try
         {
-            var res = await Http.GetAsync("/v1/me/transactions");
+            var url = BuildUrl();
+            var res = await Http.GetAsync(url);
             if (!res.IsSuccessStatusCode)
             {
                 _error = res.StatusCode == System.Net.HttpStatusCode.Unauthorized
@@ -88,7 +142,7 @@ else
                 return;
             }
 
-            _transactions = await res.Content.ReadFromJsonAsync<List<TransactionRow>>() ?? [];
+            _page = await res.Content.ReadFromJsonAsync<PlayerTransactionsPageDto>();
         }
         catch (Exception ex)
         {
@@ -98,6 +152,22 @@ else
         {
             _busy = false;
         }
+    }
+
+    private string BuildUrl()
+    {
+        var q = new List<string>
+        {
+            $"page={_pageNumber}",
+            $"pageSize={PageSize}"
+        };
+
+        if (_dateFrom is { } from)
+            q.Add($"from={Uri.EscapeDataString(new DateTimeOffset(from.Date, TimeSpan.Zero).ToString("o", CultureInfo.InvariantCulture))}");
+        if (_dateTo is { } to)
+            q.Add($"to={Uri.EscapeDataString(new DateTimeOffset(to.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero).ToString("o", CultureInfo.InvariantCulture))}");
+
+        return $"/v1/me/transactions?{string.Join("&", q)}";
     }
 
     private static string FormatTime(DateTimeOffset dt) =>
@@ -114,11 +184,4 @@ else
         "MarketTrade" => "Börssälj",
         _ => type
     };
-
-    private sealed record TransactionRow(
-        Guid Id,
-        string Type,
-        decimal CashDelta,
-        DateTimeOffset CreatedAt,
-        string? Metadata);
 }

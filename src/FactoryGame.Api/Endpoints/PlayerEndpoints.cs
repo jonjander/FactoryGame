@@ -1,4 +1,5 @@
 using FactoryGame.Contracts.Machines;
+using FactoryGame.Contracts.Player;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -132,28 +133,43 @@ public static class PlayerEndpoints
             .WithName("GetMyPoolView")
             .WithOpenApi();
 
-        group.MapGet("/me/transactions", async Task<IResult> (HttpContext http, AppDbContext db, CancellationToken ct) =>
+        group.MapGet("/me/transactions", async Task<IResult> (
+                HttpContext http,
+                AppDbContext db,
+                int? page,
+                int? pageSize,
+                DateTimeOffset? from,
+                DateTimeOffset? to,
+                CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
                     return Results.Unauthorized();
 
-                var rows = await db.EconomyTransactions.AsNoTracking()
-                    .Where(t => t.PlayerId == playerId)
-                    .ToListAsync(ct);
-                var list = rows
-                    .OrderByDescending(t => t.CreatedAt.UtcDateTime.Ticks)
-                    .Take(100)
-                    .Select(t => new
-                    {
+                var p = Math.Max(1, page ?? 1);
+                var size = Math.Clamp(pageSize ?? 25, 1, 100);
+
+                var query = db.EconomyTransactions.AsNoTracking()
+                    .Where(t => t.PlayerId == playerId);
+
+                if (from.HasValue)
+                    query = query.Where(t => t.CreatedAt >= from.Value);
+                if (to.HasValue)
+                    query = query.Where(t => t.CreatedAt <= to.Value);
+
+                var total = await query.CountAsync(ct);
+                var items = await query
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Skip((p - 1) * size)
+                    .Take(size)
+                    .Select(t => new PlayerTransactionDto(
                         t.Id,
                         t.Type,
                         t.CashDelta,
                         t.CreatedAt,
-                        t.Metadata
-                    })
-                    .ToList();
+                        t.Metadata))
+                    .ToListAsync(ct);
 
-                return Results.Ok(list);
+                return Results.Ok(new PlayerTransactionsPageDto(items, total, p, size));
             })
             .WithName("GetMyTransactions")
             .WithOpenApi();

@@ -34,25 +34,25 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         if (!_opts.Enabled)
             return;
 
-        var elementIds = await db.PoolStacks.AsNoTracking()
+        var stacks = await db.PoolStacks.AsNoTracking()
             .Where(s => s.PlayerId == playerId && s.Quantity > 0)
-            .Select(s => s.ElementId)
+            .Select(s => new { s.ElementId, s.Dna })
             .Distinct()
             .ToListAsync(ct);
 
-        if (elementIds.Count == 0)
-            return;
-
-        var toRefresh = await GetElementsNeedingRefreshAsync(elementIds, elementIds.Count, ct);
-        if (toRefresh.Count == 0)
+        if (stacks.Count == 0)
             return;
 
         await EnsureSystemPlayerAsync(ct);
-        foreach (var elementId in toRefresh)
-            await EnsureLiquidityForElementAsync(elementId, ct);
+        foreach (var stack in stacks)
+            await EnsureLiquidityForElementAsync(stack.ElementId, ct, dna: stack.Dna);
     }
 
-    public async Task EnsureLiquidityForElementAsync(int elementId, CancellationToken ct = default, bool force = false)
+    public async Task EnsureLiquidityForElementAsync(
+        int elementId,
+        CancellationToken ct = default,
+        bool force = false,
+        long? dna = null)
     {
         if (!_opts.Enabled)
             return;
@@ -60,21 +60,22 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         if (!ElementCatalog.All.Any(e => e.Id == elementId))
             return;
 
-        if (!force && !await NeedsLiquidityRefreshAsync(elementId, ct))
-            return;
-
         var element = ElementCatalog.All.First(e => e.Id == elementId);
+        var tradeDna = dna is > 0 ? dna.Value : element.Dna;
+
+        if (!force && !await NeedsLiquidityRefreshAsync(elementId, tradeDna, ct))
+            return;
         await EnsureSystemPlayerAsync(ct);
         await EnsureSystemPoolStackAsync(elementId, ct);
-        await SeedHistoryIfNeededAsync(elementId, element.Dna, ct);
+        await SeedHistoryIfNeededAsync(elementId, tradeDna, ct);
 
-        var referenceMid = ElementReferencePrice.Compute(element.Dna);
+        var referenceMid = ElementReferencePrice.Compute(tradeDna);
         var playerOrders = await db.MarketOrders
-            .Where(o => o.ElementId == elementId && o.Status == OrderStatus.Open && !o.IsSynthetic && o.QuantityRemaining > 0)
+            .Where(o => o.ElementId == elementId && o.Dna == tradeDna && o.Status == OrderStatus.Open && !o.IsSynthetic && o.QuantityRemaining > 0)
             .ToListAsync(ct);
 
         await db.MarketOrders
-            .Where(o => o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open)
+            .Where(o => o.ElementId == elementId && o.Dna == tradeDna && o.IsSynthetic && o.Status == OrderStatus.Open)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, OrderStatus.Cancelled), ct);
 
         var bestBid = BestBid(playerOrders);
@@ -84,7 +85,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
 
         var mid = ComputeMid(referenceMid, bestBid, bestAsk);
         var capQty = ComputeSyntheticCap(playerBidQty, playerAskQty);
-        var rng = CreateRng(elementId, "ladder");
+        var rng = CreateRng(elementId, $"ladder-{tradeDna}");
 
         var now = DateTimeOffset.UtcNow;
         for (var level = 1; level <= _opts.LevelsPerSide; level++)
@@ -102,25 +103,25 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
 
             if (!bestBid.HasValue || buyPrice < bestBid.Value)
             {
-                db.MarketOrders.Add(CreateSyntheticOrder(elementId, OrderSide.Buy, buyPrice, lot, now));
+                db.MarketOrders.Add(CreateSyntheticOrder(elementId, tradeDna, OrderSide.Buy, buyPrice, lot, now));
             }
 
             if (!bestAsk.HasValue || sellPrice > bestAsk.Value)
             {
-                db.MarketOrders.Add(CreateSyntheticOrder(elementId, OrderSide.Sell, sellPrice, lot, now));
+                db.MarketOrders.Add(CreateSyntheticOrder(elementId, tradeDna, OrderSide.Sell, sellPrice, lot, now));
             }
         }
 
         await db.SaveChangesAsync(ct);
     }
 
-    private MarketOrderEntity CreateSyntheticOrder(int elementId, OrderSide side, decimal price, long qty, DateTimeOffset now) =>
+    private MarketOrderEntity CreateSyntheticOrder(int elementId, long dna, OrderSide side, decimal price, long qty, DateTimeOffset now) =>
         new()
         {
             Id = Guid.NewGuid(),
             PlayerId = _opts.SystemPlayerId,
             ElementId = elementId,
-            Dna = ElementCatalogLookup.CatalogDnaFor(elementId),
+            Dna = dna,
             Side = side,
             LimitPrice = price,
             QuantityRemaining = qty,
@@ -327,7 +328,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         var result = new List<int>(Math.Min(maxCount, candidateElementIds.Count));
         foreach (var elementId in candidateElementIds)
         {
-            if (await NeedsLiquidityRefreshAsync(elementId, ct))
+            if (await NeedsLiquidityRefreshAsync(elementId, ElementCatalogLookup.CatalogDnaFor(elementId), ct))
                 result.Add(elementId);
             if (result.Count >= maxCount)
                 break;
@@ -336,7 +337,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         return result;
     }
 
-    private async Task<bool> NeedsLiquidityRefreshAsync(int elementId, CancellationToken ct)
+    private async Task<bool> NeedsLiquidityRefreshAsync(int elementId, long dna, CancellationToken ct)
     {
         var hasCandles = await db.MarketPriceCandles.AsNoTracking()
             .AnyAsync(c => c.ElementId == elementId, ct);
@@ -345,14 +346,14 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
 
         var openSyntheticCount = await db.MarketOrders.AsNoTracking()
             .CountAsync(
-                o => o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open,
+                o => o.ElementId == elementId && o.Dna == dna && o.IsSynthetic && o.Status == OrderStatus.Open,
                 ct);
         if (openSyntheticCount < _opts.LevelsPerSide)
             return true;
 
         var cooldownCutoff = DateTimeOffset.UtcNow.AddMinutes(-Math.Max(1, _opts.ElementRefreshCooldownMinutes));
         var syntheticCreatedAt = await db.MarketOrders.AsNoTracking()
-            .Where(o => o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open)
+            .Where(o => o.ElementId == elementId && o.Dna == dna && o.IsSynthetic && o.Status == OrderStatus.Open)
             .Select(o => o.CreatedAt)
             .ToListAsync(ct);
 

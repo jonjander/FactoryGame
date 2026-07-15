@@ -224,7 +224,7 @@
                         @foreach (var m in _wiki.Machines.Take(6))
                         {
                             <button type="button" class="panel wiki-machine-card" @onclick="() => SelectMachine(m)">
-                                <WikiMachineIcon Type="@m.Type" />
+                                <WikiMachineIcon Type="@m.Type" Ports="@m.Ports" />
                                 <h4>@WikiPresentation.MachineDisplayName(m.Type)</h4>
                                 <p class="muted">@m.Ports in→ut · @Truncate(m.Summary, 90)</p>
                             </button>
@@ -235,7 +235,7 @@
                 {
                     <article class="panel wiki-detail wiki-machine-detail">
                         <div class="wiki-detail-header">
-                            <WikiMachineIcon Type="@machine.Type" />
+                            <WikiMachineIcon Type="@machine.Type" Ports="@machine.Ports" />
                             <div>
                                 <h3>@WikiPresentation.MachineDisplayName(machine.Type)</h3>
                                 <p class="muted wiki-detail-meta">
@@ -248,13 +248,23 @@
 
                         <div class="wiki-port-diagram" aria-label="Portschema">
                             @{
-                                var ratio = WikiPresentation.ParsePortRatio(machine.Ports).FirstOrDefault();
+                                var portSpec = WikiPresentation.ParsePortSpec(machine.Ports);
                             }
-                            <span class="wiki-port-node wiki-port-in">IN @ratio.In</span>
+                            <div class="wiki-port-column wiki-port-column-in">
+                                @foreach (var inName in portSpec.InPorts)
+                                {
+                                    <span class="wiki-port-node wiki-port-in" title="@inName">@WikiPresentation.PortDisplayLabel(inName)</span>
+                                }
+                            </div>
                             <span class="wiki-port-pipe"></span>
                             <span class="wiki-port-box">@WikiPresentation.MachineEmoji(machine.Type)</span>
                             <span class="wiki-port-pipe"></span>
-                            <span class="wiki-port-node wiki-port-out">UT @ratio.Out</span>
+                            <div class="wiki-port-column wiki-port-column-out">
+                                @foreach (var outName in portSpec.OutPorts)
+                                {
+                                    <span class="wiki-port-node wiki-port-out" title="@outName">@WikiPresentation.PortDisplayLabel(outName)</span>
+                                }
+                            </div>
                         </div>
 
                         <p class="wiki-detail-summary">@WikiPresentation.ExtendedSummary(machine.Type, machine.Summary)</p>
@@ -279,7 +289,7 @@
                         @foreach (var m in FilteredMachines)
                         {
                             <button type="button" class="panel wiki-machine-card" @onclick="() => SelectMachine(m)">
-                                <WikiMachineIcon Type="@m.Type" />
+                                <WikiMachineIcon Type="@m.Type" Ports="@m.Ports" />
                                 <h4>@WikiPresentation.MachineDisplayName(m.Type)</h4>
                                 <p class="muted">@m.Ports · @Truncate(m.Summary, 72)</p>
                             </button>
@@ -319,7 +329,7 @@
                         </dl>
 
                         <div class="wiki-detail-actions">
-                            <a class="button-link" href="/exchange">Handla på börsen →</a>
+                            <a class="button-link" href="@ExchangeHrefFor(element)">Handla på börsen →</a>
                             <a class="button-link secondary-link" href="/pool">Se pool →</a>
                             <button type="button" class="secondary" @onclick="ClearElementSelection">Stäng</button>
                         </div>
@@ -603,6 +613,9 @@
 
     private static string Truncate(string text, int max) =>
         text.Length <= max ? text : text[..(max - 1)] + "…";
+
+    private static string ExchangeHrefFor(ElementContentItem element) =>
+        $"/exchange?elementId={element.Id}&dna={element.Dna}";
 
     private sealed record PhaseStat(string Phase, int Count, int Percent);
 }

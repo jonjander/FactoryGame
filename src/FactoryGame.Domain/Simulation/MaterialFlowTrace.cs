@@ -102,8 +102,10 @@ internal static class MaterialFlowTrace
         }
         else if (machine.Type.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
         {
-            outputDna = DnaTransforms.Cool(sourceDna);
-            note = "kyls i Cooler";
+            var coolDelta = MachineSettingsJson.ReadInt(machine.Settings?.GetRawText(), 8, 4, 32,
+                "coolDelta", "cool", "power");
+            outputDna = DnaTransforms.Cool(sourceDna, coolDelta);
+            note = DnaBandDiagnostics.FormatCoolerStep(sourceDna, outputDna, coolDelta);
         }
         else if (machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
         {
@@ -112,16 +114,31 @@ internal static class MaterialFlowTrace
         }
         else if (machine.Type.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
         {
-            var cut = 2048;
-            var (dna, solid) = DnaTransforms.Crystallize(sourceDna, cut);
+            var settings = machine.Settings?.GetRawText();
+            var cut = MachineSettingsJson.ReadInt(settings, 2048, 0, (int)DnaLayout.FreezeMask,
+                "cutFreeze", "cutPoint", "cut", "targetFreeze");
+            var chill = MachineSettingsJson.ReadInt(settings, 16, 4, 128, "chillDelta", "chill", "coolingPower");
+            var (dna, solid, passes) = SimulateCrystallizePasses(sourceDna, cut, chill);
             outputDna = dna;
-            note = solid ? "kristalliseras till fast form" : "kyls (fryspunkt över cut, fortfarande vätska)";
+            note = solid
+                ? passes <= 1
+                    ? "kristalliseras till fast form"
+                    : $"kristalliseras till fast form (~{passes} kylsteg)"
+                : DnaBandDiagnostics.FormatCrystallizerPending(sourceDna, cut, chill);
         }
         else if (machine.Type.Equals("Melter", StringComparison.OrdinalIgnoreCase))
         {
-            var (dna, melted) = DnaTransforms.Melt(sourceDna, 1800);
+            var settings = machine.Settings?.GetRawText();
+            var cut = MachineSettingsJson.ReadInt(settings, 1800, 0, (int)DnaLayout.BoilingMask,
+                "cutBoil", "cutPoint", "cut");
+            var heat = MachineSettingsJson.ReadInt(settings, 20, 4, 128, "heatDelta", "heat", "power");
+            var (dna, melted, passes) = SimulateMeltPasses(sourceDna, cut, heat);
             outputDna = dna;
-            note = melted ? "smälts till vätska" : "värms (kokpunkt under cut, fortfarande fast)";
+            note = melted
+                ? passes <= 1
+                    ? "smälts till vätska"
+                    : $"smälts till vätska (~{passes} värme-steg)"
+                : DnaBandDiagnostics.FormatMelterPending(sourceDna, cut, heat);
         }
         else if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
         {
@@ -157,6 +174,40 @@ internal static class MaterialFlowTrace
             outputPhase,
             resolved.TransformNote ?? note,
             dnaChanged);
+    }
+
+    private static (long Dna, bool Done, int Passes) SimulateCrystallizePasses(long sourceDna, int cutFreeze, int chillDelta)
+    {
+        var dna = sourceDna;
+        var passes = 0;
+        const int maxPasses = 64;
+        while (passes < maxPasses)
+        {
+            passes++;
+            var (next, solid) = DnaTransforms.Crystallize(dna, cutFreeze, chillDelta);
+            dna = next;
+            if (solid)
+                return (dna, true, passes);
+        }
+
+        return (dna, false, passes);
+    }
+
+    private static (long Dna, bool Done, int Passes) SimulateMeltPasses(long sourceDna, int cutBoil, int heatDelta)
+    {
+        var dna = sourceDna;
+        var passes = 0;
+        const int maxPasses = 64;
+        while (passes < maxPasses)
+        {
+            passes++;
+            var (next, melted) = DnaTransforms.Melt(dna, cutBoil, heatDelta);
+            dna = next;
+            if (melted)
+                return (dna, true, passes);
+        }
+
+        return (dna, false, passes);
     }
 
     private static (int? OutputId, string? OutputSymbol, string? TransformNote) ResolveOutput(

@@ -1,4 +1,5 @@
 @using FactoryGame.Contracts.Boards
+@using FactoryGame.Web.Services
 
 <div class="panel fg-sub fg-board-info">
     <h4>Fabrikinformation — @Info.Name</h4>
@@ -102,7 +103,7 @@
     @if (seaportOutPorts.Count > 0)
     {
         <h5>Seaport — utgång «out» (pool → fabrik)</h5>
-        <p class="muted">Välj pool-variant ovanför canvas (planfält <code>outElementId</code> + <code>outMaterialDna</code>).</p>
+        <p class="muted">Välj pool-variant i maskininställningar (<code>outElementId</code> + <code>outMaterialDna</code>).</p>
         <ul class="fg-seaport-port-list">
             @foreach (var port in seaportOutPorts)
             {
@@ -190,24 +191,68 @@
     }
 
     <h5>Rapporter</h5>
-    @if (Info.Issues.Count == 0)
+    @if (VisibleIssues.Count == 0 && MutedWarningCount == 0)
     {
         <p class="muted">Inga fel eller varningar.</p>
     }
     else
     {
-        <ul class="fg-issues">
-            @foreach (var issue in Info.Issues.OrderBy(i => i.Severity))
-            {
-                <li class="fg-issue fg-issue-@issue.Severity">@issue.Message</li>
-            }
-        </ul>
+        @if (MutedWarningCount > 0)
+        {
+            <p class="muted">@MutedWarningCount varning(ar) tystade — påverkar inte fabrikstatus.</p>
+            <ul class="fg-issues fg-issues-muted">
+                @foreach (var issue in Info.Issues.Where(i => i.Severity == "warning"
+                    && MutedIssueKeys.Contains(BoardIssueMuteStore.IssueKey(i.Code, i.MachineId))))
+                {
+                    <li class="fg-issue fg-issue-warning fg-issue-muted">
+                        <span class="muted">@issue.Message</span>
+                        @if (OnToggleIssueMute.HasDelegate)
+                        {
+                            <button type="button" class="fg-issue-mute-btn secondary" @onclick="() => OnToggleIssueMute.InvokeAsync(issue)">Visa</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        @if (VisibleIssues.Count > 0)
+        {
+            <ul class="fg-issues">
+                @foreach (var issue in VisibleIssues.OrderBy(i => i.Severity))
+                {
+                    <li class="fg-issue fg-issue-@issue.Severity">
+                        <span>@issue.Message</span>
+                        @if (issue.Severity == "warning" && OnToggleIssueMute.HasDelegate)
+                        {
+                            <button type="button"
+                                    class="fg-issue-mute-btn secondary"
+                                    title="Tysta denna varning"
+                                    @onclick="() => OnToggleIssueMute.InvokeAsync(issue)">
+                                Tysta
+                            </button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
     }
 </div>
 
 @code {
     [Parameter, EditorRequired]
     public BoardInfoDto Info { get; set; } = null!;
+
+    [Parameter]
+    public IReadOnlyList<BoardIssueDto> VisibleIssues { get; set; } = Array.Empty<BoardIssueDto>();
+
+    [Parameter]
+    public IReadOnlySet<string> MutedIssueKeys { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+
+    [Parameter]
+    public EventCallback<BoardIssueDto> OnToggleIssueMute { get; set; }
+
+    private int MutedWarningCount =>
+        Info.Issues.Count(i => i.Severity == "warning"
+            && MutedIssueKeys.Contains(BoardIssueMuteStore.IssueKey(i.Code, i.MachineId)));
 
     private static string FormatPhaseLabel(string phaseKey) => phaseKey.ToLowerInvariant() switch
     {

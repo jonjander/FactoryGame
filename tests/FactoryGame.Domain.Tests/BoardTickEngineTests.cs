@@ -255,6 +255,30 @@ public sealed class BoardTickEngineTests
     }
 
     [Fact]
+    public void Advance_Crystallizer_catalog_E03_eventually_solid_with_default_cut()
+    {
+        var e03 = ElementCatalog.All.First(e => e.Id == 3);
+        Assert.True(DnaTransforms.MeasureDnaSpreadPermille(e03.Dna) >= 220);
+
+        var plan = new SimulationPlan(
+            [new SimulationMachine("cr1", "Crystallizer", """{"cutFreeze":2048,"chillDelta":32}""")],
+            []);
+        var state = BoardTickEngine.CreateInitialState(plan);
+        state.Machines["cr1"].GetOrCreateInput("in").TryEnqueue(new MaterialPacket
+        {
+            ElementId = 3,
+            Dna = e03.Dna,
+            Quantity = 1
+        });
+
+        var r1 = TickHelper.Run(plan, state, 320);
+        var outp = r1.State.Machines["cr1"].OutputPorts["out"].Peek();
+        Assert.NotNull(outp);
+        Assert.Equal(3, outp.ElementId);
+        Assert.Equal(MaterialPhase.Solid, DnaDecoder.Decode(outp.Dna).Phase);
+    }
+
+    [Fact]
     public void Advance_Cooler_keeps_liquid_while_Crystallizer_can_solidify_spread()
     {
         var spreadDna = BuildSpreadLiquidDna();
@@ -474,6 +498,100 @@ public sealed class BoardTickEngineTests
     }
 
     [Fact]
+    public void Advance_UserLayout_E03_liquid_pool_variant_eventually_deposits_solid()
+    {
+        const long poolDna = 144964032628459529L;
+        const int elementId = 3;
+        var pool = new DepositRecordingPool(elementId, poolDna, 200);
+        var plan = BuildUserE03CoolChainPlan();
+
+        var state = BoardTickEngine.CreateInitialState(plan);
+        _ = TickHelper.Run(plan, state, 2500, pool);
+
+        var solidDeposits = pool.Deposits
+            .Where(d => d.ElementId == elementId && DnaDecoder.Decode(d.Dna).Phase == MaterialPhase.Solid)
+            .ToList();
+        Assert.NotEmpty(solidDeposits);
+        Assert.True(solidDeposits.Sum(d => d.Quantity) > 0);
+    }
+
+    [Fact]
+    public void Advance_Crystallizer_passes_through_already_solid_spread_liquid()
+    {
+        var spreadSolid = BuildSpreadSolidDna();
+        var plan = new SimulationPlan(
+            [new SimulationMachine("cr1", "Crystallizer", """{"cutFreeze":2048,"chillDelta":32}""")],
+            []);
+        var state = BoardTickEngine.CreateInitialState(plan);
+        state.Machines["cr1"].GetOrCreateInput("in").TryEnqueue(new MaterialPacket
+        {
+            ElementId = 5,
+            Dna = spreadSolid,
+            Quantity = 1
+        });
+
+        var r = TickHelper.Run(plan, state, 2);
+        var outPkt = r.State.Machines["cr1"].OutputPorts["out"].Peek();
+        Assert.NotNull(outPkt);
+        Assert.Equal(MaterialPhase.Solid, DnaDecoder.Decode(outPkt.Dna).Phase);
+        Assert.Null(r.State.Machines["cr1"].BlockedReason);
+    }
+
+    private static SimulationPlan BuildUserE03CoolChainPlan() =>
+        new(
+            [
+                new SimulationMachine("seaportconnector1", "SeaportConnector",
+                    """{"outElementId":3,"outMaterialDna":"144964032628459529"}"""),
+                new SimulationMachine("seaportconnector2", "SeaportConnector", null),
+                new SimulationMachine("cooler1", "Cooler", """{"coolDelta":16}"""),
+                new SimulationMachine("crystallizer1", "Crystallizer", """{"chillDelta":8,"cutFreeze":2048}"""),
+                new SimulationMachine("cooler2", "Cooler", """{"coolDelta":16}"""),
+                new SimulationMachine("cooler3", "Cooler", """{"coolDelta":16}"""),
+                new SimulationMachine("cooler4", "Cooler", """{"coolDelta":16}"""),
+                new SimulationMachine("cooler5", "Cooler", """{"coolDelta":16}"""),
+                new SimulationMachine("cooler6", "Cooler", """{"coolDelta":16}"""),
+                new SimulationMachine("crystallizer2", "Crystallizer", """{"cutFreeze":3072}""")
+            ],
+            [
+                new SimulationConnection("seaportconnector1", "out", "cooler1", "in"),
+                new SimulationConnection("cooler1", "out", "cooler2", "in"),
+                new SimulationConnection("cooler2", "out", "cooler3", "in"),
+                new SimulationConnection("cooler3", "out", "cooler4", "in"),
+                new SimulationConnection("cooler4", "out", "cooler5", "in"),
+                new SimulationConnection("cooler5", "out", "cooler6", "in"),
+                new SimulationConnection("cooler6", "out", "crystallizer1", "in"),
+                new SimulationConnection("crystallizer1", "out", "crystallizer2", "in"),
+                new SimulationConnection("crystallizer2", "out", "seaportconnector2", "in")
+            ]);
+
+    [Fact]
+    public void Advance_CoolChain_E03_deposits_solid_variant_to_pool()
+    {
+        var e03 = ElementCatalog.All.First(e => e.Id == 3);
+        var pool = new DepositRecordingPool(e03.Id, e03.Dna, 200);
+        var plan = new SimulationPlan(
+            [
+                new SimulationMachine("sea1", "SeaportConnector", """{"outElementId":3}"""),
+                new SimulationMachine("cool1", "Cooler", null),
+                new SimulationMachine("cr1", "Crystallizer", """{"cutFreeze":2048,"chillDelta":32}""")
+            ],
+            [
+                new SimulationConnection("sea1", "out", "cool1", "in"),
+                new SimulationConnection("cool1", "out", "cr1", "in"),
+                new SimulationConnection("cr1", "out", "sea1", "in")
+            ]);
+
+        var state = BoardTickEngine.CreateInitialState(plan);
+        _ = TickHelper.Run(plan, state, 600, pool);
+
+        var solidDeposits = pool.Deposits
+            .Where(d => d.ElementId == 3 && DnaDecoder.Decode(d.Dna).Phase == MaterialPhase.Solid)
+            .ToList();
+        Assert.NotEmpty(solidDeposits);
+        Assert.All(solidDeposits, d => Assert.True(d.Quantity > 0));
+    }
+
+    [Fact]
     public void Advance_Seaport_liquid_separator_loop_withdraws_from_pool()
     {
         var pool = new TrackingPool();
@@ -505,5 +623,35 @@ public sealed class BoardTickEngineTests
     {
         public bool TryWithdraw(int elementId, long dna, decimal quantity) => true;
         public bool TryDeposit(int elementId, long dna, decimal quantity) => true;
+    }
+
+    private sealed class DepositRecordingPool : ISeaportPoolSink
+    {
+        private readonly Dictionary<(int ElementId, long Dna), long> _stacks = new();
+
+        public List<(int ElementId, long Dna, decimal Quantity)> Deposits { get; } = [];
+
+        public DepositRecordingPool(int elementId, long dna, long quantity) =>
+            _stacks[(elementId, dna)] = quantity;
+
+        public bool TryWithdraw(int elementId, long dna, decimal quantity)
+        {
+            var key = (elementId, dna);
+            var need = (long)Math.Ceiling(quantity);
+            if (!_stacks.TryGetValue(key, out var have) || have < need)
+                return false;
+            _stacks[key] = have - need;
+            return true;
+        }
+
+        public bool TryDeposit(int elementId, long dna, decimal quantity)
+        {
+            var qty = (long)Math.Ceiling(quantity);
+            Deposits.Add((elementId, dna, quantity));
+            var key = (elementId, dna);
+            _stacks.TryGetValue(key, out var have);
+            _stacks[key] = have + qty;
+            return true;
+        }
     }
 }

@@ -145,6 +145,36 @@ public static class WikiPresentation
         return [(parts[0].Trim(), parts[1].Trim())];
     }
 
+    /// <summary>Parses wiki port spec <c>in[,in2]:out[,out2]</c> (canonical) or legacy <c>1:1</c> counts.</summary>
+    public static (string[] InPorts, string[] OutPorts) ParsePortSpec(string ports)
+    {
+        var parts = ports.Split(':', 2);
+        if (parts.Length != 2)
+            return ([ports.Trim()], []);
+
+        var inPart = parts[0].Trim();
+        var outPart = parts[1].Trim();
+        if (inPart.Contains(',') || outPart.Contains(','))
+        {
+            return (
+                inPart.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                outPart.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+
+        var legacy = ParsePortRatio(ports).FirstOrDefault();
+        var inLabel = string.IsNullOrEmpty(legacy.In) ? "in" : $"in ×{legacy.In}";
+        var outLabel = string.IsNullOrEmpty(legacy.Out) ? "out" : $"out ×{legacy.Out}";
+        return ([inLabel], [outLabel]);
+    }
+
+    /// <summary>Short label for wiki icon/diagram (strips legacy count suffix).</summary>
+    public static string PortDisplayLabel(string portLabel)
+    {
+        var s = portLabel.Trim();
+        var times = s.IndexOf(" ×", StringComparison.Ordinal);
+        return times > 0 ? s[..times] : s;
+    }
+
     public static string PhaseCssClass(string phase) => phase.ToLowerInvariant() switch
     {
         "liquid" => "fg-phase-liquid",

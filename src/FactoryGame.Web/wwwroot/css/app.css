@@ -485,6 +485,10 @@ pre.fg-snapshot {
 
 .fg-issue {
     margin-bottom: 0.35rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 .fg-issue-error {
@@ -497,6 +501,12 @@ pre.fg-snapshot {
 
 .fg-issue-info {
     color: #8b949e;
+}
+
+.fg-issue-mute-btn {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.45rem;
 }
 
 .fg-factory-view {
@@ -2395,6 +2405,21 @@ button.danger-outline:hover:not(:disabled) {
     padding: 0.15rem 0.45rem;
 }
 
+.wiki-port-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: stretch;
+}
+
+.wiki-port-column-in {
+    align-items: flex-end;
+}
+
+.wiki-port-column-out {
+    align-items: flex-start;
+}
+
 /* Machine icon */
 .wiki-machine-icon-wrap {
     position: relative;
@@ -2560,3 +2585,41 @@ button.danger-outline:hover:not(:disabled) {
 .wiki-legend-chip.wiki-dna-bar-toxic { background: #238636; }
 .wiki-legend-chip.wiki-dna-bar-boil { background: #1f6feb; }
 .wiki-legend-chip.wiki-dna-bar-freeze { background: #388bfd; }
+
+.tx-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+    margin: 0.75rem 0 1rem;
+}
+
+.tx-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 10rem;
+}
+
+.tx-filter-field input[type="date"] {
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border, #30363d);
+    background: var(--surface, #0d1117);
+    color: inherit;
+}
+
+.tx-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.pool-variant-hint {
+    margin-top: 0.75rem;
+    max-width: 42rem;
+    line-height: 1.5;
+}

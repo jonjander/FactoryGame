@@ -1,7 +1,7 @@
 @using FactoryGame.Web.Services
 
 <div class="wiki-machine-icon-wrap wiki-machine-icon-@Category" aria-hidden="true">
-    @((MarkupString)BuildIconSvg(Type))
+    @((MarkupString)BuildIconSvg(Type, Ports))
     <span class="wiki-machine-icon-emoji">@WikiPresentation.MachineEmoji(Type)</span>
 </div>
 
@@ -9,9 +9,12 @@
     [Parameter, EditorRequired]
     public string Type { get; set; } = "";
 
+    [Parameter]
+    public string? Ports { get; set; }
+
     private string Category => WikiPresentation.MachineCategory(Type);
 
-    private static string BuildIconSvg(string type)
+    private static string BuildIconSvg(string type, string? ports)
     {
         var (body, accent) = type switch
         {
@@ -26,17 +29,52 @@
             _ => ("#21262d", "#8b949e")
         };
 
+        var portSpec = WikiPresentation.ParsePortSpec(ports ?? "in:out");
+        var inNodes = BuildPortCircles(portSpec.InPorts, isIn: true);
+        var outNodes = BuildPortCircles(portSpec.OutPorts, isIn: false);
         var label = type.Length > 9 ? type[..9] : type;
+
         return $"""
-            <svg viewBox="0 0 120 72" xmlns="http://www.w3.org/2000/svg" class="wiki-machine-icon-svg">
+            <svg viewBox="0 0 120 72" xmlns="http://www.w3.org/1999/svg" class="wiki-machine-icon-svg">
               <rect class="wiki-machine-body-rect" x="8" y="12" width="104" height="48" rx="8" fill="{body}" stroke="{accent}" stroke-width="2"/>
-              <circle cx="8" cy="36" r="5" fill="#238636"/>
-              <circle cx="112" cy="28" r="5" fill="#1f6feb"/>
-              <circle cx="112" cy="44" r="5" fill="#1f6feb"/>
+              {inNodes}
+              {outNodes}
               <text x="60" y="42" text-anchor="middle" fill="#e6edf3" font-size="10" font-family="system-ui,sans-serif">{Escape(label)}</text>
             </svg>
             """;
     }
+
+    private static string BuildPortCircles(string[] ports, bool isIn)
+    {
+        if (ports.Length == 0)
+            return "";
+
+        var cx = isIn ? 8 : 112;
+        var fill = isIn ? "#238636" : "#1f6feb";
+        var portClass = isIn ? "wiki-port-in" : "wiki-port-out";
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < ports.Length; i++)
+        {
+            var cy = PortCy(i, ports.Length);
+            var name = WikiPresentation.PortDisplayLabel(ports[i]);
+            sb.Append(
+                $"""<circle class="wiki-port-node {portClass}" cx="{cx}" cy="{Fmt(cy)}" r="5" fill="{fill}"/>""");
+            sb.Append(
+                $"""<text x="{cx}" y="{Fmt(cy + 3.5)}" text-anchor="middle" fill="#e6edf3" font-size="5" font-family="system-ui,sans-serif">{Escape(name)}</text>""");
+        }
+        return sb.ToString();
+    }
+
+    private static double PortCy(int index, int count)
+    {
+        if (count <= 1)
+            return 36;
+        const double top = 22;
+        const double bottom = 50;
+        return top + (bottom - top) * index / (count - 1);
+    }
+
+    private static string Fmt(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
 
     private static string Escape(string s) =>
         s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");

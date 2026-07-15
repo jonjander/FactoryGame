@@ -1,5 +1,6 @@
 @using FactoryGame.Contracts.Boards
 @using FactoryGame.Contracts.Machines
+@using FactoryGame.Web.Models
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -96,6 +97,8 @@
                           width="@w"
                           height="@h"
                           rx="6"
+                          @onclick="() => OnMachineClick(m.Id)"
+                          @onclick:stopPropagation="true"
                           @onmousedown="e => OnMachineMouseDown(e, m.Id)"
                           @onmousedown:stopPropagation="true" />
                 }
@@ -137,7 +140,8 @@
                         var py = PortY(pi, inPorts.Count, h);
                         var inHint = GetPortFlowHint(m.Id, port.Name, isOutput: false);
                         <circle class="fg-port fg-port-in @PortClass(m.Id, port.Name, false) @(HasPortFlow(m.Id, port.Name, false) ? "fg-port-flowing" : "")"
-                                cx="0" cy="@Fmt(py)" r="5"
+                                cx="0" cy="@Fmt(py)" r="8"
+                                data-fg-machine="@m.Id" data-fg-port="@port.Name" data-fg-dir="in"
                                 @onclick="() => OnPortClick(m.Id, port.Name, false)"
                                 @onclick:stopPropagation="true"
                                 @onmouseup="e => OnPortMouseUp(e, m.Id, port.Name, false)"
@@ -157,12 +161,13 @@
                         var py = PortY(pi, outPorts.Count, h);
                         var outHint = GetPortFlowHint(m.Id, port.Name, isOutput: true);
                         <circle class="fg-port fg-port-out @PortClass(m.Id, port.Name, true) @(HasPortFlow(m.Id, port.Name, true) ? "fg-port-flowing" : "")"
-                                cx="@w" cy="@Fmt(py)" r="5"
+                                cx="@w" cy="@Fmt(py)" r="8"
+                                data-fg-machine="@m.Id" data-fg-port="@port.Name" data-fg-dir="out"
                                 @onclick="() => OnPortClick(m.Id, port.Name, true)"
                                 @onclick:stopPropagation="true"
                                 @onmousedown="e => OnPortMouseDown(e, m.Id, port.Name, true)"
                                 @onmousedown:stopPropagation="true"
-                                @onmouseup="e => OnPortMouseUp(e, m.Id, port.Name, false)">
+                                @onmouseup="e => OnPortMouseUp(e, m.Id, port.Name, true)">
                             <title>@GetPortTitle(port.Name, outHint)</title>
                         </circle>
                         @if (!string.IsNullOrEmpty(outHint))
@@ -233,7 +238,11 @@
     [Parameter]
     public EventCallback LayoutCommitted { get; set; }
 
+    [Parameter]
+    public IReadOnlyList<ElementContentItem> ElementCatalog { get; set; } = Array.Empty<ElementContentItem>();
+
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<int, ElementContentItem> _elementById = new();
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, MachinePortFlowDto> _machinePortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, string> _blockedByMachineId = new(StringComparer.Ordinal);
@@ -257,6 +266,7 @@
     private IJSObjectReference? _canvasModule;
     private DotNetObjectReference<FactoryCanvas>? _dotNetRef;
     private bool _pointerDragActive;
+    private DateTime _suppressBackgroundClearUntilUtc;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -276,6 +286,13 @@
     {
         public double X { get; set; }
         public double Y { get; set; }
+    }
+
+    private sealed class PortHit
+    {
+        public string MachineId { get; set; } = "";
+        public string Port { get; set; } = "";
+        public bool IsOutput { get; set; }
     }
 
     private async Task<(double X, double Y)?> ClientToSvgAsync(double clientX, double clientY)
@@ -349,26 +366,39 @@
     }
 
     [JSInvokable]
-    public async Task OnDocumentPointerUp()
+    public async Task OnDocumentPointerUp(double clientX, double clientY)
     {
         var commitLayout = _machineDragMoved && _dragMachineId != null;
+        var pipeFrom = _dragPipeFrom;
         _pendingMachineDragId = null;
         _machineDragMoved = false;
         _dragMachineId = null;
-        if (_dragPipeFrom != null)
-        {
-            _dragPipeFrom = null;
-            _dragCursor = null;
-        }
+        _dragPipeFrom = null;
+        _dragCursor = null;
         await StopPointerDragAsync();
+        if (pipeFrom is { } from)
+            await TryCompletePipeDragAsync(from, clientX, clientY);
         if (commitLayout)
             await LayoutCommitted.InvokeAsync();
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task TryCompletePipeDragAsync((string Id, string Port) from, double clientX, double clientY)
+    {
+        if (_canvasModule == null || ReadOnly)
+            return;
+
+        var hit = await _canvasModule.InvokeAsync<PortHit?>("findPortAtPoint", _svgRef, clientX, clientY);
+        if (hit == null || hit.IsOutput || hit.MachineId == from.Id)
+            return;
+
+        await ConnectionAdded.InvokeAsync((from.Id, from.Port, hit.MachineId, hit.Port));
+    }
+
     protected override void OnParametersSet()
     {
         _machineMeta = MachineMeta.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+        _elementById = ElementCatalog.ToDictionary(e => e.Id);
         _seaportPortByKey = SeaportPortFlows.ToDictionary(
             p => PortFlowKey(p.MachineId, p.Port),
             StringComparer.Ordinal);
@@ -387,16 +417,23 @@
     private HashSet<string> BuildMachinesWithFlow()
     {
         var set = new HashSet<string>(StringComparer.Ordinal);
+        if (!IsFactoryRunning)
+            return set;
+
         foreach (var flow in MachinePortFlows)
         {
-            if (!string.IsNullOrEmpty(flow.OutputElementSymbol) || !string.IsNullOrEmpty(flow.InputElementSymbol))
+            if (flow.IsEstimate)
+                continue;
+            if (flow.ProcessStatus is "Transformed" or "Processing")
                 set.Add(flow.MachineId);
         }
+
         foreach (var sea in SeaportPortFlows)
         {
-            if (!string.IsNullOrEmpty(sea.ElementSymbol))
+            if (!sea.IsEstimate && !string.IsNullOrEmpty(sea.ElementSymbol))
                 set.Add(sea.MachineId);
         }
+
         return set;
     }
 
@@ -568,7 +605,7 @@
         else if (IsFactoryRunning)
             lines.Add("Kör — väntar på material");
         else
-            lines.Add(GetStoppedSettingsSummary(m));
+            lines.Add(GetStoppedSettingsSummary(m, _elementById));
 
         foreach (var flow in MachinePortFlows.Where(f => f.MachineId == m.Id))
         {
@@ -584,7 +621,9 @@
         return string.Join("\n", lines.Distinct());
     }
 
-    private static string GetStoppedSettingsSummary(MachineDto m)
+    private static string GetStoppedSettingsSummary(
+        MachineDto m,
+        IReadOnlyDictionary<int, ElementContentItem> elementById)
     {
         var fields = MachineSettingsUi.GetFields(m.Type);
         if (fields.Count == 0)
@@ -601,7 +640,9 @@
                     "port1" or "port2" or "port3" => PlanMachineSettings.GetSorterPortElement(m, field.JsonKey),
                     _ => 0
                 };
-                parts.Add(id > 0 ? $"{field.Label}: id {id}" : $"{field.Label}: (ingenting)");
+                parts.Add(id > 0
+                    ? $"{field.Label}: {FormatElementLabel(id, elementById)}"
+                    : $"{field.Label}: (ingenting)");
             }
             else
             {
@@ -614,6 +655,13 @@
             }
         }
         return string.Join(" · ", parts);
+    }
+
+    private static string FormatElementLabel(int elementId, IReadOnlyDictionary<int, ElementContentItem> elementById)
+    {
+        if (elementById.TryGetValue(elementId, out var el))
+            return $"{el.Symbol} — {el.Name}";
+        return $"id {elementId}";
     }
 
     private static string BuildPhaseHint(MachinePortFlowDto flow)
@@ -729,6 +777,13 @@
         !string.IsNullOrEmpty(SelectedMachineId)
         && SelectedMachineId.Equals(machineId, StringComparison.Ordinal);
 
+    private Task OnMachineClick(string machineId)
+    {
+        if (ReadOnly)
+            return Task.CompletedTask;
+        return SelectedMachineIdChanged.InvokeAsync(machineId);
+    }
+
     private async Task OnMachineMouseDown(MouseEventArgs e, string machineId)
     {
         if (ReadOnly || e.Button != 0)
@@ -739,6 +794,7 @@
         _pendingOut = null;
         _dragMachineId = null;
         _machineDragMoved = false;
+        _suppressBackgroundClearUntilUtc = DateTime.UtcNow.AddMilliseconds(400);
         await SelectedMachineIdChanged.InvokeAsync(machineId);
         _pendingMachineDragId = machineId;
         _machineDragStartClientX = e.ClientX;
@@ -760,6 +816,9 @@
 
     private async Task OnCanvasBackgroundClick()
     {
+        if (DateTime.UtcNow < _suppressBackgroundClearUntilUtc)
+            return;
+
         _pendingOut = null;
         _dragPipeFrom = null;
         _dragCursor = null;

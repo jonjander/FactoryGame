@@ -17,6 +17,7 @@ var apiBaseUri = ApiEndpointResolver.Resolve(builder.Configuration, builder.Host
 
 builder.Services.AddSingleton(new ApiEndpointInfo(apiBaseUri));
 builder.Services.AddSingleton<BrowserStorage>();
+builder.Services.AddSingleton<BoardIssueMuteStore>();
 builder.Services.AddSingleton<TokenStore>();
 builder.Services.AddSingleton<AdminTokenStore>();
 builder.Services.AddSingleton<WalletState>();

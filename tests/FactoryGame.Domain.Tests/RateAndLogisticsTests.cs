@@ -170,12 +170,12 @@ public sealed class RateAndLogisticsTests
 
 internal static class TickHelper
 {
-    public static BoardTickResult Run(SimulationPlan plan, BoardLineState state, int ticks)
+    public static BoardTickResult Run(SimulationPlan plan, BoardLineState state, int ticks, ISeaportPoolSink? pool = null)
     {
         BoardTickResult? last = null;
         for (long t = 1; t <= ticks; t++)
         {
-            last = BoardTickEngine.Advance(plan, state, t, 1m, null);
+            last = BoardTickEngine.Advance(plan, state, t, 1m, pool);
             state = last.State;
         }
         return last!;

@@ -106,12 +106,17 @@ public static class BoardInfoAnalyzer
             outUps = outOfFactory.Sum(f => f.UnitsPerSecond);
         }
 
+        if (request.IsRunning && intoUps + outUps < 0.001)
+            intoUps = EstimateInternalLoopThroughput(machines, tickSec);
+
         var totalUps = intoUps + outUps;
         var valuePerSec = EstimateValuePerSecond(intoUps, outUps, request.ElementPrices, machines, isEstimate);
         var assetValue = EstimateInstalledAssetValue(machines);
 
-        var throughputNote = request.IsRunning && request.LastSeaportDelta != null
+        var throughputNote = request.IsRunning && request.LastSeaportDelta != null && intoFactory.Sum(f => f.UnitsPerSecond) + outOfFactory.Sum(f => f.UnitsPerSecond) >= 0.001
             ? "Mätt från senaste simuleringstick."
+            : request.IsRunning && intoUps > 0 && (request.LastSeaportDelta == null || intoFactory.Count == 0)
+                ? "Intern slinga — uppskattad maskinhastighet (ingen seaport-rörelse senaste tick)."
             : isEstimate
                 ? "Uppskattning från plan (fabriken kör inte)."
                 : "Baserat på planstruktur och maskinspecifika flödesrater.";
@@ -152,6 +157,19 @@ public static class BoardInfoAnalyzer
         var settings = machine.Settings?.GetRawText();
         var permille = MachineRateCatalog.GetEffectiveRatePermille(machine.Type, settings);
         return BaselineUnitsPerTick * permille / 1000.0 / tickSec;
+    }
+
+    /// <summary>When seaport delta is zero but the factory runs, show non-zero throughput from machine rates.</summary>
+    private static double EstimateInternalLoopThroughput(IReadOnlyList<MachineInfo> machines, double tickSec)
+    {
+        if (machines.Count == 0)
+            return 0;
+
+        return machines
+            .Where(m => !IsSeaportOnlyType(m.Type))
+            .Select(m => MachineEffectiveUnitRate(m, tickSec))
+            .DefaultIfEmpty(0)
+            .Min();
     }
 
     private static SimulationPlan ToSimulationPlan(

@@ -9,7 +9,7 @@ public sealed class AppVersionMonitor : IDisposable
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
 
-    private readonly HttpClient _http;
+    private readonly IHttpClientFactory _httpFactory;
     private readonly bool _enabled;
     private CancellationTokenSource? _cts;
 
@@ -21,9 +21,9 @@ public sealed class AppVersionMonitor : IDisposable
 
     public event Action? Changed;
 
-    public AppVersionMonitor(HttpClient http, IWebAssemblyHostEnvironment env)
+    public AppVersionMonitor(IHttpClientFactory httpFactory, IWebAssemblyHostEnvironment env)
     {
-        _http = http;
+        _httpFactory = httpFactory;
         _enabled = !env.IsDevelopment();
     }
 
@@ -50,7 +50,7 @@ public sealed class AppVersionMonitor : IDisposable
     {
         try
         {
-            var dto = await _http.GetFromJsonAsync<AppVersionDto>("v1/app/version", ct);
+            var dto = await _httpFactory.CreateClient("api").GetFromJsonAsync<AppVersionDto>("v1/app/version", ct);
             if (dto?.Version is not { Length: > 0 } version)
                 return;
 

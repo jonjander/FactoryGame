@@ -93,6 +93,12 @@ else if (_overview is not null)
                 </tbody>
             </table>
         </div>
+        @if (GetGroups().Any(g => g.Variants.Count > 1))
+        {
+            <p class="muted pool-variant-hint">
+                Samma grundämne kan ha flera rader (olika DNA/fas). Processat material — t.ex. kristalliserat fast E03 — hamnar som egen variant, inte i startvätskans rad.
+            </p>
+        }
     </div>
 }
 
