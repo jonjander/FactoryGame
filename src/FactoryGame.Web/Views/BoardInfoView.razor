@@ -1,0 +1,27 @@
+@using FactoryGame.Web.Components
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<div class="fg-window-panel">
+    @if (Session.BoardInfo != null)
+    {
+        <BoardInfoPanel Info="Session.BoardInfo"
+                        VisibleIssues="Session.GetVisibleBoardIssues()"
+                        MutedIssueKeys="Session.MutedIssueKeys"
+                        OnToggleIssueMute="Session.ToggleIssueMuteAsync" />
+    }
+    else
+    {
+        <p class="muted">Välj en spelplan för att se fabrikinformation.</p>
+    }
+    <div class="fg-toolbar" style="margin-top:0.75rem">
+        <button type="button" class="secondary" @onclick="Session.ReloadPlanUiAsync" disabled="@Session.Busy">Läs om plan</button>
+        <button type="button" class="secondary" @onclick="Session.RefreshBoardInfoAsync" disabled="@Session.Busy">Uppdatera info</button>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

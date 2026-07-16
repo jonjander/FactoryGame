@@ -29,6 +29,34 @@
         <a class="dismiss">🗙</a>
     </div>
     <script>
+        (function () {
+            var uiPorts = { '7048': 1, '5130': 1 };
+            var apiBase = uiPorts[window.location.port] ? 'https://localhost:7145' : '';
+            function postClientLog(level, message, source) {
+                try {
+                    fetch((apiBase || '') + '/diagnostics/client-log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            level: level,
+                            message: message,
+                            ts: new Date().toISOString(),
+                            url: location.href,
+                            source: source || 'browser'
+                        })
+                    }).catch(function () { });
+                } catch (e) { }
+            }
+            window.addEventListener('error', function (ev) {
+                postClientLog('Error', (ev.message || 'script error') + ' @ ' + (ev.filename || '') + ':' + (ev.lineno || 0), 'window.onerror');
+            });
+            window.addEventListener('unhandledrejection', function (ev) {
+                var reason = ev.reason;
+                var text = reason && reason.stack ? reason.stack : String(reason);
+                postClientLog('Error', 'Unhandled rejection: ' + text, 'unhandledrejection');
+            });
+            window.factoryGameClientLog = postClientLog;
+        })();
         window.factoryGame = {
             storageGet: (k) => localStorage.getItem(k),
             storageSet: (k, v) => localStorage.setItem(k, v),

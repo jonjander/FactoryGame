@@ -20,7 +20,6 @@ public static class MarketEndpoints
                 HttpContext http,
                 PlayerPoolBootstrapService poolBootstrap,
                 IServiceScopeFactory scopeFactory,
-                IOptions<MarketLiquidityOptions> liquidityOptions,
                 MarketQueryService query,
                 CancellationToken ct) =>
             {
@@ -29,9 +28,8 @@ public static class MarketEndpoints
 
                 await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
 
-                if (liquidityOptions.Value.RefreshOnSummaryRequest)
+                await using (var scope = scopeFactory.CreateAsyncScope())
                 {
-                    await using var scope = scopeFactory.CreateAsyncScope();
                     var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
                     await liquidity.EnsureLiquidityForPlayerPoolAsync(playerId, ct);
                 }

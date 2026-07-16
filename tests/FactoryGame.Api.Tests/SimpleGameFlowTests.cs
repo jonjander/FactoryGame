@@ -33,16 +33,11 @@ public sealed class SimpleGameFlowTests : IAsyncLifetime
 
     public Task InitializeAsync()
     {
-        var dbName = "FactoryGameSimpleFlow_" + Guid.NewGuid().ToString("N");
-        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        _factory = TestWebHostBuilderExtensions.CreateFactoryGameTestFactory(b =>
         {
-            b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
             b.UseSetting("GameEconomy:SimulationTickIntervalSeconds", "1");
             b.UseSetting("GameEconomy:SimulationMaxCatchUpTicks", "8");
-            b.UseSetting("MarketLiquidity:BackgroundRefreshEnabled", "false");
             b.UseSetting("MarketLiquidity:RefreshOnSummaryRequest", "true");
-            b.UseSetting("MarketLiquidity:ElementRefreshCooldownMinutes", "0");
-            b.UseSetting("Admin:BootstrapToken", "test-bootstrap");
             b.ConfigureServices(services =>
             {
                 var hosted = services.Where(d =>

@@ -101,6 +101,61 @@ public sealed class BoardInfoAnalyzerTests
         Assert.Contains(report.Issues, i => i.Code == "pool_empty" && i.MachineId == "sea1");
     }
 
+    [Fact]
+    public void Analyze_running_with_empty_seaport_delta_uses_flow_list_throughput()
+    {
+        var machines = new[]
+        {
+            new MachineInfo("seaportconnector1", "SeaportConnector", null),
+            new MachineInfo("boiler1", "Boiler", null)
+        };
+        var connections = new[]
+        {
+            new ConnectionInfo("seaportconnector1", "out", "boiler1", "in"),
+            new ConnectionInfo("boiler1", "out", "seaportconnector1", "in")
+        };
+
+        var delta = new SeaportTickDelta();
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines,
+            connections,
+            IsRunning: true,
+            TickIntervalSeconds: 2,
+            LastSeaportDelta: delta));
+
+        Assert.True(report.TotalUnitsPerSecond > 0, "flow rows should yield non-zero throughput when delta is empty");
+    }
+
+    [Fact]
+    public void Analyze_running_with_seaport_delta_and_flow_rows_keeps_positive_throughput()
+    {
+        var machines = new[]
+        {
+            new MachineInfo("seaportconnector1", "SeaportConnector", null),
+            new MachineInfo("boiler1", "Boiler", null)
+        };
+        var connections = new[]
+        {
+            new ConnectionInfo("seaportconnector1", "out", "boiler1", "in"),
+            new ConnectionInfo("boiler1", "out", "seaportconnector1", "in")
+        };
+
+        var delta = new SeaportTickDelta();
+        delta.AddWithdraw(3, 1m);
+        delta.AddDeposit(3, 1m);
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines,
+            connections,
+            IsRunning: true,
+            TickIntervalSeconds: 2,
+            LastSeaportDelta: delta));
+
+        Assert.True(report.TotalUnitsPerSecond > 0);
+        Assert.True(report.IntoFactory.Count > 0);
+        Assert.True(report.OutOfFactory.Count > 0);
+    }
+
     private static int? ElementCatalogElementIdForDna(long dna)
     {
         foreach (var e in FactoryGame.Domain.Content.ElementCatalog.All)

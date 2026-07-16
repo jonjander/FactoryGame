@@ -1,0 +1,143 @@
+@using System.Net.Http.Json
+@using FactoryGame.Contracts.Market
+@inject HttpClient Http
+@inject TokenStore Tokens
+
+<PageTitle>Marknad</PageTitle>
+
+<div class="panel">
+    <h2>Marknadsanalys</h2>
+    <p class="muted">Topplistor och hetaste marknaderna — sponsrade företag syns med namn och logga.</p>
+</div>
+
+@if (_error is { } err)
+{
+    <div class="panel"><p class="error">@err</p></div>
+}
+
+@if (_boards is null && !_busy)
+{
+    <div class="panel"><p class="muted">Laddar…</p></div>
+}
+else if (_boards is { } boards)
+{
+    <div class="market-layout">
+        <section class="panel">
+            <h3>Big spenders — spelare</h3>
+            @RenderLeaderboard(boards.BigSpendersPlayers, spend: true)
+        </section>
+        <section class="panel">
+            <h3>Big spenders — företag</h3>
+            @RenderLeaderboard(boards.BigSpendersSponsors, spend: true, sponsors: true)
+        </section>
+        <section class="panel">
+            <h3>Högst volym — spelare</h3>
+            @RenderLeaderboard(boards.TopVolumePlayers, spend: false)
+        </section>
+        <section class="panel">
+            <h3>Högst volym — företag</h3>
+            @RenderLeaderboard(boards.TopVolumeSponsors, spend: false, sponsors: true)
+        </section>
+        <section class="panel">
+            <h3>Mest aktiva — spelare</h3>
+            @RenderLeaderboard(boards.MostActivePlayers, spend: false, countFocus: true)
+        </section>
+        <section class="panel">
+            <h3>Mest aktiva — företag</h3>
+            @RenderLeaderboard(boards.MostActiveSponsors, spend: false, sponsors: true, countFocus: true)
+        </section>
+    </div>
+}
+
+@if (_insights?.SellOpportunities.Count > 0)
+{
+    <div class="panel">
+        <h3>Hetaste marknaderna (företag köper)</h3>
+        <table class="exchange-trades-table">
+            <thead><tr><th>Företag</th><th>Variant</th><th>Pris</th><th>Volym</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var i in _insights.SellOpportunities.Take(15))
+                {
+                    <tr>
+                        <td>
+                            @if (!string.IsNullOrEmpty(i.LogoUrl))
+                            {
+                                <img src="@i.LogoUrl" alt="" class="sponsor-logo-thumb" />
+                            }
+                            @i.CompanyName
+                        </td>
+                        <td><span class="fg-element-badge">@i.Symbol</span> @i.PhaseLabel</td>
+                        <td>@i.LimitPrice.ToString("0.##")</td>
+                        <td>@i.OpenQuantity</td>
+                        <td><a href="/exchange">Handla</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private bool _busy = true;
+    private string? _error;
+    private MarketLeaderboardsDto? _boards;
+    private MarketInsightsResponse? _insights;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _boards = await Http.GetFromJsonAsync<MarketLeaderboardsDto>("/v1/market/leaderboards");
+            if (!string.IsNullOrEmpty(Tokens.BearerToken))
+                _insights = await Http.GetFromJsonAsync<MarketInsightsResponse>("/v1/market/insights");
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private RenderFragment RenderLeaderboard(
+        IReadOnlyList<LeaderboardEntryDto> entries,
+        bool spend,
+        bool sponsors = false,
+        bool countFocus = false) => __builder =>
+    {
+        if (entries.Count == 0)
+        {
+            __builder.AddContent(0, "Ingen data ännu.");
+            return;
+        }
+        __builder.OpenElement(1, "ol");
+        __builder.AddAttribute(2, "class", "market-leaderboard");
+        foreach (var e in entries)
+        {
+            __builder.OpenElement(3, "li");
+            if (sponsors && !string.IsNullOrEmpty(e.LogoUrl))
+            {
+                __builder.OpenElement(4, "img");
+                __builder.AddAttribute(5, "src", e.LogoUrl);
+                __builder.AddAttribute(6, "class", "sponsor-logo-thumb");
+                __builder.AddAttribute(7, "alt", "");
+                __builder.CloseElement();
+            }
+            __builder.AddContent(8, $"#{e.Rank} {e.Label} — ");
+            if (countFocus)
+                __builder.AddContent(9, $"{e.TradeCount} avslut");
+            else if (spend)
+                __builder.AddContent(10, $"{e.TotalSpend:0.##} spenderat");
+            else
+                __builder.AddContent(11, $"{e.TotalVolume} st");
+            __builder.CloseElement();
+        }
+        __builder.CloseElement();
+    };
+}

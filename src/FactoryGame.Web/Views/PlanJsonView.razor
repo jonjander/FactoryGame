@@ -1,0 +1,22 @@
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<div class="fg-window-panel">
+    <h4>Plan (JSON)</h4>
+    <textarea class="fg-json" rows="16" @bind="Session.PlanJson" @bind:event="oninput"></textarea>
+    @if (!string.IsNullOrEmpty(Session.SaveHint))
+    {
+        <p class="muted">@Session.SaveHint</p>
+    }
+    @if (!string.IsNullOrEmpty(Session.Snapshot))
+    {
+        <h4>Snapshot</h4>
+        <pre class="fg-snapshot">@Session.Snapshot</pre>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

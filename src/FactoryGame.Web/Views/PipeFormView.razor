@@ -1,0 +1,57 @@
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<div class="fg-window-panel">
+    <h4>Koppla rör</h4>
+    <div class="fg-pipe-grid">
+        <div>
+            <label>Från maskin</label>
+            <select class="fg-select" @bind="Session.PipeFromId" @bind:after="Session.OnPipeEndpointChanged">
+                <option value="">— Välj —</option>
+                @foreach (var m in Session.GetPlanMachines())
+                {
+                    <option value="@m.Id">@m.Id (@m.Type)</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label>Från utgång</label>
+            <select class="fg-select" @bind="Session.PipeFromPort" @bind:after="Session.OnPipeEndpointChanged">
+                <option value="">— Välj —</option>
+                @foreach (var p in Session.GetOutputPortChoices(Session.PipeFromId))
+                {
+                    <option value="@p.Name">@p.Label</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label>Till maskin</label>
+            <select class="fg-select" @bind="Session.PipeToId" @bind:after="Session.OnPipeEndpointChanged">
+                <option value="">— Välj —</option>
+                @foreach (var m in Session.GetPlanMachines())
+                {
+                    <option value="@m.Id">@m.Id (@m.Type)</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label>Till ingång</label>
+            <select class="fg-select" @bind="Session.PipeToPort" @bind:after="Session.OnPipeEndpointChanged">
+                <option value="">— Välj —</option>
+                @foreach (var p in Session.GetInputPortChoices(Session.PipeToId))
+                {
+                    <option value="@p.Name">@p.Label</option>
+                }
+            </select>
+        </div>
+        <div class="fg-pipe-actions">
+            <button type="button" class="secondary" @onclick="Session.AddPipeToPlanAsync" disabled="@Session.Busy">Lägg rör</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

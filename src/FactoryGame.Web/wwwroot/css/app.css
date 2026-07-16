@@ -2623,3 +2623,258 @@ button.danger-outline:hover:not(:disabled) {
     max-width: 42rem;
     line-height: 1.5;
 }
+
+/* --- Desktop game shell (min-width 900px) --- */
+
+.game-shell {
+    height: 100vh;
+    overflow: hidden;
+    background: #0a0e14;
+}
+
+.game-shell .fg-game-toolbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.65rem;
+    background: linear-gradient(180deg, #2d333b 0%, #22272e 100%);
+    border-bottom: 2px solid #1c2128;
+    box-shadow: 0 2px 0 #484f58 inset, 0 3px 8px rgba(0, 0, 0, 0.35);
+    min-height: 44px;
+    z-index: 50;
+}
+
+.fg-game-brand {
+    font-weight: 700;
+    color: #e6edf3;
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    white-space: nowrap;
+}
+
+.fg-game-toolbar-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.fg-game-btn {
+    appearance: none;
+    border: 1px solid #484f58;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #373e47 0%, #2d333b 100%);
+    color: #e6edf3;
+    font-size: 0.78rem;
+    padding: 0.28rem 0.55rem;
+    cursor: pointer;
+    box-shadow: 0 1px 0 #6e7681 inset, 0 1px 2px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+}
+
+.fg-game-btn:hover {
+    background: linear-gradient(180deg, #444c56 0%, #373e47 100%);
+}
+
+.fg-game-btn:active,
+.fg-game-btn.fg-game-btn-active {
+    background: #21262d;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) inset;
+    border-color: #30363d;
+}
+
+.fg-game-btn-sim {
+    font-weight: 600;
+}
+
+.fg-game-toolbar-divider {
+    width: 1px;
+    height: 1.4rem;
+    background: #484f58;
+    margin: 0 0.15rem;
+}
+
+.fg-game-session {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    font-size: 0.82rem;
+}
+
+.fg-game-version {
+    font-size: 0.72rem;
+}
+
+.fg-base-income-hint {
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.game-shell-main {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.game-shell-canvas-area {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #0d1117;
+    background-image:
+        linear-gradient(rgba(48, 54, 61, 0.35) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(48, 54, 61, 0.35) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+
+.game-shell-status {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.82rem;
+    background: rgba(22, 27, 34, 0.85);
+    border-bottom: 1px solid #30363d;
+}
+
+.game-shell-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.game-shell-hidden-body {
+    display: none !important;
+}
+
+.game-shell-update {
+    flex-shrink: 0;
+    z-index: 60;
+}
+
+.fg-factory-canvas-fill.fg-factory-canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    overflow: hidden;
+}
+
+.fg-factory-canvas-fill.fg-factory-canvas {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    height: 100%;
+}
+
+.fg-floating-window {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+    min-height: 200px;
+    border: 1px solid #484f58;
+    border-radius: 6px 6px 4px 4px;
+    background: #161b22;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    overflow: hidden;
+}
+
+.fg-floating-window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+    background: linear-gradient(180deg, #2d333b 0%, #22272e 100%);
+    border-bottom: 1px solid #30363d;
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+}
+
+.fg-floating-window-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #e6edf3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fg-floating-window-controls {
+    display: flex;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.fg-window-btn {
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0;
+    line-height: 1;
+    font-size: 0.9rem;
+    border: 1px solid #484f58;
+    border-radius: 3px;
+    background: #373e47;
+    color: #e6edf3;
+    cursor: pointer;
+}
+
+.fg-floating-window-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.65rem 0.75rem;
+}
+
+.fg-floating-window-resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    touch-action: none;
+    background: linear-gradient(135deg, transparent 50%, #484f58 50%);
+}
+
+.fg-window-panel .panel,
+.fg-window-panel.panel {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.fg-window-panel h2,
+.fg-window-panel h3,
+.fg-window-panel h4 {
+    margin-top: 0;
+}
+
+@media (max-width: 899px) {
+    .game-shell,
+    .fg-game-toolbar,
+    .fg-floating-window {
+        display: none !important;
+    }
+}
+

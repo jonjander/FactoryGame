@@ -25,6 +25,10 @@ builder.Services.AddSingleton<SnackbarService>();
 builder.Services.AddSingleton<AppVersionMonitor>();
 builder.Services.AddScoped<AuthMessageHandler>();
 builder.Services.AddSingleton<OfflineCommandQueue>();
+builder.Services.AddSingleton<ViewportLayoutService>();
+builder.Services.AddSingleton<GameWindowService>();
+builder.Services.AddSingleton<BoardCanvasSession>();
+builder.Services.AddSingleton<GameShellNavigation>();
 
 builder.Services.AddHttpClient("api", c => { c.BaseAddress = apiBaseUri; })
     .AddHttpMessageHandler<AuthMessageHandler>();

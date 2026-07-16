@@ -13,7 +13,9 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+// Local dev overrides (often SQL Server); skip for test host so WebApplicationFactory can use SQLite in-memory.
+if (!builder.Environment.IsEnvironment("Testing"))
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -24,6 +26,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 var logMaxLines = builder.Configuration.GetValue<int?>("Diagnostics:RecentLogMaxLines") ?? 4000;
 var logBuffer = new RecentLogBuffer(logMaxLines);
 builder.Services.AddSingleton(logBuffer);
+var clientLogMaxLines = builder.Configuration.GetValue<int?>("Diagnostics:ClientLogMaxLines") ?? 2000;
+builder.Services.AddSingleton(new ClientLogBuffer(clientLogMaxLines));
 var bufferedMinLevel = builder.Configuration.GetValue("Diagnostics:MinimumBufferedLogLevel", LogLevel.Information);
 builder.Logging.AddProvider(new RecentLogBufferLoggerProvider(logBuffer, bufferedMinLevel));
 

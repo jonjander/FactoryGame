@@ -5,7 +5,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="fg-factory-canvas-wrap">
+<div class="fg-factory-canvas-wrap @(FillViewport ? "fg-factory-canvas-fill" : "")">
     <ConfirmDialog Visible="_confirmRemoveVisible"
                    Message="@_confirmRemoveMessage"
                    ConfirmLabel="Ta bort"
@@ -13,7 +13,10 @@
                    OnCancel="CancelRemoveMachine" />
     @if (!ReadOnly)
     {
-        <p class="muted">Dra maskiner. Koppla rör: dra från utgång → ingång, eller klicka utgång → ingång. Klicka rör → «Ta bort rör». Papperskorg på maskin → ta bort.</p>
+        @if (!HideHelpText)
+        {
+            <p class="muted">Dra maskiner. Koppla rör: dra från utgång → ingång, eller klicka utgång → ingång. Klicka rör → «Ta bort rör». Papperskorg på maskin → ta bort.</p>
+        }
         @if (_selectedConnectionIndex is int sel && sel >= 0 && sel < Plan.Connections.Count)
         {
             var sc = Plan.Connections[sel];
@@ -24,13 +27,13 @@
             </div>
         }
     }
-    else
+    else if (!HideHelpText)
     {
         <p class="muted fg-factory-running-banner">Planen körs — endast visning. Stoppa fabriken för att redigera.</p>
     }
     <svg @ref="_svgRef"
          xmlns="http://www.w3.org/2000/svg"
-         class="fg-factory-canvas"
+         class="fg-factory-canvas @(FillViewport ? "fg-factory-canvas-fill" : "")"
          viewBox="@_viewBox"
          @onclick="OnCanvasBackgroundClick">
         <defs>
@@ -240,6 +243,12 @@
 
     [Parameter]
     public IReadOnlyList<ElementContentItem> ElementCatalog { get; set; } = Array.Empty<ElementContentItem>();
+
+    [Parameter]
+    public bool FillViewport { get; set; }
+
+    [Parameter]
+    public bool HideHelpText { get; set; }
 
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<int, ElementContentItem> _elementById = new();

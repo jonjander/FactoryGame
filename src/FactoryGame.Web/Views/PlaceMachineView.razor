@@ -1,0 +1,29 @@
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<div class="fg-window-panel">
+    <h4>Placera från lager</h4>
+    <div class="fg-row">
+        <div>
+            <label>Lagerpost</label>
+            <select class="fg-select" @bind="Session.PlaceStockId" @bind:after="Session.OnPlaceStockChanged">
+                <option value="">— Välj —</option>
+                @foreach (var row in Session.Inventory)
+                {
+                    <option value="@row.Id">@row.MachineType (@DisplayIds.ShortGuid(row.Id))</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label>Nytt maskin-id på planen</label>
+            <input @bind="Session.PlaceMachineId" placeholder="t.ex. boiler1" />
+        </div>
+        <button type="button" @onclick="Session.PlaceFromStockAsync" disabled="@Session.Busy">Placera</button>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

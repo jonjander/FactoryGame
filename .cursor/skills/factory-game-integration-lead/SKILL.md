@@ -22,7 +22,7 @@ Du äger **gränssnittet** mellan komponenter — inte en enskild domän i isola
 | Simulering | `factory-game-simulation` | `factory-game-server-sim` | `src/FactoryGame.Domain/Simulation/` |
 | Börs & pool | `factory-game-market` | `factory-game-bors-seaport` | `Exchange*`, `*Pool*`, `Market*` |
 | API-plattform | `factory-game-api-platform` | `factory-game-api-platform` | `Api/`, `Infrastructure/`, `Contracts/` |
-| Webklient | `factory-game-web-client` | `factory-game-web-klient` | `src/FactoryGame.Web/` |
+| Webklient | `factory-game-web-client` | `factory-game-web-klient`, `factory-game-game-shell` | `src/FactoryGame.Web/` |
 | xUnit | `factory-game-tester` | `factory-game-tester` | `tests/` |
 | MCP/Azure | `factory-game-playtester` | `factory-game-mcp-*`, `factory-game-azure-test` | `tools/factorygame-mcp/` |
 

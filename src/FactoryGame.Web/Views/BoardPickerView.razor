@@ -1,0 +1,71 @@
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<div class="fg-window-panel">
+    <h3>Spelplaner</h3>
+    <div class="fg-toolbar">
+        <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">Lista</button>
+        <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">Ny plan</button>
+    </div>
+    @if (!string.IsNullOrEmpty(Session.Error))
+    {
+        <p class="error">@Session.Error</p>
+    }
+    <ul class="fg-board-tiles">
+        @foreach (var b in Session.Boards)
+        {
+            var selected = Session.Selected == b.Id;
+            <li class="fg-board-tile @GetBoardTileCss(b) @(selected ? "fg-board-tile-selected" : "")">
+                <button type="button"
+                        class="fg-board-tile-main"
+                        @onclick="async () => await Session.SelectBoardAsync(b.Id)"
+                        aria-pressed="@selected">
+                    <span class="fg-board-tile-head">
+                        <span class="fg-board-tile-status-dot" title="@Session.GetDisplayStatusHint(b)"></span>
+                        <span class="fg-board-tile-name">@b.Name</span>
+                        <span class="fg-status-pill @GetBoardStatusPillCss(b)">@GetBoardStatusLabel(b)</span>
+                    </span>
+                    <span class="fg-board-tile-meta muted">
+                        @b.PlanMachineCount maskin@(b.PlanMachineCount == 1 ? "" : "er")
+                        · @b.PlanConnectionCount rör
+                    </span>
+                </button>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private string GetBoardTileCss(FactoryGame.Contracts.Boards.BoardSummaryDto board) =>
+        Session.GetEffectiveBoardHealth(board) switch
+        {
+            "running" => "fg-board-tile-running",
+            "error" => "fg-board-tile-error",
+            "warning" => "fg-board-tile-warning",
+            _ => "fg-board-tile-stopped"
+        };
+
+    private string GetBoardStatusPillCss(FactoryGame.Contracts.Boards.BoardSummaryDto board) =>
+        Session.GetEffectiveBoardHealth(board) switch
+        {
+            "running" => "fg-status-running",
+            "error" => "fg-status-error",
+            "warning" => "fg-status-warning",
+            _ => "fg-status-stopped"
+        };
+
+    private string GetBoardStatusLabel(FactoryGame.Contracts.Boards.BoardSummaryDto board) =>
+        Session.GetEffectiveBoardHealth(board) switch
+        {
+            "running" => "Kör",
+            "error" => "Fel",
+            "warning" => "Varning",
+            _ => "Stoppad"
+        };
+}

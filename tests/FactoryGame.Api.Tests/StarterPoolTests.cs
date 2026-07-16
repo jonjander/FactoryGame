@@ -39,6 +39,30 @@ public sealed class StarterPoolTests : IClassFixture<ApiWebApplicationFixture>
         Assert.Equal(5, stacks.Count);
         Assert.Equal([1, 2, 3, 4, 5], stacks.Select(s => s.ElementId).ToArray());
         Assert.All(stacks, s => Assert.Equal(25, s.Quantity));
+
+        var starterTxn = await db.EconomyTransactions.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.PlayerId == body.PlayerId && t.Type == "StarterPool");
+        Assert.NotNull(starterTxn);
+        Assert.Equal("1,2,3,4,5", starterTxn.Metadata);
+    }
+
+    [Fact]
+    public async Task Market_summary_includes_best_ask_for_starter_holdings()
+    {
+        var client = _fixture.Factory.CreateClient();
+        var auth = await client.PostAsJsonAsync("/v1/auth/guest",
+            new GuestAuthRequest("summary-ask-" + Guid.NewGuid().ToString("N")));
+        auth.EnsureSuccessStatusCode();
+        var body = await auth.Content.ReadFromJsonAsync<GuestAuthResponse>();
+        Assert.NotNull(body);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
+
+        var summaryRes = await client.GetAsync("/v1/market/summary");
+        summaryRes.EnsureSuccessStatusCode();
+        var summary = await summaryRes.Content.ReadFromJsonAsync<List<FactoryGame.Contracts.Market.MarketElementSummaryDto>>();
+        Assert.NotNull(summary);
+        Assert.NotEmpty(summary);
+        Assert.Contains(summary, row => row.PoolQuantity > 0 && row.BestAsk is > 0);
     }
 
     [Fact]

@@ -1,0 +1,40 @@
+@using FactoryGame.Web.Components
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<div class="fg-window-panel">
+    @if (Session.GetPlanMachines().Count == 0)
+    {
+        <p class="muted">Inga maskiner på planen.</p>
+    }
+    else
+    {
+        <h4>Maskininställningar</h4>
+        <label for="fg-settings-machine-pick-win">Maskin</label>
+        <select id="fg-settings-machine-pick-win"
+                class="fg-select fg-settings-machine-pick"
+                disabled="@(Session.Busy || Session.IsSelectedBoardRunning())"
+                @bind="Session.SettingsMachineId">
+            <option value="">— Välj —</option>
+            @foreach (var m in Session.GetPlanMachines())
+            {
+                <option value="@m.Id">@m.Id (@m.Type)</option>
+            }
+        </select>
+        <MachineSettingsPanel Machine="@Session.GetSettingsMachine()"
+                              Disabled="@(Session.Busy || Session.IsSelectedBoardRunning())"
+                              Elements="Session.Elements"
+                              OwnedPoolElementIds="Session.OwnedPoolElementIds"
+                              PoolVariants="Session.OwnedPoolVariants"
+                              PlanMachines="@Session.GetPlanMachines()"
+                              PlanConnections="@Session.GetPlanConnections()"
+                              MachineMeta="Session.MachineMeta"
+                              MachineChanged="Session.OnMachineSettingsChangedAsync" />
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

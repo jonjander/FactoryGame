@@ -2,6 +2,15 @@
 
 Kortfattad lista över vad som ingår i varje levererad version. Git-commit för en release har **endast** semver som meddelande (samma värde som `Version` i `Directory.Build.props`); git-tag är `v{Version}`.
 
+## 0.3.3
+
+- **Playtest-fixar:** `minimalLoop` använder E03 (vätska) + Boiler; playtest assertar produktion utan fel.
+- **Fabrikanalys:** genomströmning följer flödesrader när senaste tick saknar seaport-delta.
+- **Börs:** summary seedar alltid pool-likviditet; hint när sälj-ask saknas; onboarding om fas-krav.
+- **Ekonomi:** wallet visar basinkomst-countdown; StarterPool-metadata utan dubbletter.
+- **Konto:** svenska typer för Startpaket/Startkapital; paginerat transaktions-API testat.
+- **Fabrik (Game Shell):** brädlista prefetchar issues för varning/fel så tystade hints fungerar i listan.
+
 ## 0.3.2
 
 - **Admin:** `GET /v1/admin/players` sorterar i databasen via indexerat `CreatedAtUtcTicks` (ingen in-memory-sortering).

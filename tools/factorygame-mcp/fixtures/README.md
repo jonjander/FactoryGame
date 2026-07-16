@@ -4,7 +4,7 @@ Reference board plans for MCP playtests. Source: `tests/FactoryGame.Api.Tests/`.
 
 | Key | Machines | Notes |
 |-----|----------|-------|
-| `minimalLoop` | SeaportConnector, Boiler | Starter elements only; good for E2E smoke |
+| `minimalLoop` | SeaportConnector, Boiler | E03 (liquid) from starter pool; good for E2E smoke |
 | `liquidSeparatorFlow` | SeaportConnector, LiquidSeparator | Needs `outElementId` + often market buy |
 
 ## Port names (from `MachinePortCatalog`)

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/local-playtest-log/session-start.ps1"
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/local-playtest-log/after-shell.ps1",
+        "matcher": "dotnet|npm|curl|Invoke-WebRequest|iwr "
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/local-playtest-log/post-tool.ps1"
+      }
+    ],
+    "stop": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/local-playtest-log/session-stop.ps1",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

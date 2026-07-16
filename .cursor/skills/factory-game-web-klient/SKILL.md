@@ -2,14 +2,21 @@
 name: factory-game-web-klient
 description: >-
   Builds and reviews FactoryGame web client — PWA, offline edit + queued save,
-  merge on conflict, keyframe sync from server, client interpolation, exchange
-  offline state, drag-connect factory UI, embedded CLI mapping to same API as GUI,
-  responsive mobile layout (full client parity per F19).
-  Use for frontend architecture, service worker, or sync UX.
+  merge on conflict, keyframe sync, exchange offline state, FactoryCanvas,
+  desktop game shell (canvas + floating windows, 900px breakpoint) and mobile
+  MainLayout (F19 parity). Use for frontend architecture, service worker, sync UX,
+  or layout changes.
 disable-model-invocation: true
 ---
 
 # FactoryGame — webklient och synk
+
+## Layout: mobil vs desktop
+
+- **Mobil (`< 900px`):** `MainLayout` + sidnav; sidor i `Pages/*` renderar `Views/*`.
+- **Desktop (`≥ 900px`):** `GameShellLayout` — canvas fyller skärmen, toolbar + flytande fönster.
+
+Detaljerad shell-arkitektur: **`@factory-game-game-shell`** (`.cursor/skills/factory-game-game-shell/`).
 
 ## Synk
 
@@ -26,12 +33,15 @@ disable-model-invocation: true
 - Officiell klient använder samma öppna API som tredjepart.
 - OAuth för interaktiv användning; API-nycklar med scopes för skript/botar (serverstöd).
 
-## Mobil och layout
+## Mobil (F19)
 
-- Responsiv webklient: samma API och samma funktioner som desktop; på mobil **mindre dekor**, **tydligare menyer/submenyer** med beskrivande etiketter där det hjälper, touch-vänliga mål. Se **F19** i `KRAVSPEC.md`.
+- Responsiv webklient: samma API och funktioner som desktop.
+- På mobil: **mindre dekor**, **tydligare menyer**, touch-vänliga mål — **inte** game shell.
+- Ändra inte `MainLayout` / mobil-CSS när du bara jobbar med desktop shell.
 
 ## Checklista
 
 - [ ] Inga spelkritiska beslut enbart på klienten.
 - [ ] Tydliga felmeddelanden vid avvisade kommandon (valideringsorsak från server).
 - [ ] Mobil: paritet + navigering enligt F19 (ingen avkapad logik).
+- [ ] Desktop shell: innehåll i `Views/`, state i services (`BoardCanvasSession`), inte duplicerat i dold `@Body`.

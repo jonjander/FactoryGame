@@ -146,16 +146,9 @@ public sealed class SponsorCompanyMarketTests
 
     private static WebApplicationFactory<Program> CreateFactory()
     {
-        var dbName = "FactoryGameSponsorTest_" + Guid.NewGuid().ToString("N");
-        return new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        return TestWebHostBuilderExtensions.CreateFactoryGameTestFactory(b =>
         {
-            b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
-            b.UseSetting("GameEconomy:SimulationTickIntervalSeconds", "600");
             b.UseSetting("MarketLiquidity:Enabled", "false");
-            b.UseSetting("MarketLiquidity:BackgroundRefreshEnabled", "false");
-            b.UseSetting("MarketLiquidity:RefreshOnSummaryRequest", "false");
-            b.UseSetting("SponsorCompany:BackgroundRefreshEnabled", "false");
-            b.UseSetting("Admin:BootstrapToken", AdminToken);
         });
     }
 

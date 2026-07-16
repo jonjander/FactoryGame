@@ -1,0 +1,160 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@using FactoryGame.Contracts.Boards
+@inject TokenStore Tokens
+@inject WalletState Wallet
+@inject BoardCanvasSession Session
+@inject GameShellNavigation ShellNav
+@inject GameWindowService Windows
+@inject ViewportLayoutService Viewport
+@inject IJSRuntime Js
+@inject AppVersionMonitor AppVersion
+
+<div class="game-shell page">
+    <GameToolbar />
+
+    <div class="game-shell-main">
+        <div class="game-shell-canvas-area">
+            @if (Session.Selected != null && Session.TryDeserializePlan(out var canvasPlan))
+            {
+                @if (Session.BoardInfo != null)
+                {
+                    <div class="game-shell-status @GetBoardModeCss()">
+                        @if (Session.IsSelectedBoardRunning())
+                        {
+                            <span class="fg-status-pill fg-status-running">Kör</span>
+                            <span class="muted">@Session.GetSelectedBoardName()</span>
+                        }
+                        else
+                        {
+                            <span class="fg-status-pill fg-status-stopped">Stoppad</span>
+                            <span class="muted">@Session.GetSelectedBoardName()</span>
+                        }
+                    </div>
+                }
+
+                <ConfirmDialog Visible="Session.ConfirmVisible"
+                               Message="Session.ConfirmMessage"
+                               ConfirmLabel="Ja, byt koppling"
+                               OnConfirm="Session.OnConfirmDialogYesAsync"
+                               OnCancel="Session.OnConfirmDialogNoAsync" />
+
+                <FactoryCanvas @key="Session.Selected"
+                               Plan="canvasPlan"
+                               ElementCatalog="Session.Elements"
+                               ReadOnly="@Session.IsSelectedBoardRunning()"
+                               IsFactoryRunning="@Session.IsSelectedBoardRunning()"
+                               UnitsPerSecond="@Session.GetEstimatedUnitsPerSecond()"
+                               MachineMeta="Session.MachineMeta"
+                               LatestKeyframe="Session.LatestKeyframe"
+                               SeaportPortFlows="@(Session.BoardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
+                               MachinePortFlows="@(Session.BoardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
+                               BoardIssues="@Session.GetVisibleBoardIssues()"
+                               SelectedMachineId="@Session.SettingsMachineId"
+                               SelectedMachineIdChanged="Session.OnCanvasMachineSelectedAsync"
+                               PlanChanged="Session.OnCanvasPlanChangedAsync"
+                               ConnectionAdded="Session.OnCanvasConnectionAddedAsync"
+                               ConnectionRemoved="Session.OnCanvasConnectionRemovedAsync"
+                               MachineRemoved="Session.OnCanvasMachineRemovedAsync"
+                               LayoutCommitted="Session.OnCanvasLayoutCommittedAsync"
+                               FillViewport="true"
+                               HideHelpText="true" />
+            }
+            else
+            {
+                <div class="game-shell-empty">
+                    <p class="muted">Välj eller skapa en spelplan för att börja bygga.</p>
+                    <button type="button" @onclick='() => Windows.Open("boards-picker")'>Öppna spelplaner</button>
+                </div>
+            }
+        </div>
+
+        <FloatingWindowHost />
+    </div>
+
+    <main class="game-shell-hidden-body">@Body</main>
+
+    @if (AppVersion.UpdateAvailable)
+    {
+        <div class="app-update-banner game-shell-update" role="status">
+            <span>Ny version @AppVersion.ServerVersion finns.</span>
+            <button type="button" @onclick="HardReloadClientAsync" disabled="@_reloadBusy">
+                @(_reloadBusy ? "Uppdaterar…" : "Uppdatera")
+            </button>
+        </div>
+    }
+
+    <SnackbarHost />
+</div>
+
+@code {
+    private bool _reloadBusy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AppVersion.Changed += OnAppVersionChanged;
+        AppVersion.Start();
+        Session.Changed += OnSessionChanged;
+        Tokens.Changed += OnAuthChanged;
+        Wallet.Changed += OnWalletChanged;
+
+        await Tokens.LoadAsync();
+        await Wallet.RefreshAsync();
+
+        if (!Session.IsInitialized)
+        {
+            await Session.InitializeAsync();
+            await Session.TryRestoreLastBoardAsync();
+        }
+
+        ShellNav.EnsureRegistered();
+        ShellNav.SyncRouteToWindows();
+
+        if (string.IsNullOrEmpty(Tokens.BearerToken))
+            Windows.Open("login");
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnAppVersionChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnAuthChanged() => _ = OnAuthChangedAsync();
+
+    private async Task OnAuthChangedAsync()
+    {
+        await Wallet.RefreshAsync();
+        if (string.IsNullOrEmpty(Tokens.BearerToken))
+            Windows.Open("login");
+        else
+            Windows.Close("login");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnWalletChanged() => InvokeAsync(StateHasChanged);
+
+    private string GetBoardModeCss() =>
+        Session.IsSelectedBoardRunning() ? "fg-board-mode-running" : "fg-board-mode-stopped";
+
+    private async Task HardReloadClientAsync()
+    {
+        if (_reloadBusy)
+            return;
+        _reloadBusy = true;
+        try
+        {
+            await Js.InvokeVoidAsync("factoryGame.hardReloadClient");
+        }
+        catch (JSException)
+        {
+            _reloadBusy = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        AppVersion.Changed -= OnAppVersionChanged;
+        Session.Changed -= OnSessionChanged;
+        Tokens.Changed -= OnAuthChanged;
+        Wallet.Changed -= OnWalletChanged;
+    }
+}

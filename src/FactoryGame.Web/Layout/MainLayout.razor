@@ -24,6 +24,10 @@
             {
                 <span class="wallet" title="Kassa">@cash.ToString("0.##")</span>
             }
+            @if (!string.IsNullOrEmpty(Wallet.BaseIncomeHint))
+            {
+                <span class="muted fg-base-income-hint" title="Passiv basinkomst">@Wallet.BaseIncomeHint</span>
+            }
             @(string.IsNullOrEmpty(Tokens.BearerToken) ? "Ej inloggad" : "Inloggad")
             @if (!string.IsNullOrEmpty(Tokens.BearerToken))
             {

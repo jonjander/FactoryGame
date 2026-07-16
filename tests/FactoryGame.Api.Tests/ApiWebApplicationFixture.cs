@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace FactoryGame.Api.Tests;
 
 /// <summary>
-/// API host with SQLite in-memory (empty DefaultConnection), same as local default.
+/// API host with SQLite in-memory, same as local default (Testing env skips appsettings.Local.json).
 /// </summary>
 public sealed class ApiWebApplicationFixture : IAsyncLifetime
 {
@@ -11,17 +11,7 @@ public sealed class ApiWebApplicationFixture : IAsyncLifetime
 
     public Task InitializeAsync()
     {
-        var dbName = "FactoryGameTest_" + Guid.NewGuid().ToString("N");
-        Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-        {
-            b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
-            b.UseSetting("GameEconomy:SimulationTickIntervalSeconds", "600");
-            b.UseSetting("MarketLiquidity:BackgroundRefreshEnabled", "false");
-            b.UseSetting("MarketLiquidity:RefreshOnSummaryRequest", "false");
-            b.UseSetting("MarketLiquidity:ElementRefreshCooldownMinutes", "0");
-            b.UseSetting("SponsorCompany:BackgroundRefreshEnabled", "false");
-            b.UseSetting("Admin:BootstrapToken", "test-bootstrap");
-        });
+        Factory = TestWebHostBuilderExtensions.CreateFactoryGameTestFactory();
         return Task.CompletedTask;
     }
 

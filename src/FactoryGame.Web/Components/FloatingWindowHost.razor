@@ -1,0 +1,16 @@
+@inject GameWindowService Windows
+@implements IDisposable
+
+@foreach (var window in Windows.OpenWindows)
+{
+    <FloatingWindow @key="window.Id" Window="window" />
+}
+
+@code {
+    protected override void OnInitialized() =>
+        Windows.Changed += OnWindowsChanged;
+
+    private void OnWindowsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Windows.Changed -= OnWindowsChanged;
+}

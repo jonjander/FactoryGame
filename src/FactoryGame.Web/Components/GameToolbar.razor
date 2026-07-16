@@ -1,0 +1,108 @@
+@inject GameWindowService Windows
+@inject GameShellNavigation ShellNav
+@inject BoardCanvasSession Session
+@inject TokenStore Tokens
+@inject WalletState Wallet
+@inject NavigationManager Nav
+@inject AppVersionMonitor AppVersion
+@implements IDisposable
+
+<header class="fg-game-toolbar">
+    <a class="fg-game-brand" href="/" @onclick="GoHome" @onclick:preventDefault="true">FactoryGame</a>
+
+    <nav class="fg-game-toolbar-nav">
+        @if (string.IsNullOrEmpty(Tokens.BearerToken))
+        {
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("login") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("login", "/")'>Logga in</button>
+        }
+        else
+        {
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("exchange") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("exchange", "/exchange")' title="Handel">Börs</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("market") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("market", "/market")'>Marknad</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("pool") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("pool", "/pool")'>Pool</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("transactions") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("transactions", "/transactions")'>Konto</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("wiki") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("wiki", "/wiki")'>Wiki</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("cli") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("cli", "/cli")'>CLI</button>
+
+            <span class="fg-game-toolbar-divider"></span>
+
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("boards-picker") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("boards-picker", "/boards")'>Spelplaner</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("store") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("store")'>Butik</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("machine-settings") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("machine-settings")'>Inställningar</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("board-info") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("board-info")'>Info</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("place-machine") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("place-machine")'>Placera</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("pipe-form") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("pipe-form")'>Rör</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("plan-json") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("plan-json")'>JSON</button>
+
+            <span class="fg-game-toolbar-divider"></span>
+
+            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.SavePlanAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Spara</button>
+            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.StartAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Start</button>
+            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.StopAsync" disabled="@(Session.Busy || !Session.IsSelectedBoardRunning())">Stopp</button>
+            <button type="button" class="fg-game-btn fg-game-btn-sim secondary" @onclick="Session.SnapshotAsync" disabled="@Session.Busy">Snapshot</button>
+        }
+    </nav>
+
+    <span class="fg-game-session">
+        @if (Wallet.Cash is { } cash)
+        {
+            <span class="wallet" title="Kassa">@cash.ToString("0.##")</span>
+        }
+        @if (!string.IsNullOrEmpty(Wallet.BaseIncomeHint))
+        {
+            <span class="muted fg-base-income-hint" title="Passiv basinkomst">@Wallet.BaseIncomeHint</span>
+        }
+        <span class="muted fg-game-version">v@AppReleaseVersion.Current</span>
+        @if (!string.IsNullOrEmpty(Tokens.BearerToken))
+        {
+            <button type="button" class="secondary session-action" @onclick="LogoutAsync">Logga ut</button>
+        }
+    </span>
+</header>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Windows.Changed += OnChanged;
+        Session.Changed += OnChanged;
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void OpenWindow(string id, string route)
+    {
+        ShellNav.EnsureRegistered();
+        Windows.Toggle(id);
+        var rel = route.TrimStart('/');
+        if (Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/') != rel)
+            Nav.NavigateTo(route);
+    }
+
+    private void ToggleFabrik(string id)
+    {
+        ShellNav.EnsureRegistered();
+        Windows.Toggle(id);
+    }
+
+    private void GoHome()
+    {
+        if (string.IsNullOrEmpty(Tokens.BearerToken))
+            OpenWindow("login", "/");
+        else
+            Nav.NavigateTo("/boards");
+    }
+
+    private async Task LogoutAsync()
+    {
+        await Tokens.ClearAsync();
+        Windows.Close("exchange");
+        Windows.Close("pool");
+        OpenWindow("login", "/");
+    }
+
+    public void Dispose()
+    {
+        Windows.Changed -= OnChanged;
+        Session.Changed -= OnChanged;
+    }
+}

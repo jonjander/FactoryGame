@@ -13,14 +13,10 @@ public sealed class BoardSimulationFlowTests : IAsyncLifetime
 
     public Task InitializeAsync()
     {
-        var dbName = "FactoryGameSimTest_" + Guid.NewGuid().ToString("N");
-        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        _factory = TestWebHostBuilderExtensions.CreateFactoryGameTestFactory(b =>
         {
-            b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
             b.UseSetting("GameEconomy:SimulationTickIntervalSeconds", "1");
             b.UseSetting("GameEconomy:SimulationMaxCatchUpTicks", "5");
-            b.UseSetting("MarketLiquidity:BackgroundRefreshEnabled", "false");
-            b.UseSetting("Admin:BootstrapToken", "test-bootstrap");
         });
         _client = _factory.CreateClient();
         return Task.CompletedTask;

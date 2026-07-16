@@ -1,10 +1,17 @@
 {
   "minimalLoop": {
-    "description": "SeaportConnector + Boiler loop. Uses starter pool only (elements 1-5).",
+    "description": "SeaportConnector + Boiler loop on E03 (liquid) from starter pool.",
     "requiresMarketBuy": false,
     "plan": {
       "machines": [
-        { "id": "seaportconnector1", "type": "SeaportConnector", "settings": { "outElementId": 1 } },
+        {
+          "id": "seaportconnector1",
+          "type": "SeaportConnector",
+          "settings": {
+            "outElementId": 3,
+            "outMaterialDna": "144964032628459529"
+          }
+        },
         { "id": "boiler1", "type": "Boiler" }
       ],
       "connections": [

@@ -106,17 +106,41 @@ public static class BoardInfoAnalyzer
             outUps = outOfFactory.Sum(f => f.UnitsPerSecond);
         }
 
-        if (request.IsRunning && intoUps + outUps < 0.001)
-            intoUps = EstimateInternalLoopThroughput(machines, tickSec);
+        var flowListUps = intoFactory.Sum(f => f.UnitsPerSecond) + outOfFactory.Sum(f => f.UnitsPerSecond);
+        double totalUps;
+        string throughputSourceNote;
+        if (request.IsRunning)
+        {
+            var deltaUps = intoUps + outUps;
+            totalUps = Math.Max(deltaUps, Math.Max(intoUps, outUps));
+            if (flowListUps > totalUps)
+                totalUps = flowListUps;
+            if (totalUps < 0.001)
+                totalUps = EstimateInternalLoopThroughput(machines, tickSec);
 
-        var totalUps = intoUps + outUps;
+            throughputSourceNote = deltaUps >= 0.001 && flowListUps < 0.001
+                ? "Mätt från senaste simuleringstick."
+                : flowListUps >= 0.001 && deltaUps < 0.001
+                    ? "Uppskattat från flödesrader (senaste tick utan seaport-rörelse)."
+                    : deltaUps >= 0.001
+                        ? "Mätt från senaste simuleringstick."
+                        : totalUps >= 0.001
+                            ? "Intern slinga — uppskattad maskinhastighet."
+                            : "Baserat på planstruktur och maskinspecifika flödesrater.";
+        }
+        else
+        {
+            totalUps = intoUps + outUps;
+            throughputSourceNote = isEstimate
+                ? "Uppskattning från plan (fabriken kör inte)."
+                : "Baserat på planstruktur och maskinspecifika flödesrater.";
+        }
+
         var valuePerSec = EstimateValuePerSecond(intoUps, outUps, request.ElementPrices, machines, isEstimate);
         var assetValue = EstimateInstalledAssetValue(machines);
 
-        var throughputNote = request.IsRunning && request.LastSeaportDelta != null && intoFactory.Sum(f => f.UnitsPerSecond) + outOfFactory.Sum(f => f.UnitsPerSecond) >= 0.001
-            ? "Mätt från senaste simuleringstick."
-            : request.IsRunning && intoUps > 0 && (request.LastSeaportDelta == null || intoFactory.Count == 0)
-                ? "Intern slinga — uppskattad maskinhastighet (ingen seaport-rörelse senaste tick)."
+        var throughputNote = request.IsRunning
+            ? throughputSourceNote
             : isEstimate
                 ? "Uppskattning från plan (fabriken kör inte)."
                 : "Baserat på planstruktur och maskinspecifika flödesrater.";

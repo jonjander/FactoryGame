@@ -1,0 +1,58 @@
+@inject BoardCanvasSession Session
+@implements IDisposable
+
+<MachineStoreInfoModal Visible="Session.StoreInfoVisible"
+                       Item="Session.StoreInfoItem"
+                       OnClose="Session.CloseStoreInfo" />
+
+<div class="fg-window-panel fg-store">
+    <h3>Maskinbutik & lager</h3>
+    <p class="muted">Köp maskiner till ditt lager. Placera dem på en sparad plan.</p>
+    @if (Session.StoreItems.Count == 0 && Session.Connectors.Count == 0)
+    {
+        <p class="muted">Laddar butik…</p>
+    }
+    else
+    {
+        <div class="fg-table-wrap">
+            <table class="fg-table">
+                <thead>
+                <tr><th>Maskin</th><th>Pris</th><th></th></tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Session.StoreItems)
+                {
+                    <tr>
+                        <td>@item.DisplayName <span class="muted">(@item.Type)</span></td>
+                        <td>@item.Price.ToString("0.##")</td>
+                        <td>
+                            <button type="button" class="secondary" @onclick="() => Session.ShowStoreInfo(item)">Info</button>
+                            <button type="button" class="secondary" @onclick="async () => await Session.PurchaseAsync(item.Type)" disabled="@Session.Busy">Köp</button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <h4>Ditt maskinlager</h4>
+        @if (Session.Inventory.Count == 0)
+        {
+            <p class="muted">Inga köpta maskiner i lager.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var row in Session.Inventory)
+                {
+                    <li><span class="fg-id-short" title="@row.Id">@DisplayIds.ShortGuid(row.Id)</span> — @row.MachineType</li>
+                }
+            </ul>
+        }
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

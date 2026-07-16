@@ -72,7 +72,7 @@ public sealed class PlayerPoolBootstrapService(AppDbContext db, IOptions<GameEco
             Type = StarterPoolTransactionType,
             CashDelta = 0,
             CreatedAt = DateTimeOffset.UtcNow,
-            Metadata = string.Join(',', elementIds)
+            Metadata = string.Join(',', elementIds.Distinct())
         });
 
         await db.SaveChangesAsync(ct);

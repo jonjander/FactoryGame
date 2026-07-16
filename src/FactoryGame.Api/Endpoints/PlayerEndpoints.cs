@@ -1,9 +1,11 @@
 using FactoryGame.Contracts.Machines;
 using FactoryGame.Contracts.Player;
 using FactoryGame.Infrastructure.Data;
+using FactoryGame.Infrastructure.Options;
 using FactoryGame.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FactoryGame.Api.Endpoints;
 
@@ -50,6 +52,7 @@ public static class PlayerEndpoints
                 HttpContext http,
                 AppDbContext db,
                 PlayerPoolBootstrapService poolBootstrap,
+                IOptions<GameEconomyOptions> economyOptions,
                 CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
@@ -65,13 +68,25 @@ public static class PlayerEndpoints
                 var pool = await db.InventoryPools.AsNoTracking()
                     .FirstOrDefaultAsync(p => p.PlayerId == playerId, ct);
 
+                var economy = economyOptions.Value;
+                var baseIncomeDates = await db.EconomyTransactions.AsNoTracking()
+                    .Where(t => t.PlayerId == playerId && t.Type == "BaseIncome")
+                    .Select(t => t.CreatedAt)
+                    .ToListAsync(ct);
+                DateTimeOffset? lastBaseIncome = baseIncomeDates.Count == 0
+                    ? null
+                    : baseIncomeDates.Max();
+
                 return Results.Ok(new
                 {
                     playerId,
                     cash = balance.Cash,
                     pool = pool == null
                         ? null
-                        : new { pool.MaxVolume, pool.UsedVolume }
+                        : new { pool.MaxVolume, pool.UsedVolume },
+                    baseIncomeAmount = economy.BaseIncomeAmount,
+                    baseIncomeIntervalMinutes = economy.BaseIncomeIntervalMinutes,
+                    lastBaseIncomeAt = lastBaseIncome
                 });
             })
             .WithName("GetMyWallet")
@@ -157,7 +172,8 @@ public static class PlayerEndpoints
                     query = query.Where(t => t.CreatedAt <= to.Value);
 
                 var total = await query.CountAsync(ct);
-                var items = await query
+                var rows = await query.ToListAsync(ct);
+                var items = rows
                     .OrderByDescending(t => t.CreatedAt)
                     .Skip((p - 1) * size)
                     .Take(size)
@@ -167,7 +183,7 @@ public static class PlayerEndpoints
                         t.CashDelta,
                         t.CreatedAt,
                         t.Metadata))
-                    .ToListAsync(ct);
+                    .ToList();
 
                 return Results.Ok(new PlayerTransactionsPageDto(items, total, p, size));
             })

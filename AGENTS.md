@@ -42,7 +42,7 @@ flowchart TB
 | **Komponent** | `factory-game-simulation` | Tick, maskiner, DNA, sorter |
 | **Komponent** | `factory-game-market` | Börs, pool, wallet, transaktioner |
 | **Komponent** | `factory-game-api-platform` | Endpoints, EF, Infrastructure, Contracts |
-| **Komponent** | `factory-game-web-client` | Blazor, canvas, offline, wiki-UI |
+| **Komponent** | `factory-game-web-client` | Blazor, canvas, **desktop game shell**, offline, wiki-UI |
 | **Kvalitet** | `factory-game-tester` | xUnit Domain/Api |
 | **Kvalitet** | `factory-game-playtester` | MCP mot API, kravparitet |
 
@@ -88,9 +88,9 @@ flowchart TB
 
 ### Webklient — `factory-game-web-client`
 
-- **Skill:** `factory-game-web-klient`
+- **Skills:** `factory-game-web-klient`, `factory-game-game-shell` (desktop layout/fönster)
 - **Äger:** `src/FactoryGame.Web/`
-- **Prompt:** Klient enligt `KRAVSPEC.md` och `@factory-game-web-klient`. Server auktoritativ; dokumentera synk/merge.
+- **Prompt:** Klient enligt `KRAVSPEC.md` och `@factory-game-web-klient`. Desktop shell (toolbar, flytande fönster, canvas): `@factory-game-game-shell`. Server auktoritativ; dokumentera synk/merge.
 
 ---
 
@@ -146,6 +146,7 @@ flowchart TB
 | Server-sim | `.cursor/skills/factory-game-server-sim/` |
 | Börs & seaport | `.cursor/skills/factory-game-bors-seaport/` |
 | Webklient | `.cursor/skills/factory-game-web-klient/` |
+| Desktop game shell | `.cursor/skills/factory-game-game-shell/` |
 | API & plattform | `.cursor/skills/factory-game-api-platform/` |
 | Integration (mellanchef) | `.cursor/skills/factory-game-integration-lead/` |
 | Arkitektur (mellanchef) | `.cursor/skills/factory-game-architect/` |
@@ -164,10 +165,11 @@ flowchart TB
 | Market | `.cursor/agents/factory-game-market.md` | Komponent |
 | API platform | `.cursor/agents/factory-game-api-platform.md` | Komponent |
 | Web client | `.cursor/agents/factory-game-web-client.md` | Komponent |
+| Game shell (desktop UI) | `.cursor/agents/factory-game-game-shell.md` | Komponent |
 | Integration lead | `.cursor/agents/factory-game-integration-lead.md` | Mellanchef |
 | Architect | `.cursor/agents/factory-game-architect.md` | Mellanchef |
 | Dev-lead | `.cursor/agents/factory-game-dev-lead.md` | Mellanchef |
 | Tester | `.cursor/agents/factory-game-tester.md` | Kvalitet |
 | Playtester | `.cursor/agents/factory-game-playtester.md` | Kvalitet |
 
-Aktivera med `@factory-game-server-sim` eller delegera med Task till `factory-game-simulation` (subagent-namn = filens `name` i frontmatter).
+Aktivera med `@factory-game-server-sim`, `@factory-game-game-shell`, eller delegera med Task till subagent-namn (filens `name` i frontmatter).

@@ -1,0 +1,10 @@
+{
+  "apiBaseUrls": [
+    "https://localhost:7145",
+    "http://localhost:5176"
+  ],
+  "clientLogBaseUrls": [
+    "https://localhost:7145",
+    "http://localhost:5176"
+  ]
+}

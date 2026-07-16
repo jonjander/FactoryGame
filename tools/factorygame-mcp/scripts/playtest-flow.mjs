@@ -143,7 +143,21 @@ async function main() {
   const keyframe = await pollRunning(client, sessionToken, boardA.id);
   assert(keyframe.mode === "Running", "expected Running mode");
 
-  await callOk(client, "boards_info", { sessionToken, boardId: boardA.id });
+  let infoJson = null;
+  for (let i = 0; i < 10; i++) {
+    const { json } = await callOk(client, "boards_info", { sessionToken, boardId: boardA.id });
+    infoJson = json;
+    if (json?.throughput?.totalUnitsPerSecond > 0) break;
+    await sleep(500);
+  }
+  assert(infoJson != null, "boards_info missing");
+  const errors = (infoJson.issues ?? []).filter((i) => i.severity === "error");
+  assert(errors.length === 0, `expected no error issues: ${JSON.stringify(errors)}`);
+  assert(
+    infoJson.throughput?.totalUnitsPerSecond > 0,
+    `expected throughput > 0, got ${infoJson.throughput?.totalUnitsPerSecond}`
+  );
+
   await callOk(client, "boards_stop", { sessionToken, boardId: boardA.id });
 
   await tryOptionalMarketOrder(client, sessionToken);

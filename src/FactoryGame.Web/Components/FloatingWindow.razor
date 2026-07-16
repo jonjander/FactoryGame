@@ -1,0 +1,116 @@
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject GameWindowService Windows
+
+@if (Window.IsOpen && !Window.Minimized)
+{
+    <div class="fg-floating-window"
+         style="left:@($"{Window.X:0}px");top:@($"{Window.Y:0}px");width:@($"{Window.Width:0}px");height:@($"{Window.Height:0}px");z-index:@Window.ZIndex"
+         @onclick="FocusSelf">
+        <div class="fg-floating-window-header"
+             @onpointerdown="StartDragAsync"
+             @onpointerdown:stopPropagation="true">
+            <span class="fg-floating-window-title">@Window.Title</span>
+            <span class="fg-floating-window-controls">
+                <button type="button" class="fg-window-btn" title="Minimera" @onclick="Minimize" @onclick:stopPropagation="true">_</button>
+                <button type="button" class="fg-window-btn" title="Stäng" @onclick="Close" @onclick:stopPropagation="true">×</button>
+            </span>
+        </div>
+        <div class="fg-floating-window-body">
+            <DynamicComponent Type="Window.ContentType" />
+        </div>
+        <div class="fg-floating-window-resize"
+             @onpointerdown="StartResizeAsync"
+             @onpointerdown:stopPropagation="true"></div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public GameWindowDescriptor Window { get; set; } = null!;
+
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<FloatingWindow>? _dotNetRef;
+    private double _dragOriginX;
+    private double _dragOriginY;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _module = await Js.InvokeAsync<IJSObjectReference>("import", "./js/floating-window.js");
+        _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    private void FocusSelf() => Windows.Focus(Window.Id);
+
+    private void Close() => Windows.Close(Window.Id);
+
+    private void Minimize() => Windows.Minimize(Window.Id);
+
+    private async Task StartDragAsync(PointerEventArgs e)
+    {
+        if (_module == null || _dotNetRef == null)
+            return;
+
+        _dragOriginX = Window.X;
+        _dragOriginY = Window.Y;
+        await _module.InvokeVoidAsync(
+            "startPointerDrag",
+            _dotNetRef,
+            "drag",
+            e.ClientX,
+            e.ClientY,
+            Window.X,
+            Window.Y,
+            Window.Width,
+            Window.Height);
+    }
+
+    private async Task StartResizeAsync(PointerEventArgs e)
+    {
+        if (_module == null || _dotNetRef == null)
+            return;
+
+        await _module.InvokeVoidAsync(
+            "startPointerDrag",
+            _dotNetRef,
+            "resize",
+            e.ClientX,
+            e.ClientY,
+            Window.X,
+            Window.Y,
+            Window.Width,
+            Window.Height);
+    }
+
+    [JSInvokable]
+    public void OnDragMove(double x, double y) =>
+        Windows.SetPosition(Window.Id, x, y);
+
+    [JSInvokable]
+    public void OnResizeMove(double width, double height) =>
+        Windows.SetSize(Window.Id, width, height);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("stopPointerDrag");
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                /* shutdown */
+            }
+        }
+
+        _dotNetRef?.Dispose();
+    }
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = null!;
+}

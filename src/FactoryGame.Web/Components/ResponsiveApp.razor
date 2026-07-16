@@ -1,0 +1,44 @@
+@using Microsoft.AspNetCore.Components.Routing
+@inject ViewportLayoutService Viewport
+@implements IAsyncDisposable
+
+@if (_ready)
+{
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@GetLayoutType()" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@GetLayoutType()">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    private bool _ready;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Viewport.Changed += OnViewportChanged;
+        await Viewport.InitializeAsync(Js);
+        _ready = true;
+    }
+
+    private Type GetLayoutType() =>
+        Viewport.UseGameShell ? typeof(GameShellLayout) : typeof(MainLayout);
+
+    private void OnViewportChanged() => InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        Viewport.Changed -= OnViewportChanged;
+        await Viewport.DisposeAsync();
+    }
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = null!;
+}

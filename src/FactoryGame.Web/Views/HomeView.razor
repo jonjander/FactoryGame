@@ -1,0 +1,161 @@
+@inject HttpClient Http
+@inject TokenStore Tokens
+@inject NavigationManager Nav
+@inject BrowserStorage Storage
+@inject ViewportLayoutService Viewport
+@inject GameWindowService Windows
+@inject GameShellNavigation ShellNav
+
+<PageTitle>FactoryGame</PageTitle>
+
+<div class="panel fg-window-panel">
+    <h1>FactoryGame</h1>
+    <p class="muted">MVP-klient: gästinloggning mot API, sedan Börs / Pool / Fabrik.</p>
+
+    <label>Enhetsnyckel (sparas i webbläsaren — ditt inloggnings-ID)</label>
+    <input @bind="_deviceKey" placeholder="min-enhet" />
+
+    <div style="margin-top:0.75rem;">
+        <button type="button" @onclick="LoginAsync" disabled="@_busy">
+            @(_busy ? "Loggar in…" : "Logga in som gäst")
+        </button>
+        @if (_checkingSession)
+        {
+            <p class="muted">Kontrollerar sparad session…</p>
+        }
+        @if (!string.IsNullOrEmpty(_status))
+        {
+            <p class="muted">@_status</p>
+        }
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="error">@_error</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string _deviceKey = $"web-{Guid.NewGuid():N}";
+    private bool _busy;
+    private bool _checkingSession;
+    private string? _error;
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Tokens.LoadAsync();
+
+        var savedKey = await Storage.GetAsync("fg_device_key");
+        if (!string.IsNullOrEmpty(savedKey))
+            _deviceKey = savedKey;
+
+        if (string.IsNullOrEmpty(Tokens.BearerToken))
+            return;
+
+        _checkingSession = true;
+        try
+        {
+            var res = await Http.GetAsync("/v1/me/wallet");
+            if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await Tokens.ClearAsync();
+                _error = "Tidigare session är inte längre giltig. Logga in som gäst igen.";
+                return;
+            }
+
+            if (res.IsSuccessStatusCode)
+            {
+                if (Viewport.UseGameShell)
+                {
+                    _status = "Redan inloggad.";
+                    Windows.Close("login");
+                }
+                else
+                {
+                    _status = "Redan inloggad — öppnar börsen…";
+                    Nav.NavigateTo("/exchange");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex, Http.BaseAddress);
+        }
+        finally
+        {
+            _checkingSession = false;
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_deviceKey))
+        {
+            _error = "Ange en enhetsnyckel (valfritt namn, t.ex. min-enhet).";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _status = "Kontaktar servern… första inloggningen kan ta några sekunder.";
+        try
+        {
+            var res = await Http.PostAsJsonAsync("/v1/auth/guest", new FactoryGame.Contracts.Auth.GuestAuthRequest(_deviceKey.Trim()));
+            if (!res.IsSuccessStatusCode)
+            {
+                _error = await FormatApiErrorAsync(res);
+                return;
+            }
+
+            var body = await res.Content.ReadFromJsonAsync<FactoryGame.Contracts.Auth.GuestAuthResponse>();
+            if (body == null || string.IsNullOrEmpty(body.SessionToken))
+            {
+                _error = "Ogiltigt svar från servern.";
+                return;
+            }
+
+            await Storage.SetAsync("fg_device_key", _deviceKey.Trim());
+            await Tokens.SetTokenAsync(body.SessionToken);
+            if (Viewport.UseGameShell)
+            {
+                _status = "Inloggad.";
+                Windows.Close("login");
+            }
+            else
+            {
+                _status = "Inloggad — laddar börsen…";
+                Nav.NavigateTo("/exchange");
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ApiConnectionErrors.Format(ex, Http.BaseAddress);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static async Task<string> FormatApiErrorAsync(HttpResponseMessage res)
+    {
+        var raw = await res.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(raw))
+            return $"Servern svarade {(int)res.StatusCode} {res.StatusCode}.";
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("error", out var err))
+                return err.GetString() ?? raw;
+            if (doc.RootElement.TryGetProperty("title", out var title))
+                return title.GetString() ?? raw;
+        }
+        catch
+        {
+            /* use raw */
+        }
+
+        return raw.Length > 200 ? raw[..200] + "…" : raw;
+    }
+}

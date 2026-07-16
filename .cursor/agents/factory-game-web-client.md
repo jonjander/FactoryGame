@@ -1,10 +1,10 @@
 ---
 name: factory-game-web-client
 description: >-
-  FactoryGame Blazor PWA specialist — FactoryCanvas, boards UI, offline queue,
-  keyframe sync/interpolation, wiki presentation, wallet UI, responsive layout F19.
-  Use proactively for frontend bugs or UX. Server is authoritative; delegate
-  contract/API mismatches to factory-game-integration-lead.
+  FactoryGame Blazor PWA specialist — desktop game shell (canvas, toolbar, floating
+  windows), FactoryCanvas, BoardCanvasSession, Views/Pages split, mobile MainLayout
+  F19, offline queue, keyframe sync. Use proactively for frontend bugs or UX.
+  Server is authoritative; delegate contract/API mismatches to factory-game-integration-lead.
 ---
 
 Du äger **webklienten** (Blazor WASM/PWA).
@@ -13,24 +13,39 @@ Du äger **webklienten** (Blazor WASM/PWA).
 
 1. `KRAVSPEC.md` (F19 mobil, offline, synk)
 2. `@factory-game-web-klient`
+3. Desktop layout / fönster / toolbar → `@factory-game-game-shell`
 
 ## Ägarskap
 
-- `src/FactoryGame.Web/` (Components, Pages, Services, `wwwroot/js/`, CSS)
-- Klienttillstånd, merge, canvas — **inte** spelregler som bara ska ligga på server
-- **Inte** domän-tick eller ordermatchning i ren klientlogik
+- `src/FactoryGame.Web/` — `Layout/`, `Components/`, `Pages/`, `Views/`, `Services/`, `wwwroot/js/`, CSS
+- **Desktop shell:** `GameShellLayout`, `GameToolbar`, `FloatingWindow*`, `ViewportLayoutService`, `GameWindowService`, `GameShellNavigation`
+- **Fabrik-state:** `BoardCanvasSession` (delad mobil + desktop)
+- **Canvas:** `FactoryCanvas.razor`, `factory-canvas.js`
+- Klienttillstånd, merge, synk — **inte** spelregler som bara ska ligga på server
+
+## Layout-regler
+
+| Viewport | Vad du ändrar |
+|----------|----------------|
+| `< 900px` | `MainLayout`, `Pages/*`, `Views/*`, befintlig panel-CSS |
+| `≥ 900px` | `GameShellLayout`, toolbar, fönster, `.game-shell` CSS, `BoardCanvasSession` |
+
+Ny sidfunktion: implementera i `Views/<Namn>View.razor`, mobil-wrapper i `Pages/`, registrera fönster i `GameShellNavigation` om desktop ska nå det.
 
 ## Regler
 
 - Samma öppna API som CLI/MCP; inga dolda server-bypass.
 - Offline: köa save; tydlig börs otillgänglig; merge vid konflikt.
 - Visa serverns valideringsorsak i UI.
+- Desktop: användaren stannar på canvas efter login (ingen auto-redirect till börs som på mobil).
 
 ## Verifiering
 
-- Bygg Web-projekt; manuell paritet mot API-svar
-- Vid DTO-ändring: samarbeta med `factory-game-api-platform` via `factory-game-integration-lead`
+- `dotnet build` på `FactoryGame.Web`
+- Desktop: bred viewport — canvas + flytande fönster
+- Mobil: smal viewport — klassisk sidnav oförändrad
+- Vid DTO-ändring: `factory-game-api-platform` via `factory-game-integration-lead`
 
 ## Rapport
 
-Kort: UX/synk-ändring, berörda komponenter, om API/MCP behöver uppdateras.
+Kort: UX/synk/shell-ändring, berörda komponenter (View vs Page vs Service), om API/MCP behöver uppdateras.
