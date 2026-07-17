@@ -129,7 +129,7 @@ function Clear-AzureWwwrootForRedeploy {
     # Wipe publish root so leftover Windows-backslash path names cannot break Linux rsync.
     $auth = New-BasicAuthHeader -UserName $UserName -Password $Password
     $body = @{
-        command = 'rm -rf /home/site/wwwroot/* ; ls -la /home/site/wwwroot'
+        command = 'find /home/site/wwwroot -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
         dir     = '/home/site/wwwroot'
     } | ConvertTo-Json
     try {
@@ -175,11 +175,11 @@ function Invoke-ZipDeploy {
         $progress = $status.progress
         Write-Host ("  complete={0} progress={1}" -f $complete, $progress)
         if ($complete) {
-            if ($status.status -eq 4 -or $status.status -eq "4") {
-                # 4 = Failed in Kudu
+            # Kudu DeployStatus: Pending=0 Building=1 Deploying=2 Failed=3 Success=4
+            if ($status.status -eq 3 -or $status.status -eq "3") {
                 throw "Zip Deploy failed: $($status.status_text) $($status.log_url)"
             }
-            Write-Host "Zip Deploy finished: $($status.status_text)"
+            Write-Host "Zip Deploy finished: status=$($status.status) $($status.status_text)"
             return
         }
     } while ((Get-Date) -lt $deadline)
@@ -273,7 +273,9 @@ if ($sqlConn) {
     $prodObj = [ordered]@{
         ConnectionStrings = [ordered]@{ DefaultConnection = $sqlConn }
     }
-    $prodObj | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $prodPath -Encoding utf8
+    $json = ($prodObj | ConvertTo-Json -Depth 5)
+    # UTF-8 without BOM — BOM breaks some hosts and shows as leading '?' in files.
+    [System.IO.File]::WriteAllText($prodPath, $json, [System.Text.UTF8Encoding]::new($false))
     Write-Host "Wrote appsettings.Production.json with Azure SQL connection."
 }
 
