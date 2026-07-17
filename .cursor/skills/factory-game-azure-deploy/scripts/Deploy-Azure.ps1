@@ -126,23 +126,11 @@ function Clear-AzureWwwrootForRedeploy {
         [string] $UserName,
         [string] $Password
     )
-    # Wipe publish root so leftover Windows-backslash path names cannot break Linux rsync.
-    $auth = New-BasicAuthHeader -UserName $UserName -Password $Password
-    $body = @{
-        command = 'find /home/site/wwwroot -mindepth 1 -maxdepth 1 -exec rm -rf {} +'
-        dir     = '/home/site/wwwroot'
-    } | ConvertTo-Json
-    try {
-        $r = Invoke-RestMethod -Uri "https://$ScmHost/api/command" `
-            -Method Post `
-            -Headers @{ Authorization = $auth; "Content-Type" = "application/json" } `
-            -Body $body
-        Write-Host "Cleared /home/site/wwwroot for clean Zip Deploy."
-        if ($r.Output) { Write-Host $r.Output }
-        if ($r.Error) { Write-Host $r.Error }
-    } catch {
-        Write-Host "wwwroot clear skipped: $($_.Exception.Message)"
-    }
+    # Intentionally a no-op by default.
+    # Full wipe of wwwroot while the Linux site container is running leaves NFS "ghost"
+    # files (rsync ENOENT / cannot recreate DLLs) until Portal Restart.
+    # Zip entries already use '/' (see New-DeployZip). Restart in Portal if deploy hits ENOENT.
+    Write-Host "Skipping wwwroot wipe (safe for Linux Zip Deploy). Restart App Service in Portal if rsync reports ENOENT on DLLs."
 }
 
 function Invoke-ZipDeploy {

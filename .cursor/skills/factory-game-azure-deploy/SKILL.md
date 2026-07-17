@@ -90,8 +90,9 @@ After git push + tag (see `factory-game-version-and-tags`):
 | 401 on zipdeploy | Re-download publish profile (password rotated) |
 | Health never Healthy | Portal Log stream / `GET /diagnostics/recent-logs`; check ConnectionStrings |
 | Publish fails | Fix `dotnet publish` locally first |
-| Kudu rsync `Invalid argument (22)` on paths with `\` | Fixed in 0.3.7+ (`New-DeployZip` uses `/`). Clear wwwroot and redeploy. |
-| SQL migrate to `127.0.0.1` / crash after deploy | `appsettings.Local.json` was published — delete from wwwroot and redeploy 0.3.8+ |
+| Kudu rsync `Invalid argument (22)` on paths with `\` | Fixed in 0.3.7+ (`New-DeployZip` uses `/`). Do **not** wipe all of wwwroot while the app is running. |
+| SQL migrate to `127.0.0.1` / crash after deploy | `appsettings.Local.json` was published — fixed in 0.3.8+ (excluded from publish). |
+| Kudu rsync `open ... No such file or directory (2)` on existing DLLs | Ghost/locked files after a partial wipe. **Restart** the Web App in Portal, then redeploy (do not `rm -rf` wwwroot while running). |
 
 ## Related
 
