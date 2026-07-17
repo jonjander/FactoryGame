@@ -5,7 +5,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<div class="fg-factory-canvas-wrap @(FillViewport ? "fg-factory-canvas-fill" : "")">
+<div class="fg-factory-canvas-wrap @(FillViewport ? "fg-factory-canvas-fill" : "")" @ref="_wrapRef">
     <ConfirmDialog Visible="_confirmRemoveVisible"
                    Message="@_confirmRemoveMessage"
                    ConfirmLabel="Remove"
@@ -30,6 +30,26 @@
     else if (!HideHelpText)
     {
         <p class="muted fg-factory-running-banner">Board is running — view only. Stop the factory to edit.</p>
+    }
+    @if (IsFactoryRunning)
+    {
+        <div class="fg-factory-status-legend" aria-label="Factory status legend">
+            <span class="fg-legend-item fg-legend-active"><span class="fg-legend-dot"></span> Processing</span>
+            <span class="fg-legend-item fg-legend-waiting"><span class="fg-legend-dot"></span> Waiting</span>
+            <span class="fg-legend-item fg-legend-blocked"><span class="fg-legend-dot"></span> Blocked</span>
+        </div>
+    }
+    @if (EnableViewportNavigation)
+    {
+        <div class="fg-canvas-viewport-controls">
+            <button type="button"
+                    class="secondary fg-canvas-recenter-btn"
+                    title="Recenter on your factory"
+                    @onclick="RecenterViewportAsync"
+                    @onclick:stopPropagation="true">
+                Recenter
+            </button>
+        </div>
     }
     <svg @ref="_svgRef"
          xmlns="http://www.w3.org/2000/svg"
@@ -79,8 +99,9 @@
             var blocked = IsMachineBlocked(m.Id);
             var condenserActive = IsCondenserTransforming(m.Id);
             var machineTitle = GetMachineTooltip(m);
+            var machineStatus = GetMachineStatus(m.Id, m.Type);
 
-            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "") @(condenserActive ? "fg-machine-condenser-active" : "")"
+            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "") @(machineStatus?.Kind == "warning" ? "fg-machine-warning" : "") @(condenserActive ? "fg-machine-condenser-active" : "")"
                transform="translate(@Fmt(mx), @Fmt(my))">
                 <title>@machineTitle</title>
                 <rect class="fg-machine-body" width="@w" height="@h" rx="6" pointer-events="none" />
@@ -115,6 +136,17 @@
                 <foreignObject x="4" y="26" width="@(w - 8)" height="16" pointer-events="none">
                     <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-type-html">@m.Type</div>
                 </foreignObject>
+                @if (machineStatus is not null)
+                {
+                    <foreignObject x="0" y="@Fmt(h + 2)" width="@w" height="36" pointer-events="none">
+                        <div xmlns="http://www.w3.org/1999/xhtml"
+                             class="fg-machine-status-badge fg-machine-status-@machineStatus.Kind"
+                             title="@machineStatus.Title">
+                            <span class="fg-machine-status-icon" aria-hidden="true">@machineStatus.Icon</span>
+                            <span class="fg-machine-status-text">@machineStatus.Label</span>
+                        </div>
+                    </foreignObject>
+                }
                 @if (!ReadOnly)
                 {
                     <foreignObject x="@Fmt(w - 22)" y="2" width="20" height="20">
@@ -250,13 +282,32 @@
     [Parameter]
     public bool HideHelpText { get; set; }
 
+    [Parameter]
+    public bool EnableViewportNavigation { get; set; } = true;
+
     private Dictionary<string, MachineStoreItemDto> _machineMeta = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<int, ElementContentItem> _elementById = new();
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, MachinePortFlowDto> _machinePortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, string> _blockedByMachineId = new(StringComparer.Ordinal);
+    private Dictionary<string, string> _warningByMachineId = new(StringComparer.Ordinal);
     private HashSet<string> _machinesWithFlow = new(StringComparer.Ordinal);
     private string _viewBox = "0 0 800 480";
+    private double _homeX;
+    private double _homeY;
+    private double _homeW = 800;
+    private double _homeH = 480;
+    private double _viewX;
+    private double _viewY;
+    private double _viewW = 800;
+    private double _viewH = 480;
+    private bool _viewportUserModified;
+    private bool _viewportAttached;
+    private const double MinViewWidth = 120;
+    private const double MinViewHeight = 80;
+    private const double MaxViewWidth = 24000;
+    private const double MaxViewHeight = 16000;
+    private ElementReference _wrapRef;
     private string? _dragMachineId;
     private string? _pendingMachineDragId;
     private bool _machineDragMoved;
@@ -281,11 +332,30 @@
     {
         if (firstRender)
             _canvasModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/factory-canvas.js");
+
+        if (EnableViewportNavigation && _canvasModule != null && !_viewportAttached)
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            await _canvasModule.InvokeVoidAsync("attachViewport", _wrapRef, _svgRef, _dotNetRef);
+            _viewportAttached = true;
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
         await StopPointerDragAsync();
+        if (_canvasModule != null && _viewportAttached)
+        {
+            try
+            {
+                await _canvasModule.InvokeVoidAsync("detachViewport");
+            }
+            catch (JSDisconnectedException)
+            {
+                /* shutdown */
+            }
+        }
+        _viewportAttached = false;
         _dotNetRef?.Dispose();
         if (_canvasModule != null)
             await _canvasModule.DisposeAsync();
@@ -415,10 +485,20 @@
             p => PortFlowKey(p.MachineId, p.Port),
             StringComparer.Ordinal);
         _blockedByMachineId = BoardIssues
-            .Where(i => i.Severity == "error" && i.MachineId != null
-                        && (i.Code == "machine_blocked" || i.Code == "dna_incompatible"))
+            .Where(i => i.Severity == "error" && i.MachineId != null)
             .GroupBy(i => i.MachineId!, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First().Message, StringComparer.Ordinal);
+        _warningByMachineId = BoardIssues
+            .Where(i => i.Severity == "warning" && i.MachineId != null)
+            .GroupBy(i => i.MachineId!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().Message, StringComparer.Ordinal);
+        foreach (var flow in MachinePortFlows.Where(f =>
+                     f.ProcessStatus.Equals("Blocked", StringComparison.OrdinalIgnoreCase)
+                     && !string.IsNullOrEmpty(f.MachineId)))
+        {
+            if (!_blockedByMachineId.ContainsKey(flow.MachineId))
+                _blockedByMachineId[flow.MachineId] = flow.Summary;
+        }
         _machinesWithFlow = BuildMachinesWithFlow();
         UpdateViewBox();
     }
@@ -446,24 +526,123 @@
         return set;
     }
 
-    private void UpdateViewBox()
+    private void UpdateViewBox() => UpdateContentHome();
+
+    [JSInvokable]
+    public async Task OnViewportWheel(double clientX, double clientY, double deltaY, double clientWidth, double clientHeight)
     {
+        var factor = deltaY < 0 ? 1.1 : 1 / 1.1;
+        await ApplyZoomAtClientAsync(clientX, clientY, factor, clientWidth, clientHeight);
+    }
+
+    [JSInvokable]
+    public async Task OnViewportPinch(double clientX, double clientY, double scaleFactor, double clientWidth, double clientHeight)
+    {
+        if (scaleFactor <= 0 || Math.Abs(scaleFactor - 1) < 0.002)
+            return;
+        await ApplyZoomAtClientAsync(clientX, clientY, scaleFactor, clientWidth, clientHeight);
+    }
+
+    [JSInvokable]
+    public Task OnViewportPanDelta(double deltaClientX, double deltaClientY, double clientWidth, double clientHeight)
+    {
+        if (clientWidth <= 0 || clientHeight <= 0)
+            return Task.CompletedTask;
+
+        _viewportUserModified = true;
+        _viewX -= deltaClientX * (_viewW / clientWidth);
+        _viewY -= deltaClientY * (_viewH / clientHeight);
+        ApplyViewBoxString();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ApplyZoomAtClientAsync(
+        double clientX,
+        double clientY,
+        double factor,
+        double clientWidth,
+        double clientHeight)
+    {
+        _ = clientWidth;
+        _ = clientHeight;
+        if (factor <= 0 || double.IsNaN(factor) || double.IsInfinity(factor))
+            return;
+
+        var pt = await ClientToSvgAsync(clientX, clientY);
+        if (pt == null)
+            return;
+
+        _viewportUserModified = true;
+        var newW = Clamp(_viewW / factor, MinViewWidth, MaxViewWidth);
+        var newH = Clamp(_viewH / factor, MinViewHeight, MaxViewHeight);
+        var ratioX = newW / _viewW;
+        var ratioY = newH / _viewH;
+        _viewX = pt.Value.X - (pt.Value.X - _viewX) * ratioX;
+        _viewY = pt.Value.Y - (pt.Value.Y - _viewY) * ratioY;
+        _viewW = newW;
+        _viewH = newH;
+        ApplyViewBoxString();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task RecenterViewportAsync()
+    {
+        UpdateContentHome(forceViewReset: true);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private static double Clamp(double value, double min, double max) =>
+        Math.Max(min, Math.Min(max, value));
+
+    private void UpdateContentHome(bool forceViewReset = false)
+    {
+        const double pipeMargin = 56;
+        const double framePad = 80;
+
         if (Plan.Machines.Count == 0)
         {
-            _viewBox = "0 0 800 480";
-            return;
+            _homeX = 0;
+            _homeY = 0;
+            _homeW = 800;
+            _homeH = 480;
+        }
+        else
+        {
+            double minX = double.PositiveInfinity;
+            double minY = double.PositiveInfinity;
+            double maxX = 0;
+            double maxY = 0;
+            for (var i = 0; i < Plan.Machines.Count; i++)
+            {
+                var (x, y) = PlanLayout.GetPosition(Plan.Machines[i], i);
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x + MachineWidth + CanvasPad + pipeMargin);
+                maxY = Math.Max(maxY, y + MachineHeight + CanvasPad + pipeMargin + 38);
+            }
+
+            _homeX = minX - framePad;
+            _homeY = minY - framePad;
+            _homeW = Math.Max(400, maxX - minX + framePad * 2);
+            _homeH = Math.Max(300, maxY - minY + framePad * 2);
         }
 
-        const double pipeMargin = 56;
-        double maxX = 400, maxY = 300;
-        for (var i = 0; i < Plan.Machines.Count; i++)
-        {
-            var (x, y) = PlanLayout.GetPosition(Plan.Machines[i], i);
-            maxX = Math.Max(maxX, x + MachineWidth + CanvasPad + pipeMargin);
-            maxY = Math.Max(maxY, y + MachineHeight + CanvasPad + pipeMargin);
-        }
-        _viewBox = $"0 0 {Fmt(maxX)} {Fmt(maxY)}";
+        if (forceViewReset || !_viewportUserModified)
+            ResetViewToHome();
+        ApplyViewBoxString();
     }
+
+    private void ResetViewToHome()
+    {
+        _viewX = _homeX;
+        _viewY = _homeY;
+        _viewW = _homeW;
+        _viewH = _homeH;
+        _viewportUserModified = false;
+    }
+
+    private void ApplyViewBoxString() =>
+        _viewBox = $"{Fmt(_viewX)} {Fmt(_viewY)} {Fmt(_viewW)} {Fmt(_viewH)}";
 
     private readonly record struct PipeEntry(int Index, PipeRouting.PipeDraw Draw);
 
@@ -761,6 +940,16 @@
     }
 
     private bool IsMachineBlocked(string machineId) => _blockedByMachineId.ContainsKey(machineId);
+
+    private MachineCanvasStatusDisplay? GetMachineStatus(string machineId, string machineType) =>
+        MachineCanvasStatus.Resolve(
+            machineId,
+            machineType,
+            IsFactoryRunning,
+            _blockedByMachineId,
+            _warningByMachineId,
+            MachinePortFlows,
+            BoardIssues);
 
     private bool IsMachineRunning(string machineId) =>
         IsFactoryRunning && !IsMachineBlocked(machineId) && _machinesWithFlow.Contains(machineId);

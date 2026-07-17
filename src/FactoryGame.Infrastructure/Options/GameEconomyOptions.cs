@@ -8,10 +8,6 @@ public sealed class GameEconomyOptions
 
     public long PoolMaxVolume { get; set; } = 10000;
 
-    public decimal BaseIncomeAmount { get; set; } = 10m;
-
-    public int BaseIncomeIntervalMinutes { get; set; } = 5;
-
     /// <summary>First MVP elements granted once per player (market + factory bootstrap).</summary>
     public int[] StartingElementIds { get; set; } = [1, 2, 3, 4, 5];
 

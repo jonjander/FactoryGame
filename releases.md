@@ -2,6 +2,14 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.5
+
+- **Factory canvas:** status badges (blocked/waiting/processing) with icons, colors, and short guidance; legend while running.
+- **Pipe persistence:** auto-save connections; save plan before place-from-stock so pipes survive new machines.
+- **Canvas refresh:** re-render after machine placement without extra clicks.
+- **Economy:** passive base income removed (service, config, wallet UI).
+- **UI:** version in fixed bottom-right footer; fix Razor version display.
+
 ## 0.3.4
 
 - **English-only:** all user-facing UI, domain diagnostics, wiki text, and API defaults use English (ASCII); fixes garbled Swedish characters in the browser.

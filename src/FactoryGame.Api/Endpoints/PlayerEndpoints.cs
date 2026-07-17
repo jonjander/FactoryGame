@@ -52,7 +52,6 @@ public static class PlayerEndpoints
                 HttpContext http,
                 AppDbContext db,
                 PlayerPoolBootstrapService poolBootstrap,
-                IOptions<GameEconomyOptions> economyOptions,
                 CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)
@@ -68,25 +67,13 @@ public static class PlayerEndpoints
                 var pool = await db.InventoryPools.AsNoTracking()
                     .FirstOrDefaultAsync(p => p.PlayerId == playerId, ct);
 
-                var economy = economyOptions.Value;
-                var baseIncomeDates = await db.EconomyTransactions.AsNoTracking()
-                    .Where(t => t.PlayerId == playerId && t.Type == "BaseIncome")
-                    .Select(t => t.CreatedAt)
-                    .ToListAsync(ct);
-                DateTimeOffset? lastBaseIncome = baseIncomeDates.Count == 0
-                    ? null
-                    : baseIncomeDates.Max();
-
                 return Results.Ok(new
                 {
                     playerId,
                     cash = balance.Cash,
                     pool = pool == null
                         ? null
-                        : new { pool.MaxVolume, pool.UsedVolume },
-                    baseIncomeAmount = economy.BaseIncomeAmount,
-                    baseIncomeIntervalMinutes = economy.BaseIncomeIntervalMinutes,
-                    lastBaseIncomeAt = lastBaseIncome
+                        : new { pool.MaxVolume, pool.UsedVolume }
                 });
             })
             .WithName("GetMyWallet")

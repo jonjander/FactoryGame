@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Bump this on each delivered release; referenced by UI, API metadata, and git tag v$(Version). -->
-    <Version>0.3.4</Version>
+    <Version>0.3.5</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 </Project>

@@ -24,10 +24,6 @@
             {
                 <span class="wallet" title="Cash">@cash.ToString("0.##")</span>
             }
-            @if (!string.IsNullOrEmpty(Wallet.BaseIncomeHint))
-            {
-                <span class="muted fg-base-income-hint" title="Passive base income">@Wallet.BaseIncomeHint</span>
-            }
             @(string.IsNullOrEmpty(Tokens.BearerToken) ? "Not logged in" : "Logged in")
             @if (!string.IsNullOrEmpty(Tokens.BearerToken))
             {
@@ -51,12 +47,7 @@
             </button>
         </div>
     }
-    <footer class="app-footer muted">
-        <span>Version @AppReleaseVersion.Current</span>
-        <button type="button" class="secondary" @onclick="HardReloadClientAsync" disabled="@_reloadBusy" title="Clear PWA cache and reload to fetch latest WASM">
-            @(_reloadBusy ? "Updating..." : "Fetch latest app")
-        </button>
-    </footer>
+    <AppVersionFooter />
     <SnackbarHost />
 </div>
 

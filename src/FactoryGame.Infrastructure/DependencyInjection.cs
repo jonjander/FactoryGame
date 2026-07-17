@@ -50,7 +50,6 @@ public static class DependencyInjection
         services.AddScoped<SponsorCompanyService>();
         services.AddScoped<SponsorCompanyTradingService>();
         services.AddHostedService<SponsorCompanyTradingHostedService>();
-        services.AddHostedService<BaseIncomeBackgroundService>();
         services.AddHostedService<SimulationTickHostedService>();
 
         return services;

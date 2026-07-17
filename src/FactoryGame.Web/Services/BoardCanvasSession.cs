@@ -509,12 +509,15 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         var removed = connections[index];
         connections.RemoveAt(index);
         PlanJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
-        SaveHint = "Pipe removed (not saved).";
         Error = null;
         _snackbar.Show(
             $"Pipe removed: {removed.FromId}.{removed.FromPort} → {removed.ToId}.{removed.ToPort}",
             SnackbarKind.Info);
         await SyncBoardInfoFromEditorAsync();
+        if (!IsSelectedBoardRunning())
+            await SavePlanQuietAsync();
+        else
+            SaveHint = "Pipe removed (not saved).";
         NotifyChanged();
     }
 
@@ -608,6 +611,9 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         Error = null;
         try
         {
+            if (TryDeserializePlan(out _))
+                await SavePlanQuietAsync();
+
             var res = await _http.PostAsJsonAsync($"/v1/boards/{boardId}/place-from-stock",
                 new PlaceMachineFromStockRequest(stockId, PlaceMachineId.Trim()));
             if (!res.IsSuccessStatusCode)
@@ -632,6 +638,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         finally
         {
             Busy = false;
+            NotifyChanged();
         }
     }
 
@@ -835,6 +842,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             Busy = false;
             OnPlaceStockChanged();
             await LoadBoardInfoAsync();
+            NotifyChanged();
         }
     }
 
@@ -939,9 +947,14 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         connections.Add(proposed);
 
         PlanJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
-        SaveHint = "Pipe changed (not saved).";
         Error = null;
-        _snackbar.Show("Pipe connected — save the plan.", SnackbarKind.Info);
+        if (!IsSelectedBoardRunning())
+            await SavePlanQuietAsync();
+        else
+            SaveHint = "Pipe changed (not saved).";
+        _snackbar.Show(
+            IsSelectedBoardRunning() ? "Pipe connected — stop the factory and save the plan." : "Pipe connected.",
+            SnackbarKind.Info);
         await SyncBoardInfoFromEditorAsync();
         NotifyChanged();
         return true;

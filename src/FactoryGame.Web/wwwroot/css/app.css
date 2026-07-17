@@ -205,6 +205,28 @@ body {
     padding: 0.35rem 0.75rem;
 }
 
+.app-version-footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.7rem;
+    line-height: 1.25;
+    border-top: 1px solid #30363d;
+    border-left: 1px solid #30363d;
+    border-top-left-radius: 6px;
+    background: rgba(13, 17, 23, 0.94);
+    pointer-events: none;
+}
+
+.app-version-footer span {
+    pointer-events: none;
+}
+
 .app-footer {
     padding: 0.45rem 1.25rem 0.65rem;
     display: flex;
@@ -514,6 +536,7 @@ pre.fg-snapshot {
 }
 
 .fg-factory-canvas-wrap {
+    position: relative;
     border: 1px solid #30363d;
     border-radius: 8px;
     background: #0d1117;
@@ -526,6 +549,23 @@ pre.fg-snapshot {
     display: block;
     user-select: none;
     touch-action: none;
+}
+
+.fg-canvas-viewport-controls {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    z-index: 6;
+    display: flex;
+    gap: 0.35rem;
+    pointer-events: none;
+}
+
+.fg-canvas-viewport-controls .fg-canvas-recenter-btn {
+    pointer-events: auto;
+    font-size: 0.78rem;
+    padding: 0.22rem 0.55rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .fg-machine-body {
@@ -923,6 +963,102 @@ pre.fg-snapshot {
 
 .fg-factory-running-banner {
     color: #3fb950;
+}
+
+.fg-factory-status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+    padding: 0.35rem 0.5rem 0.45rem;
+    font-size: 0.72rem;
+    border-bottom: 1px solid #30363d;
+    background: rgba(13, 17, 23, 0.65);
+}
+
+.fg-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.fg-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.fg-legend-active .fg-legend-dot { background: #3fb950; }
+.fg-legend-waiting .fg-legend-dot { background: #d29922; }
+.fg-legend-blocked .fg-legend-dot { background: #f85149; }
+
+.fg-machine-status-badge {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    font-size: 9px;
+    line-height: 1.25;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+.fg-machine-status-icon {
+    flex: 0 0 auto;
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1.2;
+}
+
+.fg-machine-status-text {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+}
+
+.fg-machine-status-blocked {
+    color: #ffb4ae;
+    background: rgba(248, 81, 73, 0.18);
+    border-color: rgba(248, 81, 73, 0.55);
+}
+
+.fg-machine-status-blocked .fg-machine-status-icon {
+    color: #f85149;
+}
+
+.fg-machine-status-warning {
+    color: #e3b341;
+    background: rgba(227, 179, 65, 0.12);
+    border-color: rgba(227, 179, 65, 0.45);
+}
+
+.fg-machine-status-active {
+    color: #aff5b4;
+    background: rgba(63, 185, 80, 0.14);
+    border-color: rgba(63, 185, 80, 0.45);
+}
+
+.fg-machine-status-active .fg-machine-status-icon {
+    color: #3fb950;
+    font-size: 8px;
+    letter-spacing: -0.02em;
+}
+
+.fg-machine-status-waiting,
+.fg-machine-status-idle {
+    color: #e3b341;
+    background: rgba(210, 153, 34, 0.12);
+    border-color: rgba(210, 153, 34, 0.4);
+}
+
+.fg-machine-warning .fg-machine-body {
+    stroke: #d29922;
+    stroke-width: 1.5;
 }
 
 .fg-machine-running .fg-machine-body {
@@ -2703,15 +2839,6 @@ button.danger-outline:hover:not(:disabled) {
     gap: 0.5rem;
     flex-shrink: 0;
     font-size: 0.82rem;
-}
-
-.fg-game-version {
-    font-size: 0.72rem;
-}
-
-.fg-base-income-hint {
-    font-size: 0.72rem;
-    white-space: nowrap;
 }
 
 .game-shell-main {

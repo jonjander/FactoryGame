@@ -48,11 +48,6 @@
         {
             <span class="wallet" title="Cash">@cash.ToString("0.##")</span>
         }
-        @if (!string.IsNullOrEmpty(Wallet.BaseIncomeHint))
-        {
-            <span class="muted fg-base-income-hint" title="Passive base income">@Wallet.BaseIncomeHint</span>
-        }
-        <span class="muted fg-game-version">v@AppReleaseVersion.Current</span>
         @if (!string.IsNullOrEmpty(Tokens.BearerToken))
         {
             <button type="button" class="secondary session-action" @onclick="LogoutAsync">Log out</button>

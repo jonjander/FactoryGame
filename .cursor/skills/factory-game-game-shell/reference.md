@@ -93,4 +93,4 @@ builder.Services.AddSingleton<GameShellNavigation>();
 - Logic in `Pages/` that only runs on mobile -- do not forget `Views/` + window registration for desktop.
 - New `@bind` to `BoardCanvasSession` property with `private set` -- requires public setter.
 - Double `InitializeAsync` on session -- guard with `Session.IsInitialized`.
-- Zoom/pan on canvas **not** implemented yet; needs new JS if added.
+- Canvas zoom/pan: scroll wheel or pinch to zoom; middle/right mouse, Alt+drag, or one-finger touch on empty canvas to pan; **Centrera** button recenters on built machines (`EnableViewportNavigation` on `FactoryCanvas`).
