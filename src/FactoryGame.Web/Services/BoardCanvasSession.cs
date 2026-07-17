@@ -305,14 +305,14 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         var warnings = visible.Count(i => i.Severity == "warning");
         var parts = new List<string>
         {
-            board.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase) ? "Kör" : "Stoppad"
+            board.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase) ? "Running" : "Stopped"
         };
         if (board.PlanMachineCount == 0 && board.PlanConnectionCount == 0)
-            parts.Add("tom plan");
+            parts.Add("empty plan");
         else if (errors > 0)
-            parts.Add(errors == 1 ? "1 blockerare" : $"{errors} blockerare");
+            parts.Add(errors == 1 ? "1 blocker" : $"{errors} blockers");
         else if (warnings > 0)
-            parts.Add(warnings == 1 ? "1 varning" : $"{warnings} varningar");
+            parts.Add(warnings == 1 ? "1 warning" : $"{warnings} warnings");
         return string.Join(" · ", parts);
     }
 
@@ -345,8 +345,8 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             .ToList();
         PlanJson = SerializePlan(new BoardPlanDto(machines, connections));
         SettingsMachineId = "";
-        SaveHint = $"Maskin {machineId} borttagen (ej sparat).";
-        _snackbar.Show($"Maskin {machineId} borttagen — spara planen.", SnackbarKind.Info);
+        SaveHint = $"Machine {machineId} removed (not saved).";
+        _snackbar.Show($"Machine {machineId} removed — save the plan.", SnackbarKind.Info);
         await SyncBoardInfoFromEditorAsync();
         NotifyChanged();
     }
@@ -400,10 +400,10 @@ public sealed class BoardCanvasSession : IAsyncDisposable
 
     public string GetBoardStatusLabel(BoardSummaryDto board) => GetEffectiveBoardHealth(board) switch
     {
-        "running" => "Kör",
-        "error" => "Fel",
-        "warning" => "Varning",
-        _ => "Stoppad"
+        "running" => "Running",
+        "error" => "Error",
+        "warning" => "Warning",
+        _ => "Stopped"
     };
 
     public string GetSelectedBoardName()
@@ -433,7 +433,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             return;
         if (string.IsNullOrWhiteSpace(RenameDraft))
         {
-            Error = "Ange ett namn.";
+            Error = "Enter a name.";
             return;
         }
 
@@ -453,7 +453,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             await LoadBoardsAsync();
             if (BoardInfo != null)
                 BoardInfo = BoardInfo with { Name = GetSelectedBoardName() };
-            _snackbar.Show("Spelplanens namn uppdaterat.");
+            _snackbar.Show("Board name updated.");
         }
         catch (Exception ex)
         {
@@ -509,10 +509,10 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         var removed = connections[index];
         connections.RemoveAt(index);
         PlanJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
-        SaveHint = "Rör borttaget (ej sparat).";
+        SaveHint = "Pipe removed (not saved).";
         Error = null;
         _snackbar.Show(
-            $"Rör borttaget: {removed.FromId}.{removed.FromPort} → {removed.ToId}.{removed.ToPort}",
+            $"Pipe removed: {removed.FromId}.{removed.FromPort} → {removed.ToId}.{removed.ToPort}",
             SnackbarKind.Info);
         await SyncBoardInfoFromEditorAsync();
         NotifyChanged();
@@ -538,7 +538,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         }
         catch
         {
-            /* tyst: butiken är valfri för listning */
+            /* silent: store is optional for listing */
         }
     }
 
@@ -571,7 +571,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 var label = MachineMeta.TryGetValue(machineType, out var meta)
                     ? meta.DisplayName
                     : machineType;
-                _snackbar.Show($"Köpte {label}.");
+                _snackbar.Show($"Purchased {label}.");
             }
         }
         catch (Exception ex)
@@ -588,19 +588,19 @@ public sealed class BoardCanvasSession : IAsyncDisposable
     {
         if (Selected is not { } boardId)
         {
-            Error = "Välj en spelplan först.";
+            Error = "Select a board first.";
             return;
         }
 
         if (!Guid.TryParse(PlaceStockId, out var stockId) || stockId == Guid.Empty)
         {
-            Error = "Välj en lagerpost.";
+            Error = "Select an inventory item.";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(PlaceMachineId))
         {
-            Error = "Ange maskin-id.";
+            Error = "Enter a machine id.";
             return;
         }
 
@@ -614,7 +614,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 Error = await res.Content.ReadAsStringAsync();
             else
             {
-                SaveHint = "Maskin placerad och plan sparad.";
+                SaveHint = "Machine placed and plan saved.";
                 ResetPipeSelection();
                 PlaceStockId = "";
                 PlaceMachineId = "";
@@ -622,7 +622,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 await LoadBoardsAsync();
                 await ReloadPlanUiAsync();
                 await LoadBoardInfoAsync();
-                _snackbar.Show("Maskin placerad på planen.");
+                _snackbar.Show("Machine placed on the board.");
             }
         }
         catch (Exception ex)
@@ -661,7 +661,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         Error = null;
         try
         {
-            var res = await _http.PostAsJsonAsync("/v1/boards", new CreateBoardRequest("Ny fabrik"));
+            var res = await _http.PostAsJsonAsync("/v1/boards", new CreateBoardRequest("New factory"));
             if (!res.IsSuccessStatusCode)
             {
                 Error = await res.Content.ReadAsStringAsync();
@@ -719,7 +719,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             return;
         if (!TryDeserializePlan(out _))
         {
-            Error = "Ogiltig plan-JSON — kan inte analysera info.";
+            Error = "Invalid plan JSON — cannot analyze info.";
             return;
         }
 
@@ -895,11 +895,11 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         {
             0 => "",
             1 => removals[0],
-            _ => string.Join(" och ", removals)
+            _ => string.Join(" and ", removals)
         };
 
         return
-            $"Vill du verkligen ta bort kopplingen {removedText} för att ansluta {fromId}.{fromPort} till {toId}.{toPort} istället?";
+            $"Remove connection {removedText} to connect {fromId}.{fromPort} to {toId}.{toPort} instead?";
     }
 
     public async Task<bool> TryApplyConnectionAsync(string fromId, string fromPort, string toId, string toPort)
@@ -909,7 +909,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
 
         if (string.Equals(fromId, toId, StringComparison.Ordinal))
         {
-            _snackbar.Show("Kan inte koppla en maskin till sig själv.", SnackbarKind.Info);
+            _snackbar.Show("Cannot connect a machine to itself.", SnackbarKind.Info);
             return false;
         }
 
@@ -918,7 +918,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 c.FromId == proposed.FromId && c.FromPort == proposed.FromPort &&
                 c.ToId == proposed.ToId && c.ToPort == proposed.ToPort))
         {
-            _snackbar.Show("Röret är redan kopplat.", SnackbarKind.Info);
+            _snackbar.Show("Pipe is already connected.", SnackbarKind.Info);
             return false;
         }
 
@@ -939,9 +939,9 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         connections.Add(proposed);
 
         PlanJson = SerializePlan(new BoardPlanDto(plan.Machines, connections));
-        SaveHint = "Rör ändrat (ej sparat).";
+        SaveHint = "Pipe changed (not saved).";
         Error = null;
-        _snackbar.Show("Rör kopplat — spara planen.", SnackbarKind.Info);
+        _snackbar.Show("Pipe connected — save the plan.", SnackbarKind.Info);
         await SyncBoardInfoFromEditorAsync();
         NotifyChanged();
         return true;
@@ -1030,7 +1030,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             .ToList();
         PlanJson = SerializePlan(new BoardPlanDto(machines, plan.Connections));
         SettingsMachineId = updated.Id;
-        SaveHint = $"Inställningar för {updated.Id} uppdaterade (ej sparat).";
+        SaveHint = $"Settings for {updated.Id} updated (not saved).";
         await SyncBoardInfoFromEditorAsync();
         NotifyChanged();
     }
@@ -1041,7 +1041,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             return;
         try
         {
-            var items = await _http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=sv", JsonRelaxed);
+            var items = await _http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=en", JsonRelaxed);
             Elements = items ?? [];
         }
         catch
@@ -1108,7 +1108,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         if (string.IsNullOrEmpty(PipeFromId) || string.IsNullOrEmpty(PipeToId) ||
             string.IsNullOrEmpty(PipeFromPort) || string.IsNullOrEmpty(PipeToPort))
         {
-            Error = "Välj maskiner och portar för hela röret.";
+            Error = "Select machines and ports for the full pipe.";
             return;
         }
 
@@ -1129,7 +1129,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         {
             if (!TryDeserializePlan(out var plan))
             {
-                Error = "Ogiltig plan-JSON.";
+                Error = "Invalid plan JSON.";
                 return;
             }
 
@@ -1173,7 +1173,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             var res = await _http.PutAsJsonAsync($"/v1/boards/{boardId}/plan", body);
             if (res.StatusCode == System.Net.HttpStatusCode.Conflict && showConflictHint)
             {
-                SaveHint = "Konflikt med servern (409). Öppna CLI och använd merge-flöde: jämför revision manuellt eller välj att skriva över via ny sparning.";
+                SaveHint = "Conflict with server (409). Open CLI and use merge flow: compare revision manually or overwrite via a new save.";
             }
             else if (!res.IsSuccessStatusCode)
             {
@@ -1181,7 +1181,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             }
             else
             {
-                SaveHint = showConflictHint ? "Sparat på servern." : "Layout sparad.";
+                SaveHint = showConflictHint ? "Saved on server." : "Layout saved.";
                 await LoadBoardInfoAsync();
             }
         }
@@ -1189,8 +1189,8 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         {
             await _queue.EnqueueAsync("PUT", $"/v1/boards/{boardId}/plan", body);
             SaveHint = showConflictHint
-                ? "Offline: sparning köad. Synka under CLI när du är online."
-                : "Layout köad (offline).";
+                ? "Offline: save queued. Sync via CLI when online."
+                : "Layout queued (offline).";
         }
     }
 
@@ -1206,7 +1206,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 Error = await res.Content.ReadAsStringAsync();
             else
             {
-                _snackbar.Show("Fabriken startar…");
+                _snackbar.Show("Factory starting...");
                 await LoadBoardsAsync();
                 await LoadBoardInfoAsync();
                 await LoadLatestKeyframeAsync(id);
@@ -1231,7 +1231,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 Error = await res.Content.ReadAsStringAsync();
             else
             {
-                _snackbar.Show("Fabriken stoppad — du kan redigera planen.");
+                _snackbar.Show("Factory stopped — you can edit the plan.");
                 await LoadBoardsAsync();
                 StartPollingIfRunning();
             }

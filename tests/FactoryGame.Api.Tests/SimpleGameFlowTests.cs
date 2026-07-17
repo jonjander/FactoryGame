@@ -20,7 +20,7 @@ using Microsoft.Extensions.Hosting;
 namespace FactoryGame.Api.Tests;
 
 /// <summary>
-/// End-to-end spelflöde: köp grundämne → fabrik (seaport → maskin → seaport) → sälj.
+/// End-to-end game flow: buy base element → factory (seaport → machine → seaport) → sell.
 /// </summary>
 public sealed class SimpleGameFlowTests : IAsyncLifetime
 {

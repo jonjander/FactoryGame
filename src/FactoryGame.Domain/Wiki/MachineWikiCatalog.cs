@@ -20,9 +20,9 @@ public static class MachineWikiCatalog
         Entry("Tank", "Buffer storage with configurable capacity (small/medium/large)."),
         Entry("Junction", "Splits one input across two outputs with fair alternation or capacity-weighted routing."),
         Entry("RateLimiter", "Caps flow to a configured maximum rate."),
-        Entry("SeaportConnector", "Kopplar fabrik till seaport-pool (in från rör, ut till rör)."),
-        Entry("SeaportIn", "Legacy: pool → fabrik (endast ut)."),
-        Entry("SeaportOut", "Legacy: fabrik → pool (endast in).")
+        Entry("SeaportConnector", "Connects factory to seaport pool (in from pipes, out to pipes)."),
+        Entry("SeaportIn", "Legacy: pool → factory (out only)."),
+        Entry("SeaportOut", "Legacy: factory → pool (in only).")
     ];
 
     /// <summary>Canonical port names from <see cref="MachinePortCatalog"/> as <c>in[,in2]:out[,out2]</c>.</summary>

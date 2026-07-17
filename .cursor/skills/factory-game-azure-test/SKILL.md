@@ -9,56 +9,56 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — Azure testmiljö (API)
+# FactoryGame -- Azure test environment (API)
 
-## Bas-URL (dev)
+## Base URL (dev)
 
 `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net`
 
-- **Region:** Sweden Central (värdnamnet avslöjar `swedencentral-01`).
+- **Region:** Sweden Central (hostname contains `swedencentral-01`).
 - **Swagger UI:** `/swagger` (OpenAPI JSON: `/swagger/v1/swagger.json`).
-- **Hälsa:** `GET /health` → svarstext `Healthy` vid OK.
-- **Buffrade loggar (efter användarens test i Azure):** `GET /diagnostics/recent-logs` — full URL:  
+- **Health:** `GET /health` -> response text `Healthy` when OK.
+- **Buffered logs (after user test in Azure):** `GET /diagnostics/recent-logs` -- full URL:  
   `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net/diagnostics/recent-logs`  
-  Svar: `text/plain` med rader sedan processstart. I **Production** krävs appinställning **`Diagnostics__ExposeRecentLogEndpoint` = `true`** (Azure Portal → Configuration); i **Development** är endpointen alltid på. Agenten kan anropa denna URL (t.ex. `WebFetch`) efter att användaren rapporterat beteende i molnet.
+  Response: `text/plain` with lines since process start. In **Production** app setting **`Diagnostics__ExposeRecentLogEndpoint` = `true`** is required (Azure Portal -> Configuration); in **Development** the endpoint is always on. The agent can call this URL (e.g. `WebFetch`) after the user reports behavior in the cloud.
 
-Verifierat externt: `/health` och `/swagger/v1/swagger.json` svarar när appen kör. **Blazor PWA** servas från samma värd som API (rot + `MapFallbackToFile`). **Gäst-inloggning** (`POST /v1/auth/guest`) kräver att EF-start mot databasen fungerar — vid fel (t.ex. 500) se Azure Log stream och `ConnectionStrings__DefaultConnection` (Azure SQL med `Authentication=Active Directory Default`; Web App managed identity ska ha DB-behörighet).
+Verified externally: `/health` and `/swagger/v1/swagger.json` respond when the app runs. **Blazor PWA** is served from the same host as the API (root + `MapFallbackToFile`). **Guest login** (`POST /v1/auth/guest`) requires EF startup against the database to work -- on failure (e.g. 500) see Azure Log stream and `ConnectionStrings__DefaultConnection` (Azure SQL with `Authentication=Active Directory Default`; Web App managed identity needs DB permission).
 
-## Deploy (hur koden hamnar här)
+## Deploy (how code gets here)
 
-- **Källa:** GitHub-repo `https://github.com/jonjander/FactoryGame.git` (push till vald branch, t.ex. `master`).
-- **Azure:** Deployment Center med **External Git** + **App Service Build Service** (Oryx); **Sync** (eller schemalagd pull) bygger på Azure.
-- **Monorepo:** appinställning **`PROJECT`** = `src/FactoryGame.Api/FactoryGame.Api.csproj` (bygg rätt projekt).
-- **Stack:** .NET **10** (`net10.0`); repo har **`global.json`** för SDK 10.
-- **Detaljer:** se `README.md` → avsnittet **Azure Web App (API)**.
+- **Source:** GitHub repo `https://github.com/jonjander/FactoryGame.git` (push to chosen branch, e.g. `master`).
+- **Azure:** Deployment Center with **External Git** + **App Service Build Service** (Oryx); **Sync** (or scheduled pull) builds on Azure.
+- **Monorepo:** app setting **`PROJECT`** = `src/FactoryGame.Api/FactoryGame.Api.csproj` (build correct project).
+- **Stack:** .NET **10** (`net10.0`); repo has **`global.json`** for SDK 10.
+- **Details:** see `README.md` -> section **Azure Web App (API)**.
 
-## Snabb smoke (autentiserad gäst)
+## Quick smoke (authenticated guest)
 
-1. `POST /v1/auth/guest` med JSON `{"deviceKey":"<valfri-sträng>"}` → får `playerId`, `sessionToken` (camelCase i JSON).
-2. `GET /v1/me/wallet` med header `Authorization: Bearer <sessionToken>`.
+1. `POST /v1/auth/guest` with JSON `{"deviceKey":"<any-string>"}` -> get `playerId`, `sessionToken` (camelCase in JSON).
+2. `GET /v1/me/wallet` with header `Authorization: Bearer <sessionToken>`.
 
-Övriga routes enligt Swagger (boards, market, content, admin m.m.).
+Other routes per Swagger (boards, market, content, admin etc.).
 
-## Admin / hemligheter
+## Admin / secrets
 
-- **Admin:** `X-Admin-Token` mot `/v1/admin/*` — värdet sätts i Azure **Application settings** (`Admin:BootstrapToken`); **lagra aldrig** token i repo eller i chat.
-- **FTP/zip-deploy:** används inte i nuvarande flöde; endast Git → Oryx.
+- **Admin:** `X-Admin-Token` against `/v1/admin/*` -- value set in Azure **Application settings** (`Admin:BootstrapToken`); **never store** token in repo or chat.
+- **FTP/zip deploy:** not used in current flow; only Git -> Oryx.
 
-## Klient (Blazor UI)
+## Client (Blazor UI)
 
-Själva **gränssnittet** byggs in i samma Web App som API:t (`FactoryGame.Api` refererar `FactoryGame.Web`); publicerad app har PWA på rot och API under `/v1`. **Repo-ägaren** verifierar UI i **Azure** (se bas-URL ovan), inte genom lokal körning på egen maskin.
+The **UI** is built into the same Web App as the API (`FactoryGame.Api` references `FactoryGame.Web`); published app has PWA at root and API under `/v1`. **Repo owner** verifies UI in **Azure** (see base URL above), not by running locally on their machine.
 
-- **Agenten i Cursor:** kör `dotnet build` / `dotnet test` och vid behov smoke-skript nedan — det är **lokal agentverifiering**, inte något repo-ägaren måste köra.
+- **Agent in Cursor:** runs `dotnet build` / `dotnet test` and smoke scripts below when needed -- that is **local agent verification**, not something the repo owner must run.
 
-## Lokal verifiering (agent / CI)
+## Local verification (agent / CI)
 
-Kör skriptet (PowerShell) i Cursor eller CI:
+Run the script (PowerShell) in Cursor or CI:
 
 `.cursor/skills/factory-game-azure-test/scripts/Smoke-AzureApi.ps1`
 
-Använd **`-BaseUrl 'https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net'`** för smoke mot den deployade appen, eller `-BaseUrl 'https://...'` om URL ändras. För enbart lokal API-byggvalidering: kör `dotnet test` / `dotnet run` på **agentens** sida enligt `README.md` (repo-ägaren behöver inte göra detta).
+Use **`-BaseUrl 'https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net'`** for smoke against the deployed app, or `-BaseUrl 'https://...'` if URL changes. For local API build validation only: run `dotnet test` / `dotnet run` on the **agent** side per `README.md` (repo owner does not need to do this).
 
-## Primära dokument
+## Primary documents
 
-- Beteende / API-kontrakt: `KRAVSPEC.md`
-- Lokal dev, DB, CI: `README.md`
+- Behavior / API contract: `KRAVSPEC.md`
+- Local dev, DB, CI: `README.md`

@@ -161,7 +161,7 @@ function registerTools(mcp: McpServer): void {
       const r = await fetchPlayer("GET", "/v1/market/summary", {
         sessionToken,
         apiKey,
-      }, undefined, { locale: locale ?? "sv" });
+      }, undefined, { locale: locale ?? "en" });
       return formatToolResult(r);
     }
   );
@@ -328,7 +328,7 @@ function registerTools(mcp: McpServer): void {
       const r = await fetchPlayer("GET", "/v1/me/pool/view", {
         sessionToken,
         apiKey,
-      }, undefined, { locale: locale ?? "sv" });
+      }, undefined, { locale: locale ?? "en" });
       return formatToolResult(r);
     }
   );

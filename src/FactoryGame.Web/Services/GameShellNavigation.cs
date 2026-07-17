@@ -30,21 +30,21 @@ public sealed class GameShellNavigation : IDisposable
         if (_registered)
             return;
 
-        _windows.Register("login", "Logga in", typeof(HomeView), 420, 320);
-        _windows.Register("exchange", "Börs", typeof(ExchangeView), 720, 520);
-        _windows.Register("market", "Marknad", typeof(MarketView), 640, 480);
+        _windows.Register("login", "Log in", typeof(HomeView), 420, 320);
+        _windows.Register("exchange", "Exchange", typeof(ExchangeView), 720, 520);
+        _windows.Register("market", "Market", typeof(MarketView), 640, 480);
         _windows.Register("pool", "Pool", typeof(PoolView), 720, 480);
-        _windows.Register("transactions", "Konto", typeof(TransactionsView), 640, 480);
+        _windows.Register("transactions", "Account", typeof(TransactionsView), 640, 480);
         _windows.Register("wiki", "Wiki", typeof(WikiView), 800, 560);
         _windows.Register("cli", "CLI", typeof(CliView), 560, 400);
         _windows.Register("admin", "Admin", typeof(AdminView), 640, 480);
-        _windows.Register("boards-picker", "Spelplaner", typeof(BoardPickerView), 480, 400);
-        _windows.Register("store", "Maskinbutik", typeof(MachineStoreView), 560, 440);
-        _windows.Register("machine-settings", "Maskininställningar", typeof(MachineSettingsView), 520, 420);
-        _windows.Register("board-info", "Fabrikinformation", typeof(BoardInfoView), 560, 440);
+        _windows.Register("boards-picker", "Boards", typeof(BoardPickerView), 480, 400);
+        _windows.Register("store", "Machine store", typeof(MachineStoreView), 560, 440);
+        _windows.Register("machine-settings", "Machine settings", typeof(MachineSettingsView), 520, 420);
+        _windows.Register("board-info", "Factory info", typeof(BoardInfoView), 560, 440);
         _windows.Register("plan-json", "Plan (JSON)", typeof(PlanJsonView), 560, 480);
-        _windows.Register("place-machine", "Placera maskin", typeof(PlaceMachineView), 480, 320);
-        _windows.Register("pipe-form", "Koppla rör", typeof(PipeFormView), 520, 400);
+        _windows.Register("place-machine", "Place machine", typeof(PlaceMachineView), 480, 320);
+        _windows.Register("pipe-form", "Connect pipes", typeof(PipeFormView), 520, 400);
         _registered = true;
     }
 

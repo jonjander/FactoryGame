@@ -1,19 +1,19 @@
 ---
-description: FactoryGame delegation — läs AGENTS.md och projekt-skills vid uppdelning av arbete eller subagenter.
+description: FactoryGame delegation -- read AGENTS.md and project skills when splitting work or using subagents.
 alwaysApply: true
 ---
 
-# FactoryGame — arbetslag
+# FactoryGame -- team
 
-- Vid delegering eller "subagent": följ roller och uppstartsprompts i **`AGENTS.md`** (repo-rot).
-- Domänspecifika skills och mellanchefer ligger i **`.cursor/skills/`** — se **`AGENTS.md`** (komponenter + `factory-game-integration-lead`, `factory-game-architect`, `factory-game-api-platform`). Subagenter i **`.cursor/agents/`**. Aktivera med `@skill-name` eller Task till subagent-namn.
-- xUnit-tester / trasiga tester: subagent **`factory-game-tester`** eller `@factory-game-tester` (inte samma som MCP `factory-game-playtester`).
-- Spelkrav: **`KRAVSPEC.md`** är primär sanningskälla för beteende.
-- **Git:** varje commit-meddelande **måste** innehålla **`Version`** från `Directory.Build.props` (obligatoriskt; se **`factory-game-git-commit-push`**). Subagenter ska inte committa utan versionsprefix.
+- When delegating or using "subagent": follow roles and startup prompts in **`AGENTS.md`** (repo root).
+- Domain-specific skills and leads live in **`.cursor/skills/`** -- see **`AGENTS.md`** (components + `factory-game-integration-lead`, `factory-game-architect`, `factory-game-api-platform`). Subagents in **`.cursor/agents/`**. Activate with `@skill-name` or Task to subagent name.
+- xUnit tests / broken tests: subagent **`factory-game-tester`** or `@factory-game-tester` (not the same as MCP `factory-game-playtester`).
+- Game requirements: **`KRAVSPEC.md`** is the primary source of truth for behavior.
+- **Git:** every commit message **must** contain **`Version`** from `Directory.Build.props` (mandatory; see **`factory-game-git-commit-push`**). Subagents must not commit without version prefix.
 
-## Felsökning och körning (ägarens miljö)
+## Troubleshooting and running (owner environment)
 
-- **Primär Azure Web App (dev):** `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net` — samma värd för **PWA**, **`/v1`-API**, **`/swagger`** och (om påslagen) **`GET /diagnostics/recent-logs`**.
-- **Användaren** verifierar i praktiken i **Azure** (ingen lokal `dotnet run` på användarens maskin). **Be inte** användaren att starta app lokalt eller öppna localhost för att bekräfta beteende.
-- **Efter att användaren testat i Azure:** agenten hämtar gärna felsökningsunderlag från denna bas-URL, t.ex. **`GET /diagnostics/recent-logs`** (text, sedan processstart). I **Production** måste appinställningen **`Diagnostics__ExposeRecentLogEndpoint` = `true`** sättas om endpointen ska svara; i **Development** är den alltid på. Alternativ/komplement: **App Service → Log stream** / Application Insights om det finns.
-- **Agenten** kör **`dotnet build` / `dotnet test`** (och vid behov repo-skript som Azure-smoke) **i Cursor-miljön** — det är agentens lokala verifiering, inte något användaren behöver köra.
+- **Primary Azure Web App (dev):** `https://factorygame-h5hmbzgncnazcmgu.swedencentral-01.azurewebsites.net` -- same host for **PWA**, **`/v1` API**, **`/swagger`**, and (if enabled) **`GET /diagnostics/recent-logs`**.
+- The **user** verifies in practice in **Azure** (no local `dotnet run` on the user's machine). **Do not ask** the user to start the app locally or open localhost to confirm behavior.
+- **After the user tested in Azure:** the agent may fetch troubleshooting material from this base URL, e.g. **`GET /diagnostics/recent-logs`** (text, since process start). In **Production** app setting **`Diagnostics__ExposeRecentLogEndpoint` = `true`** must be set for the endpoint to respond; in **Development** it is always on. Alternative/complement: **App Service -> Log stream** / Application Insights if available.
+- The **agent** runs **`dotnet build` / `dotnet test`** (and repo scripts such as Azure smoke when needed) **in the Cursor environment** -- that is the agent's local verification, not something the user needs to run.

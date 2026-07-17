@@ -8,18 +8,18 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — MCP-server
+# FactoryGame -- MCP server
 
-## Vad det är
+## What it is
 
-Stdio MCP-server (`factorygame` / `user-factorygame` i Cursor) som proxar **HTTP-anrop** mot FactoryGame API. Källkod: `tools/factorygame-mcp/`. Servern är **inte** spelmotor — den kör inga ticks lokalt.
+Stdio MCP server (`factorygame` / `user-factorygame` in Cursor) that proxies **HTTP calls** to the FactoryGame API. Source: `tools/factorygame-mcp/`. The server is **not** the game engine -- it does not run ticks locally.
 
-**Auktoritet:** samma som webklienten och Swagger (`/swagger/v1/swagger.json`). Spelregler: `KRAVSPEC.md`.
+**Authority:** same as web client and Swagger (`/swagger/v1/swagger.json`). Game rules: `KRAVSPEC.md`.
 
-## Setup och verifiering
+## Setup and verification
 
-1. `npm install` + `npm run build` i `tools/factorygame-mcp/` (efter git pull).
-2. Cursor MCP-konfiguration (projekt [`.cursor/mcp.json`](../../mcp.json)) — **två servrar**:
+1. `npm install` + `npm run build` in `tools/factorygame-mcp/` (after git pull).
+2. Cursor MCP configuration (project [`.cursor/mcp.json`](../../mcp.json)) -- **two servers**:
 
 ```json
 {
@@ -44,83 +44,83 @@ Stdio MCP-server (`factorygame` / `user-factorygame` i Cursor) som proxar **HTTP
 }
 ```
 
-| MCP-server | Bas-URL | Användning |
+| MCP server | Base URL | Usage |
 |------------|---------|------------|
-| `factorygame` | Azure dev | Standard / repo-ägarens driftverifiering |
-| `factorygame-local` | `http://localhost:5176` | Lokal API (`http`-profil, undviker dev-cert i Node) |
+| `factorygame` | Azure dev | Default / repo owner operations verification |
+| `factorygame-local` | `http://localhost:5176` | Local API (`http` profile, avoids dev cert in Node) |
 
-**Lokal API:** `dotnet run --project src/FactoryGame.Api --launch-profile http` → `GET http://localhost:5176/health` = `Healthy`.
+**Local API:** `dotnet run --project src/FactoryGame.Api --launch-profile http` -> `GET http://localhost:5176/health` = `Healthy`.
 
-Valfritt: `envFile` → `tools/factorygame-mcp/.env` (se `.env.example`). **Starta om Cursor** efter MCP-ändringar — båda servrarna kan vara aktiverade samtidigt (olika namn).
+Optional: `envFile` -> `tools/factorygame-mcp/.env` (see `.env.example`). **Restart Cursor** after MCP changes -- both servers can be enabled at once (different names).
 
-3. **Rök Azure:** `npm run smoke`
-4. **Rök lokal:** `npm run smoke:local` (väntar på `/health`, kräver körande lokal API)
+3. **Smoke Azure:** `npm run smoke`
+4. **Smoke local:** `npm run smoke:local` (waits for `/health`, requires running local API)
 5. **E2E Azure:** `npm run playtest`
-6. **E2E lokal:** `npm run playtest:local`
-7. **Bas-URL:** `FACTORYGAME_BASE_URL` (kod-default = Azure om unset). Se `@factory-game-azure-test`.
+6. **E2E local:** `npm run playtest:local`
+7. **Base URL:** `FACTORYGAME_BASE_URL` (code default = Azure if unset). See `@factory-game-azure-test`.
 
-**Fixtures:** exempelplaner i `tools/factorygame-mcp/fixtures/plans.json`.
+**Fixtures:** example plans in `tools/factorygame-mcp/fixtures/plans.json`.
 
-## Autentisering
+## Authentication
 
-| Typ | MCP | Miljö / argument |
+| Type | MCP | Env / argument |
 |-----|-----|------------------|
-| Gäst | `guest_auth` | `deviceKey` → `sessionToken` |
-| Spelare | Bearer på skyddade verktyg | `sessionToken` eller `FACTORYGAME_SESSION_TOKEN` |
-| API-nyckel | `X-Api-Key` | `apiKey` eller `FACTORYGAME_API_KEY` (**slår före** bearer) |
-| Admin | `admin_*` | **Endast** `FACTORYGAME_ADMIN_TOKEN` (aldrig tool-argument) |
+| Guest | `guest_auth` | `deviceKey` -> `sessionToken` |
+| Player | Bearer on protected tools | `sessionToken` or `FACTORYGAME_SESSION_TOKEN` |
+| API key | `X-Api-Key` | `apiKey` or `FACTORYGAME_API_KEY` (**takes precedence** over bearer) |
+| Admin | `admin_*` | **Only** `FACTORYGAME_ADMIN_TOKEN` (never tool argument) |
 
-**Checka aldrig in** session, API-nycklar eller admin-token i repo eller commit-meddelanden.
+**Never check in** session, API keys, or admin token in repo or commit messages.
 
-**Utanför MCP:** OAuth / IdP-inloggning (F1). Headless test använder gäst eller API-nyckel.
+**Outside MCP:** OAuth / IdP login (F1). Headless test uses guest or API key.
 
-## Verktyg → HTTP (32 verktyg)
+## Tools -> HTTP (32 tools)
 
-| MCP-verktyg | HTTP | Auth |
+| MCP tool | HTTP | Auth |
 |-------------|------|------|
-| `guest_auth` | `POST /v1/auth/guest` | nej |
-| `content_list_elements` | `GET /v1/content/elements` | nej |
-| `content_wiki` | `GET /v1/content/wiki` | nej |
-| `content_machine_store` | `GET /v1/content/machine-store` | nej |
-| `market_open_orders` | `GET /v1/market/orders/open` | nej |
-| `market_recent_trades` | `GET /v1/market/trades` | nej |
-| `market_summary` | `GET /v1/market/summary` | ja |
-| `market_element_depth` | `GET /v1/market/elements/{id}/depth` | nej |
-| `market_element_history` | `GET /v1/market/elements/{id}/history` | nej |
-| `market_orders_mine` | `GET /v1/market/orders/mine` | ja |
-| `market_place_order` | `POST /v1/market/orders` | ja |
-| `player_wallet` | `GET /v1/me/wallet` | ja |
-| `player_pool` | `GET /v1/me/pool` | ja |
-| `player_pool_view` | `GET /v1/me/pool/view` | ja |
-| `player_transactions` | `GET /v1/me/transactions` | ja |
-| `player_machine_inventory` | `GET /v1/me/machine-inventory` | ja |
-| `player_machine_purchase` | `POST /v1/me/machine-inventory/purchase` | ja |
-| `boards_create` | `POST /v1/boards` | ja |
-| `boards_list` | `GET /v1/boards` | ja |
-| `boards_save_plan` | `PUT /v1/boards/{id}/plan` | ja |
-| `boards_get_plan` | `GET /v1/boards/{id}/plan` | ja |
-| `boards_place_from_stock` | `POST /v1/boards/{id}/place-from-stock` | ja |
-| `boards_info_preview` | `POST /v1/boards/{id}/info/preview` | ja |
-| `boards_start` / `boards_stop` | `POST .../start` · `.../stop` | ja |
-| `boards_snapshot` | `GET .../snapshot` | ja |
-| `boards_info` | `GET .../info` | ja |
-| `boards_keyframe_latest` | `GET .../keyframes/latest` | ja |
-| `boards_keyframes` | `GET .../keyframes?afterTick=` | ja |
+| `guest_auth` | `POST /v1/auth/guest` | no |
+| `content_list_elements` | `GET /v1/content/elements` | no |
+| `content_wiki` | `GET /v1/content/wiki` | no |
+| `content_machine_store` | `GET /v1/content/machine-store` | no |
+| `market_open_orders` | `GET /v1/market/orders/open` | no |
+| `market_recent_trades` | `GET /v1/market/trades` | no |
+| `market_summary` | `GET /v1/market/summary` | yes |
+| `market_element_depth` | `GET /v1/market/elements/{id}/depth` | no |
+| `market_element_history` | `GET /v1/market/elements/{id}/history` | no |
+| `market_orders_mine` | `GET /v1/market/orders/mine` | yes |
+| `market_place_order` | `POST /v1/market/orders` | yes |
+| `player_wallet` | `GET /v1/me/wallet` | yes |
+| `player_pool` | `GET /v1/me/pool` | yes |
+| `player_pool_view` | `GET /v1/me/pool/view` | yes |
+| `player_transactions` | `GET /v1/me/transactions` | yes |
+| `player_machine_inventory` | `GET /v1/me/machine-inventory` | yes |
+| `player_machine_purchase` | `POST /v1/me/machine-inventory/purchase` | yes |
+| `boards_create` | `POST /v1/boards` | yes |
+| `boards_list` | `GET /v1/boards` | yes |
+| `boards_save_plan` | `PUT /v1/boards/{id}/plan` | yes |
+| `boards_get_plan` | `GET /v1/boards/{id}/plan` | yes |
+| `boards_place_from_stock` | `POST /v1/boards/{id}/place-from-stock` | yes |
+| `boards_info_preview` | `POST /v1/boards/{id}/info/preview` | yes |
+| `boards_start` / `boards_stop` | `POST .../start` / `.../stop` | yes |
+| `boards_snapshot` | `GET .../snapshot` | yes |
+| `boards_info` | `GET .../info` | yes |
+| `boards_keyframe_latest` | `GET .../keyframes/latest` | yes |
+| `boards_keyframes` | `GET .../keyframes?afterTick=` | yes |
 | `admin_list_players` | `GET /v1/admin/players` | admin |
 | `admin_create_api_key` | `POST /v1/admin/api-keys` | admin |
-| `diagnostics_recent_logs` | `GET /diagnostics/recent-logs` | nej* |
+| `diagnostics_recent_logs` | `GET /diagnostics/recent-logs` | no* |
 
-\* Kräver att endpoint är påslagen på värden (Production: `Diagnostics__ExposeRecentLogEndpoint=true`).
+\* Requires endpoint enabled on host (Production: `Diagnostics__ExposeRecentLogEndpoint=true`).
 
 ### Locale
 
-Flera verktyg accepterar valfritt `locale` (sätter `Accept-Language`; content-routes sätter även `?locale=`). Webben använder ofta `sv`.
+Several tools accept optional `locale` (sets `Accept-Language`; content routes also set `?locale=`). The web app often uses `en`.
 
-### Svarformat
+### Response format
 
-Varje verktyg returnerar text: `HTTP {status}` + JSON-body (eller rå text för diagnostik). Fel → `isError: true`. Saknad auth → status `0` med tydligt meddelande. `HTTP 204` (köp/placera) är OK med tom body.
+Each tool returns text: `HTTP {status}` + JSON body (or raw text for diagnostics). Errors -> `isError: true`. Missing auth -> status `0` with clear message. `HTTP 204` (buy/place) is OK with empty body.
 
-### Plan-schema
+### Plan schema
 
 ```json
 {
@@ -129,29 +129,29 @@ Varje verktyg returnerar text: `HTTP {status}` + JSON-body (eller rå text för 
 }
 ```
 
-Swagger / `BoardPlanDto` är sanning för maskintyper och portnamn.
+Swagger / `BoardPlanDto` is truth for machine types and port names.
 
-## GUI-paritet
+## GUI parity
 
-Alla web-GUI `/v1`-routes har motsvarande MCP-verktyg. Se [gui-parity.md](gui-parity.md).
+All web GUI `/v1` routes have matching MCP tools. See [gui-parity.md](gui-parity.md).
 
-## Begränsningar
+## Limitations
 
-- **Endast HTTP** — ingen lokal sim, WebSocket eller service worker.
-- **Ingen PWA/offline** — köade sparningar, merge-UI och offline-börs (F26).
-- **Ingen visuell klient** — drag-connect, animation, mobil-layout (F19).
-- **Polling** — `boards_keyframes` / `boards_snapshot`; ingen klientinterpolation.
-- **OAuth** — använd gäst eller API-nyckel.
+- **HTTP only** -- no local sim, WebSocket, or service worker.
+- **No PWA/offline** -- queued saves, merge UI, offline exchange (F26).
+- **No visual client** -- drag-connect, animation, mobile layout (F19).
+- **Polling** -- `boards_keyframes` / `boards_snapshot`; no client interpolation.
+- **OAuth** -- use guest or API key.
 
-## Utöka servern
+## Extend server
 
-1. Lägg verktyg i `tools/factorygame-mcp/src/index.ts`.
-2. `npm run build` + starta om Cursor.
-3. Uppdatera denna skill och [gui-parity.md](gui-parity.md).
-4. Kör `npm run smoke` och ev. `npm run playtest`.
+1. Add tool in `tools/factorygame-mcp/src/index.ts`.
+2. `npm run build` + restart Cursor.
+3. Update this skill and [gui-parity.md](gui-parity.md).
+4. Run `npm run smoke` and optionally `npm run playtest`.
 
-## Relaterat
+## Related
 
 - **Playtest:** `@factory-game-mcp-playtest`, subagent `factory-game-playtester`.
-- **GUI-paritet:** [gui-parity.md](gui-parity.md).
+- **GUI parity:** [gui-parity.md](gui-parity.md).
 - **Azure:** `@factory-game-azure-test`.

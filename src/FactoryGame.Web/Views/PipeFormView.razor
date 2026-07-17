@@ -2,12 +2,12 @@
 @implements IDisposable
 
 <div class="fg-window-panel">
-    <h4>Koppla rör</h4>
+    <h4>Connect pipes</h4>
     <div class="fg-pipe-grid">
         <div>
-            <label>Från maskin</label>
+            <label>From machine</label>
             <select class="fg-select" @bind="Session.PipeFromId" @bind:after="Session.OnPipeEndpointChanged">
-                <option value="">— Välj —</option>
+                <option value="">— Select —</option>
                 @foreach (var m in Session.GetPlanMachines())
                 {
                     <option value="@m.Id">@m.Id (@m.Type)</option>
@@ -15,9 +15,9 @@
             </select>
         </div>
         <div>
-            <label>Från utgång</label>
+            <label>From output</label>
             <select class="fg-select" @bind="Session.PipeFromPort" @bind:after="Session.OnPipeEndpointChanged">
-                <option value="">— Välj —</option>
+                <option value="">— Select —</option>
                 @foreach (var p in Session.GetOutputPortChoices(Session.PipeFromId))
                 {
                     <option value="@p.Name">@p.Label</option>
@@ -25,9 +25,9 @@
             </select>
         </div>
         <div>
-            <label>Till maskin</label>
+            <label>To machine</label>
             <select class="fg-select" @bind="Session.PipeToId" @bind:after="Session.OnPipeEndpointChanged">
-                <option value="">— Välj —</option>
+                <option value="">— Select —</option>
                 @foreach (var m in Session.GetPlanMachines())
                 {
                     <option value="@m.Id">@m.Id (@m.Type)</option>
@@ -35,9 +35,9 @@
             </select>
         </div>
         <div>
-            <label>Till ingång</label>
+            <label>To input</label>
             <select class="fg-select" @bind="Session.PipeToPort" @bind:after="Session.OnPipeEndpointChanged">
-                <option value="">— Välj —</option>
+                <option value="">— Select —</option>
                 @foreach (var p in Session.GetInputPortChoices(Session.PipeToId))
                 {
                     <option value="@p.Name">@p.Label</option>
@@ -45,7 +45,7 @@
             </select>
         </div>
         <div class="fg-pipe-actions">
-            <button type="button" class="secondary" @onclick="Session.AddPipeToPlanAsync" disabled="@Session.Busy">Lägg rör</button>
+            <button type="button" class="secondary" @onclick="Session.AddPipeToPlanAsync" disabled="@Session.Busy">Add pipe</button>
         </div>
     </div>
 </div>

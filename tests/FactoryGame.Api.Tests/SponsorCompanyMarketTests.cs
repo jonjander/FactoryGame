@@ -23,7 +23,7 @@ public sealed class SponsorCompanyMarketTests
         var admin = factory.CreateClient();
         var player = factory.CreateClient();
 
-        var company = await CreateCompanyAsync(admin, "Företag AB", fundingMode: "Budget", budget: 50_000m);
+        var company = await CreateCompanyAsync(admin, "Company AB", fundingMode: "Budget", budget: 50_000m);
         await CreateStandingOrderAsync(admin, company.Id, "buy", limitPrice: 12m, qty: 100);
 
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -53,7 +53,7 @@ public sealed class SponsorCompanyMarketTests
         var match = trades.FirstOrDefault(t => t.Dna == ElementDna && t.Quantity == 5);
         Assert.NotNull(match);
         Assert.True(match.BuyerIsSponsor);
-        Assert.Equal("Företag AB", match.BuyerLabel);
+        Assert.Equal("Company AB", match.BuyerLabel);
     }
 
     [Fact]

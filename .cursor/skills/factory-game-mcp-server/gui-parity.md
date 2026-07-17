@@ -1,93 +1,93 @@
-# GUI-paritet — webklient vs MCP
+# GUI parity -- web client vs MCP
 
-Mål: en agent via MCP ska kunna göra **samma server-side handlingar** som en inloggad spelare i web-GUI (F18, F19, F20). Klient-only beteende (offline, merge, animation) är **utanför** MCP.
+Goal: an agent via MCP should be able to perform **the same server-side actions** as a logged-in player in the web GUI (F18, F19, F20). Client-only behavior (offline, merge, animation) is **outside** MCP.
 
-**Status:** alla web-GUI `/v1`-routes har MCP-verktyg (32 totalt). Se `@factory-game-mcp-server`.
+**Status:** all web GUI `/v1` routes have MCP tools (32 total). See `@factory-game-mcp-server`.
 
-## Spelarflöden
+## Player flows
 
-### Session och ekonomi
+### Session and economy
 
-| Användaren i GUI | MCP |
+| User in GUI | MCP |
 |------------------|-----|
-| Gäst / enhetsinloggning | `guest_auth` |
-| OAuth (Google m.m.) | **Utanför MCP** — gäst eller API-nyckel |
-| Se saldo och pool | `player_wallet`, `player_pool` |
-| Pool per ämne (volym-UI) | `player_pool_view` |
-| Transaktionshistorik | `player_transactions` |
+| Guest / device login | `guest_auth` |
+| OAuth (Google etc.) | **Outside MCP** -- guest or API key |
+| See balance and pool | `player_wallet`, `player_pool` |
+| Pool per element (volume UI) | `player_pool_view` |
+| Transaction history | `player_transactions` |
 
-### Innehåll och wiki
+### Content and wiki
 
 | GUI | MCP |
 |-----|-----|
-| Periodiska systemet / ämnen | `content_list_elements` |
+| Periodic system / elements | `content_list_elements` |
 | Wiki | `content_wiki` |
-| Maskinbutik | `content_machine_store` |
-| Köp maskin till lager | `player_machine_purchase` |
-| Maskininventory | `player_machine_inventory` |
+| Machine store | `content_machine_store` |
+| Buy machine to inventory | `player_machine_purchase` |
+| Machine inventory | `player_machine_inventory` |
 
-### Fabrik / spelplan
-
-| GUI | MCP |
-|-----|-----|
-| Skapa plan | `boards_create` |
-| Lista planer | `boards_list` |
-| Redigera maskiner och kopplingar | `boards_save_plan` |
-| Läs sparad plan | `boards_get_plan` |
-| Placera från lager | `boards_place_from_stock` |
-| Starta / stoppa sim | `boards_start`, `boards_stop` |
-| Live fabrik (keyframes) | `boards_keyframe_latest`, `boards_keyframes` |
-| Snapshot / tillstånd | `boards_snapshot` |
-| Fabriksrapport / seaport | `boards_info` |
-| Förhandsgranska rapport | `boards_info_preview` |
-
-### Börs
+### Factory / board plan
 
 | GUI | MCP |
 |-----|-----|
-| Börsöversikt | `market_summary` |
-| Orderbok (global) | `market_open_orders` |
-| Orderdjup per ämne | `market_element_depth` |
-| Kurshistorik | `market_element_history` |
-| Senaste affärer | `market_recent_trades` |
-| Lägg limitorder | `market_place_order` |
-| Mina ordrar | `market_orders_mine` |
-| Offline-börs (F26) | **Utanför MCP** |
+| Create plan | `boards_create` |
+| List plans | `boards_list` |
+| Edit machines and connections | `boards_save_plan` |
+| Read saved plan | `boards_get_plan` |
+| Place from inventory | `boards_place_from_stock` |
+| Start / stop sim | `boards_start`, `boards_stop` |
+| Live factory (keyframes) | `boards_keyframe_latest`, `boards_keyframes` |
+| Snapshot / state | `boards_snapshot` |
+| Factory report / seaport | `boards_info` |
+| Preview report | `boards_info_preview` |
 
-### Admin / diagnostik
+### Exchange
 
-| GUI / drift | MCP |
+| GUI | MCP |
+|-----|-----|
+| Exchange overview | `market_summary` |
+| Order book (global) | `market_open_orders` |
+| Depth per element | `market_element_depth` |
+| Price history | `market_element_history` |
+| Recent trades | `market_recent_trades` |
+| Place limit order | `market_place_order` |
+| My orders | `market_orders_mine` |
+| Offline exchange (F26) | **Outside MCP** |
+
+### Admin / diagnostics
+
+| GUI / ops | MCP |
 |-------------|-----|
-| Lista spelare | `admin_list_players` |
-| Skapa API-nyckel | `admin_create_api_key` |
-| Felsökning efter Azure-test | `diagnostics_recent_logs` |
+| List players | `admin_list_players` |
+| Create API key | `admin_create_api_key` |
+| Troubleshooting after Azure test | `diagnostics_recent_logs` |
 
-## Automatiserade flöden
+## Automated flows
 
 ```bash
 cd tools/factorygame-mcp
 npm run smoke           # Azure
-npm run smoke:local     # localhost:5176 (API måste köra)
+npm run smoke:local     # localhost:5176 (API must be running)
 npm run playtest        # Azure E2E
-npm run playtest:local  # lokal E2E
+npm run playtest:local  # local E2E
 ```
 
-Referensplaner: `tools/factorygame-mcp/fixtures/plans.json`.
+Reference plans: `tools/factorygame-mcp/fixtures/plans.json`.
 
-## Acceptanskriterier för ny funktion
+## Acceptance criteria for new functionality
 
-1. **Krav:** F-nummer i `KRAVSPEC.md`
-2. **API:** route + payload i Swagger
-3. **MCP:** nytt verktyg om headless-test ska täckas
-4. **Headless steg:** auth → … → assert HTTP 2xx
-5. **Utanför MCP:** klient-only beteende tydligt markerat
+1. **Requirements:** F-number in `KRAVSPEC.md`
+2. **API:** route + payload in Swagger
+3. **MCP:** new tool if headless test should cover it
+4. **Headless steps:** auth -> ... -> assert HTTP 2xx
+5. **Outside MCP:** client-only behavior clearly marked
 
-## Referensflöden
+## Reference flows
 
-**Minimal:** `guest_auth` → `player_wallet` → `boards_list`
+**Minimal:** `guest_auth` -> `player_wallet` -> `boards_list`
 
-**Fabrik:** `guest_auth` → `boards_create` → `boards_save_plan` → `boards_start` → `boards_keyframes` → `boards_stop`
+**Factory:** `guest_auth` -> `boards_create` -> `boards_save_plan` -> `boards_start` -> `boards_keyframes` -> `boards_stop`
 
-**Maskinlager:** `content_machine_store` → `player_machine_purchase` → `boards_place_from_stock`
+**Machine inventory:** `content_machine_store` -> `player_machine_purchase` -> `boards_place_from_stock`
 
-**Börs:** `market_summary` → `market_element_depth` → `market_place_order` → `market_orders_mine`
+**Exchange:** `market_summary` -> `market_element_depth` -> `market_place_order` -> `market_orders_mine`

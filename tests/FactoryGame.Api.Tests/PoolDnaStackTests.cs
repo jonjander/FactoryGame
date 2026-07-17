@@ -46,8 +46,8 @@ public sealed class PoolDnaStackTests : IClassFixture<ApiWebApplicationFixture>
         var liquidVariant = Assert.Single(group.Variants, v => v.Dna == catalogDna);
         Assert.Equal(23, gasVariant.Quantity);
         Assert.Equal(3, liquidVariant.Quantity);
-        Assert.Equal("gasform", gasVariant.PhaseLabel);
-        Assert.Equal("flytande", liquidVariant.PhaseLabel);
+        Assert.Equal("Gas", gasVariant.PhaseLabel);
+        Assert.Equal("Liquid", liquidVariant.PhaseLabel);
     }
 
     [Fact]

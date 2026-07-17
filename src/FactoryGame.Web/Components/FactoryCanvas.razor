@@ -8,28 +8,28 @@
 <div class="fg-factory-canvas-wrap @(FillViewport ? "fg-factory-canvas-fill" : "")">
     <ConfirmDialog Visible="_confirmRemoveVisible"
                    Message="@_confirmRemoveMessage"
-                   ConfirmLabel="Ta bort"
+                   ConfirmLabel="Remove"
                    OnConfirm="ConfirmRemoveMachineAsync"
                    OnCancel="CancelRemoveMachine" />
     @if (!ReadOnly)
     {
         @if (!HideHelpText)
         {
-            <p class="muted">Dra maskiner. Koppla rör: dra från utgång → ingång, eller klicka utgång → ingång. Klicka rör → «Ta bort rör». Papperskorg på maskin → ta bort.</p>
+            <p class="muted">Drag machines. Connect pipes: drag output → input, or click output → input. Click a pipe → «Remove pipe». Trash on machine → remove.</p>
         }
         @if (_selectedConnectionIndex is int sel && sel >= 0 && sel < Plan.Connections.Count)
         {
             var sc = Plan.Connections[sel];
             <div class="fg-pipe-toolbar">
-                <span class="muted">Valt: @sc.FromId.@sc.FromPort → @sc.ToId.@sc.ToPort</span>
-                <button type="button" class="secondary" @onclick="RemoveSelectedPipeAsync">Ta bort rör</button>
-                <button type="button" class="secondary" @onclick="ClearPipeSelection">Avmarkera</button>
+                <span class="muted">Selected: @sc.FromId.@sc.FromPort → @sc.ToId.@sc.ToPort</span>
+                <button type="button" class="secondary" @onclick="RemoveSelectedPipeAsync">Remove pipe</button>
+                <button type="button" class="secondary" @onclick="ClearPipeSelection">Deselect</button>
             </div>
         }
     }
     else if (!HideHelpText)
     {
-        <p class="muted fg-factory-running-banner">Planen körs — endast visning. Stoppa fabriken för att redigera.</p>
+        <p class="muted fg-factory-running-banner">Board is running — view only. Stop the factory to edit.</p>
     }
     <svg @ref="_svgRef"
          xmlns="http://www.w3.org/2000/svg"
@@ -108,8 +108,8 @@
                 <foreignObject x="4" y="6" width="@(w - 8)" height="20" pointer-events="none">
                     <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-label-html">
                         @m.Id
-                        @if (running) { <span class="fg-machine-status-dot" title="Kör">●</span> }
-                        else if (blocked) { <span class="fg-machine-status-dot fg-machine-status-blocked" title="Blockerad">●</span> }
+                        @if (running) { <span class="fg-machine-status-dot" title="Running">●</span> }
+                        else if (blocked) { <span class="fg-machine-status-dot fg-machine-status-blocked" title="Blocked">●</span> }
                     </div>
                 </foreignObject>
                 <foreignObject x="4" y="26" width="@(w - 8)" height="16" pointer-events="none">
@@ -121,8 +121,8 @@
                         <button xmlns="http://www.w3.org/1999/xhtml"
                                 type="button"
                                 class="fg-machine-delete-btn"
-                                title="Ta bort maskin"
-                                aria-label="Ta bort @m.Id"
+                                title="Remove machine"
+                                aria-label="Remove @m.Id"
                                 @onclick="() => RequestRemoveMachine(m)"
                                 @onclick:stopPropagation="true"
                                 @onmousedown:stopPropagation="true">
@@ -568,7 +568,7 @@
 
         return Plan.Connections.Any(c =>
             (c.FromId == machineId && c.FromPort == portName) || (c.ToId == machineId && c.ToPort == portName))
-            ? "kopplad"
+            ? "connected"
             : null;
     }
 
@@ -578,7 +578,7 @@
     private string GetPipeTooltip(int connectionIndex)
     {
         if (connectionIndex < 0 || connectionIndex >= Plan.Connections.Count)
-            return "Rör";
+            return "Pipe";
 
         var c = Plan.Connections[connectionIndex];
         var rate = FormatRate();
@@ -610,9 +610,9 @@
         if (_blockedByMachineId.TryGetValue(m.Id, out var block))
             lines.Add(block);
         else if (IsFactoryRunning && _machinesWithFlow.Contains(m.Id))
-            lines.Add($"Kör — ~{FormatRate()}");
+            lines.Add($"Running — ~{FormatRate()}");
         else if (IsFactoryRunning)
-            lines.Add("Kör — väntar på material");
+            lines.Add("Running — waiting for material");
         else
             lines.Add(GetStoppedSettingsSummary(m, _elementById));
 
@@ -636,7 +636,7 @@
     {
         var fields = MachineSettingsUi.GetFields(m.Type);
         if (fields.Count == 0)
-            return "Inga inställningar — koppla rör och spara.";
+            return "No settings — connect pipes and save.";
 
         var parts = new List<string>();
         foreach (var field in fields)
@@ -651,7 +651,7 @@
                 };
                 parts.Add(id > 0
                     ? $"{field.Label}: {FormatElementLabel(id, elementById)}"
-                    : $"{field.Label}: (ingenting)");
+                    : $"{field.Label}: (none)");
             }
             else
             {
@@ -693,15 +693,15 @@
     private static string PhaseShort(string phaseKey) => phaseKey.ToLowerInvariant() switch
     {
         "gas" => "gas",
-        "liquid" => "vätska",
-        "solid" => "fast",
+        "liquid" => "liquid",
+        "solid" => "solid",
         _ => phaseKey
     };
 
     private string FormatRate() =>
         UnitsPerSecond >= 0.01
-            ? $"{UnitsPerSecond:0.##} enheter/s"
-            : "1 enhet/tick";
+            ? $"{UnitsPerSecond:0.##} units/s"
+            : "1 unit/tick";
 
     private string GetPipeFlowClass(int connectionIndex)
     {
@@ -869,7 +869,7 @@
             return;
         _pendingRemoveMachineId = m.Id;
         _confirmRemoveMessage =
-            $"Ta bort maskin {m.Id} ({m.Type})? Alla kopplade rör tas också bort.";
+            $"Remove machine {m.Id} ({m.Type})? All connected pipes will also be removed.";
         _confirmRemoveVisible = true;
     }
 

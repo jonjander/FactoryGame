@@ -19,8 +19,8 @@ internal static class DnaBandDiagnostics
         var need = Math.Max(0, freeze - cutFreeze);
         var passes = need == 0 ? 0 : (int)Math.Ceiling(need / (double)chillDelta);
         return passes <= 1
-            ? $"kyls — fryspunkt {freeze}, cut {cutFreeze}: efter en pass ~{afterOnePass} (behöver ≤{cutFreeze}, saknas {need})"
-            : $"kyls — fryspunkt {freeze}, cut {cutFreeze}: behöver sänka fryspunkt med {need} (~{passes} pass à −{chillDelta})";
+            ? $"cooling — freeze point {freeze}, cut {cutFreeze}: after one pass ~{afterOnePass} (need ≤{cutFreeze}, short by {need})"
+            : $"cooling — freeze point {freeze}, cut {cutFreeze}: need to lower freeze point by {need} (~{passes} passes at −{chillDelta})";
     }
 
     public static string FormatMelterPending(long dna, int cutBoil, int heatDelta)
@@ -30,9 +30,9 @@ internal static class DnaBandDiagnostics
         var boil = ReadBoilBand(dna);
         var afterOnePass = Math.Clamp(boil + heatDelta, 0, (int)DnaLayout.BoilingMask);
         var need = Math.Max(0, cutBoil - boil);
-        return $"värms — kokpunkt {boil}, cut {cutBoil}: efter en pass ~{afterOnePass} (behöver ≥{cutBoil}, saknas {need})";
+        return $"heating — boiling point {boil}, cut {cutBoil}: after one pass ~{afterOnePass} (need ≥{cutBoil}, short by {need})";
     }
 
     public static string FormatCoolerStep(long dnaBefore, long dnaAfter, int coolDelta) =>
-        $"kyls i Cooler (kokband {ReadBoilBand(dnaBefore)}→{ReadBoilBand(dnaAfter)}, Δ−{coolDelta})";
+        $"cooled in Cooler (boil band {ReadBoilBand(dnaBefore)}→{ReadBoilBand(dnaAfter)}, Δ−{coolDelta})";
 }

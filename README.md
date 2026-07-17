@@ -1,128 +1,126 @@
 # FactoryGame (MVP)
 
-Server-authoritativ fabriksimulator med börs, seaport-pool, DNA-baserade grundämnen och Blazor WebAssembly-klient (PWA).
+Server-authoritative factory simulator with exchange, seaport pool, DNA-based base elements, and Blazor WebAssembly client (PWA).
 
-## Krav
+## Requirements
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Docker (valfritt, t.ex. `docker compose` för att köra API i container; **inte** krav för `dotnet run` lokalt)
+- Docker (optional, e.g. `docker compose` to run the API in a container; **not** required for local `dotnet run`)
 
-## Databas (EF Core — SQL Server + SQLite)
+## Database (EF Core -- SQL Server + SQLite)
 
-- **Lokal utveckling:** kopiera [`src/FactoryGame.Api/appsettings.Local.example.json`](src/FactoryGame.Api/appsettings.Local.example.json) till `appsettings.Local.json` (gitignored) med din SQL Server-connection string. ASP.NET Core laddar `appsettings.Local.json` automatiskt. Schema skapas/uppdateras med **EF Core migrations** (`Migrate()`) vid start.
-- **Azure (produktion):** sätt appinställning `ConnectionStrings__DefaultConnection` till Azure SQL-sträng med `Authentication=Active Directory Default` (Web App managed identity). Exempel:
+- **Local development:** copy [`src/FactoryGame.Api/appsettings.Local.example.json`](src/FactoryGame.Api/appsettings.Local.example.json) to `appsettings.Local.json` (gitignored) with your SQL Server connection string. ASP.NET Core loads `appsettings.Local.json` automatically. Schema is created/updated with **EF Core migrations** (`Migrate()`) at startup.
+- **Azure (production):** set app setting `ConnectionStrings__DefaultConnection` to an Azure SQL string with `Authentication=Active Directory Default` (Web App managed identity). Example:
   `Server=tcp:YOUR_SERVER.database.windows.net,1433;Initial Catalog=fg;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default;`
-- **Tester / Docker (standard):** tom `ConnectionStrings:DefaultConnection` i `appsettings.json` → **delad SQLite in-memory** (`Mode=Memory` + `Cache=Shared`). Schema skapas med `EnsureCreatedAsync()` vid start.
-- **SQLite fil (valfritt):** connection string som börjar med `Data Source=` eller `Filename=` (t.ex. `Data Source=./dev.db`) för beständig lokal data utan SQL Server.
-- **Kravbild** (snapshot från webb m.m.): se `KRAVSPEC.md`.
+- **Tests / Docker (default):** empty `ConnectionStrings:DefaultConnection` in `appsettings.json` -> **shared SQLite in-memory** (`Mode=Memory` + `Cache=Shared`). Schema is created with `EnsureCreatedAsync()` at startup.
+- **SQLite file (optional):** connection string starting with `Data Source=` or `Filename=` (e.g. `Data Source=./dev.db`) for persistent local data without SQL Server.
+- **Requirements spec** (snapshot from web, etc.): see `KRAVSPEC.md`.
 
-PostgreSQL/Npgsql används **inte** i denna kodbas.
+PostgreSQL/Npgsql is **not** used in this codebase.
 
-## Snabbstart (API + Blazor PWA på samma värd)
+## Quick start (API + Blazor PWA on the same host)
 
 ```bash
 dotnet run --project src/FactoryGame.Api
 ```
 
-- **PWA / UI:** bas-URL från `launchSettings.json` (t.ex. `https://localhost:7145/` eller `http://localhost:5176/`) — samma port som API:t.
-- **REST API:** under **`/v1/...`** (oförändrade endpoints).
-- **Swagger:** `https://localhost:7145/swagger` (https-profilen). Middleware för Swagger körs före Blazor-fallback så `/swagger` inte ersätts av PWA:ns `index.html`.
-- **Hälsa:** `GET /health`
-- **Diagnostik:** `GET /diagnostics/recent-logs` returnerar buffrade loggrad (text, ingen autentisering) sedan processstart. Påslagen i **Development**; i produktion sätt `Diagnostics:ExposeRecentLogEndpoint` till `true` endast vid behov (lämna `false` som standard).
+- **PWA / UI:** base URL from `launchSettings.json` (e.g. `https://localhost:7145/` or `http://localhost:5176/`) -- same port as the API.
+- **REST API:** under **`/v1/...`** (endpoints unchanged).
+- **Swagger:** `https://localhost:7145/swagger` (https profile). Swagger middleware runs before the Blazor fallback so `/swagger` is not replaced by the PWA `index.html`.
+- **Health:** `GET /health`
+- **Diagnostics:** `GET /diagnostics/recent-logs` returns buffered log lines (text, no authentication) since process start. Enabled in **Development**; in production set `Diagnostics:ExposeRecentLogEndpoint` to `true` only when needed (leave `false` by default).
 
-Klienten väljer API-bas via **`ApiTarget`** (`Auto`, `SameOrigin`, `LocalDev`, `Azure`, `Custom`) i `wwwroot/appsettings.Development.json` (endast Debug-build) och URL:er i `wwwroot/factory-config.json`. **`Auto`** (standard i Azure/Release): samma ursprung som sidan på riktig värd; på localhost med WASM Development → lokal API (`https://localhost:7145`). **`dotnet run --project src/FactoryGame.Web`**: använd VS-profilerna **«https (UI → lokal API)»** eller **«https (UI → Azure API)»** (`FactoryGameApiTarget` som MSBuild-egenskap), eller sätt `ApiTarget` / `ApiBaseUrl` i config. **`dotnet run --project src/FactoryGame.Api`**: UI och API delar port — SameOrigin automatiskt.
+The client selects the API base via **`ApiTarget`** (`Auto`, `SameOrigin`, `LocalDev`, `Azure`, `Custom`) in `wwwroot/appsettings.Development.json` (Debug build only) and URLs in `wwwroot/factory-config.json`. **`Auto`** (default in Azure/Release): same origin as the page on a real host; on localhost with WASM Development -> local API (`https://localhost:7145`). **`dotnet run --project src/FactoryGame.Web`**: use VS profiles **"https (UI -> local API)"** or **"https (UI -> Azure API)"** (`FactoryGameApiTarget` as MSBuild property), or set `ApiTarget` / `ApiBaseUrl` in config. **`dotnet run --project src/FactoryGame.Api`**: UI and API share a port -- SameOrigin automatically.
 
-## Snabbstart (API i Docker)
+## Quick start (API in Docker)
 
 ```bash
 docker compose up --build
 ```
 
-API exponeras på port **8080** (samma in-memory SQLite som tom `DefaultConnection` om du inte ändrar compose).
+The API is exposed on port **8080** (same in-memory SQLite as empty `DefaultConnection` unless you change compose). PWA and `/v1` ship with the same image.
 
-API exponeras på port **8080** (samma in-memory SQLite som tom `DefaultConnection` om du inte ändrar compose). PWA och `/v1` följer med samma avbildning.
-
-## Blazor-projektet (`FactoryGame.Web`) separat
+## Blazor project (`FactoryGame.Web`) separately
 
 ```bash
 dotnet run --project src/FactoryGame.Web
 ```
 
-Används för WASM hot reload / isolerad frontendarbete. Standard Debug: **`ApiTarget: LocalDev`** i `appsettings.Development.json`. Profil **«https (UI → Azure API)»** sätter `FactoryGameApiTarget=Azure` vid build (UI lokalt, API i Azure).
+Used for WASM hot reload / isolated frontend work. Default Debug: **`ApiTarget: LocalDev`** in `appsettings.Development.json`. Profile **"https (UI -> Azure API)"** sets `FactoryGameApiTarget=Azure` at build time (UI locally, API in Azure).
 
-För **API i Azure** med **endast** denna host: lämna `ApiBaseUrl` tom i byggda `factory-config.json` (samma webbapp). För **UI på annan domän** (t.ex. Static Web Apps): sätt `ApiBaseUrl` till API-Web App:ens bas-URL (utan avslutande `/`).
+For **API in Azure** with **only** this host: leave `ApiBaseUrl` empty in built `factory-config.json` (same web app). For **UI on another domain** (e.g. Static Web Apps): set `ApiBaseUrl` to the API Web App base URL (no trailing `/`).
 
-På **API** i Azure med **separat** klientdomän: `Cors__Origins__0` = klientens exakta bas-URL; när UI och API delar host behövs normalt ingen separat CORS-ursprung.
+On **API** in Azure with a **separate** client domain: `Cors__Origins__0` = the client's exact base URL; when UI and API share a host, a separate CORS origin is normally not needed.
 
-**Publicerat UI separat** (valfritt): `dotnet publish` på `FactoryGame.Web` och serva `wwwroot` mot en annan URL med `factory-config.json` som pekar på API:t.
+**Published UI separately** (optional): `dotnet publish` on `FactoryGame.Web` and serve `wwwroot` from another URL with `factory-config.json` pointing at the API.
 
-CORS: Development använder `Cors:Origins` i `appsettings.Development.json` på API-projektet.
+CORS: Development uses `Cors:Origins` in `appsettings.Development.json` on the API project.
 
-## Autentisering
+## Authentication
 
-- **Gäst:** `POST /v1/auth/guest` med JSON `{ "deviceKey": "valfri-sträng" }`, sedan `Authorization: Bearer <token>`.
-- **API-nyckel:** `X-Api-Key: <plaintext>` (hash lagras i databasen). Skapa nyckel med admin-bootstrap nedan.
+- **Guest:** `POST /v1/auth/guest` with JSON `{ "deviceKey": "any-string" }`, then `Authorization: Bearer <token>`.
+- **API key:** `X-Api-Key: <plaintext>` (hash stored in the database). Create a key with admin bootstrap below.
 
 ## Admin (bootstrap)
 
-Sätt `Admin:BootstrapToken` (t.ex. i `appsettings.Development.json`). Anropa:
+Set `Admin:BootstrapToken` (e.g. in `appsettings.Development.json`). Call:
 
-- `GET /v1/admin/players` med header `X-Admin-Token: <token>`
-- `POST /v1/admin/api-keys` med samma header och body `{ "playerId": "...", "name": "bot", "scopes": "market,boards" }`  
-  Svaret innehåller `key` en gång.
+- `GET /v1/admin/players` with header `X-Admin-Token: <token>`
+- `POST /v1/admin/api-keys` with the same header and body `{ "playerId": "...", "name": "bot", "scopes": "market,boards" }`  
+  The response contains `key` once.
 
-## Miljövariabler (API)
+## Environment variables (API)
 
-| Variabel | Beskrivning |
+| Variable | Description |
 |----------|-------------|
-| `ConnectionStrings__DefaultConnection` | **Tom** → SQLite in-memory (tester/Docker). **SQL Server** (`Server=...`) lokalt/Azure. **SQLite fil** (`Data Source=...` / `Filename=...`) |
+| `ConnectionStrings__DefaultConnection` | **Empty** -> SQLite in-memory (tests/Docker). **SQL Server** (`Server=...`) locally/Azure. **SQLite file** (`Data Source=...` / `Filename=...`) |
 | `ASPNETCORE_ENVIRONMENT` | `Development` / `Production` |
-| `Cors__Origins__0` | (valfritt) tillåten klient-URL |
+| `Cors__Origins__0` | (optional) allowed client URL |
 
-## Tester
+## Tests
 
 ```bash
 dotnet test FactoryGame.sln
 ```
 
-Integrationstester (`FactoryGame.Api.Tests`) använder samma SQLite in-memory som standard-API och **kräver inte** Docker.
+Integration tests (`FactoryGame.Api.Tests`) use the same SQLite in-memory as the default API and **do not require** Docker.
 
 ## Azure Web App (API)
 
-Deploy sker genom att **pusha till GitHub**; Azure **Deployment Center** (External Git + **App Service Build Service** / Oryx) hämtar repot och bygger vid **Sync** eller enligt schemat du satt i portalen.
+Deploy by **pushing to GitHub**; Azure **Deployment Center** (External Git + **App Service Build Service** / Oryx) pulls the repo and builds on **Sync** or on the schedule set in the portal.
 
-**Konfiguration som ska stämma med denna kodbas (.NET 10, monorepo):**
+**Configuration that must match this codebase (.NET 10, monorepo):**
 
-1. **Stack:** .NET **10** (matchar `net10.0` i alla `.csproj`).
-2. **Application setting `PROJECT`:** `src/FactoryGame.Api/FactoryGame.Api.csproj` så Oryx bygger API-projektet.
-3. **`global.json`** i repo-roten styr **.NET 10 SDK** för Oryx.
-4. **Branch** i Deployment Center ska matcha den gren du pushar till (t.ex. `master`).
+1. **Stack:** .NET **10** (matches `net10.0` in all `.csproj` files).
+2. **Application setting `PROJECT`:** `src/FactoryGame.Api/FactoryGame.Api.csproj` so Oryx builds the API project.
+3. **`global.json`** in the repo root pins **.NET 10 SDK** for Oryx.
+4. **Branch** in Deployment Center must match the branch you push to (e.g. `master`).
 
-**Azure Portal → Configuration → Application settings** (drift):
+**Azure Portal -> Configuration -> Application settings** (operations):
 
-- `ConnectionStrings__DefaultConnection` – **Azure SQL** med `Authentication=Active Directory Default` (Web App managed identity). Schema migreras vid start. Tom sträng = SQLite in-memory (data försvinner vid omstart).
-- `ASPNETCORE_ENVIRONMENT` = `Production` (viktigt för värdad Blazor WASM: `Development` kan få klienten att ladda dev-inställningar och felaktigt peka API-anrop mot `localhost` i webbläsaren.)
-- `Cors__Origins__0` – klientens bas-URL om du begränsar CORS.
+- `ConnectionStrings__DefaultConnection` -- **Azure SQL** with `Authentication=Active Directory Default` (Web App managed identity). Schema migrates at startup. Empty string = SQLite in-memory (data lost on restart).
+- `ASPNETCORE_ENVIRONMENT` = `Production` (important for hosted Blazor WASM: `Development` can cause the client to load dev settings and incorrectly point API calls at `localhost` in the browser.)
+- `Cors__Origins__0` -- client base URL if you restrict CORS.
 
-**Loggar:** bygg-/deploy-logg för Oryx finns i **Deployment Center** / **Log stream** när källan är Azure-bygge. För **apploggar**, slå på **App Service logs → Application logging (Filesystem)** och ev. `Logging__LogLevel__Default` = `Information`.
+**Logs:** Oryx build/deploy logs are in **Deployment Center** / **Log stream** when the source is Azure build. For **app logs**, enable **App Service logs -> Application logging (Filesystem)** and optionally `Logging__LogLevel__Default` = `Information`.
 
-**CI i GitHub:** workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) kör build + tester på push/PR till `main`/`master` — den deployar **inte** till Azure.
+**CI in GitHub:** workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs build + tests on push/PR to `main`/`master` -- it does **not** deploy to Azure.
 
-För **Azure dev-URL, smoke, auth mot molnet:** se skill [`factory-game-azure-test`](.cursor/skills/factory-game-azure-test/SKILL.md) (`@factory-game-azure-test`).
+For **Azure dev URL, smoke, auth against the cloud:** see skill [`factory-game-azure-test`](.cursor/skills/factory-game-azure-test/SKILL.md) (`@factory-game-azure-test`).
 
-Eventuella **gamla GitHub-secrets** för FTPS/publish profile används inte längre av detta repo; du kan ta bort dem i repo-inställningar om du vill städa.
+Legacy **GitHub secrets** for FTPS/publish profile are no longer used by this repo; you can remove them in repo settings if you want to clean up.
 
-## Säkerhet (MVP)
+## Security (MVP)
 
-- Byt `Admin:BootstrapToken` i produktion eller stäng av admin-routes bakom nätverk.
-- API-nycklar lagras som SHA-256-hash.
-- Rate limiting: global fast fönster per spelare eller IP (se `Program.cs`).
+- Change `Admin:BootstrapToken` in production or lock admin routes behind the network.
+- API keys are stored as SHA-256 hashes.
+- Rate limiting: global fixed window per player or IP (see `Program.cs`).
 
-## Struktur
+## Structure
 
-- `src/FactoryGame.Api` – värd: OpenAPI/Swagger, `/v1`-API, statiska Blazor WASM-filer (via referens till `FactoryGame.Web`)
-- `src/FactoryGame.Domain` – DNA, simuleringsstubbar, innehåll
-- `src/FactoryGame.Infrastructure` – EF Core, tjänster, bakgrundstjänster
-- `src/FactoryGame.Contracts` – delade DTO:er
-- `src/FactoryGame.Web` – Blazor WASM PWA (byggs in i API-värden; kan köras isolerat för dev)
-- `tests/*` – enhets- och integrationstester
+- `src/FactoryGame.Api` -- host: OpenAPI/Swagger, `/v1` API, static Blazor WASM files (via reference to `FactoryGame.Web`)
+- `src/FactoryGame.Domain` -- DNA, simulation stubs, content
+- `src/FactoryGame.Infrastructure` -- EF Core, services, background services
+- `src/FactoryGame.Contracts` -- shared DTOs
+- `src/FactoryGame.Web` -- Blazor WASM PWA (built into the API host; can run isolated for dev)
+- `tests/*` -- unit and integration tests

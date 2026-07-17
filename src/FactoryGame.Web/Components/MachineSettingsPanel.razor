@@ -6,10 +6,10 @@
 @if (_machine != null && _fields.Count > 0)
 {
     <div class="panel fg-sub fg-machine-settings @(Disabled ? "fg-machine-settings-locked" : "")">
-        <h4>Inställningar — @_machine.Id <span class="muted">(@_machine.Type)</span></h4>
+        <h4>Settings — @_machine.Id <span class="muted">(@_machine.Type)</span></h4>
         @if (Disabled)
         {
-            <p class="fg-settings-locked-banner">Planen körs — stoppa fabriken för att ändra inställningar.</p>
+            <p class="fg-settings-locked-banner">Board is running — stop the factory to change settings.</p>
         }
         @foreach (var field in _fields)
         {

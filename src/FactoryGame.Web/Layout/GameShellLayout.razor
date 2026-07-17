@@ -22,12 +22,12 @@
                     <div class="game-shell-status @GetBoardModeCss()">
                         @if (Session.IsSelectedBoardRunning())
                         {
-                            <span class="fg-status-pill fg-status-running">Kör</span>
+                            <span class="fg-status-pill fg-status-running">Running</span>
                             <span class="muted">@Session.GetSelectedBoardName()</span>
                         }
                         else
                         {
-                            <span class="fg-status-pill fg-status-stopped">Stoppad</span>
+                            <span class="fg-status-pill fg-status-stopped">Stopped</span>
                             <span class="muted">@Session.GetSelectedBoardName()</span>
                         }
                     </div>
@@ -35,7 +35,7 @@
 
                 <ConfirmDialog Visible="Session.ConfirmVisible"
                                Message="Session.ConfirmMessage"
-                               ConfirmLabel="Ja, byt koppling"
+                               ConfirmLabel="Yes, replace connection"
                                OnConfirm="Session.OnConfirmDialogYesAsync"
                                OnCancel="Session.OnConfirmDialogNoAsync" />
 
@@ -63,8 +63,8 @@
             else
             {
                 <div class="game-shell-empty">
-                    <p class="muted">Välj eller skapa en spelplan för att börja bygga.</p>
-                    <button type="button" @onclick='() => Windows.Open("boards-picker")'>Öppna spelplaner</button>
+                    <p class="muted">Select or create a board to start building.</p>
+                    <button type="button" @onclick='() => Windows.Open("boards-picker")'>Open boards</button>
                 </div>
             }
         </div>
@@ -77,9 +77,9 @@
     @if (AppVersion.UpdateAvailable)
     {
         <div class="app-update-banner game-shell-update" role="status">
-            <span>Ny version @AppVersion.ServerVersion finns.</span>
+            <span>New version @AppVersion.ServerVersion available.</span>
             <button type="button" @onclick="HardReloadClientAsync" disabled="@_reloadBusy">
-                @(_reloadBusy ? "Uppdaterar…" : "Uppdatera")
+                @(_reloadBusy ? "Updating..." : "Update")
             </button>
         </div>
     }

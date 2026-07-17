@@ -1,51 +1,51 @@
 # Local playtest log hooks
 
-Cursor-projekthooks som samlar loggar vid **lokal speltest** så agenten kan korrelera tidsstämplar med rapporterade buggar.
+Cursor project hooks that collect logs during **local playtesting** so the agent can correlate timestamps with reported bugs.
 
-## Vad som loggas
+## What is logged
 
-| Fil | Källa |
+| File | Source |
 |-----|--------|
 | `api-recent.log` | API + backend (`GET /diagnostics/recent-logs`) |
-| `ui-client.log` | Blazor/webbläsare (`GET /diagnostics/client-logs`) |
-| `shell.log` | `dotnet run`, curl m.m. via `afterShellExecution` |
-| `agent-activity.ndjson` | Verktygsanrop + sessionhändelser |
-| `snapshots.ndjson` | Metadata för varje snapshot |
+| `ui-client.log` | Blazor/browser (`GET /diagnostics/client-logs`) |
+| `shell.log` | `dotnet run`, curl, etc. via `afterShellExecution` |
+| `agent-activity.ndjson` | Tool calls + session events |
+| `snapshots.ndjson` | Metadata for each snapshot |
 
-Allt hamnar under **`.local-logs/sessions/<id>/`** (gitignored). Aktiv session pekas ut av `.local-logs/current-session.txt`.
+Everything goes under **`.local-logs/sessions/<id>/`** (gitignored). The active session is pointed to by `.local-logs/current-session.txt`.
 
 ## Hooks (`.cursor/hooks.json`)
 
-- **sessionStart** — skapar sessionsmapp
-- **afterShellExecution** — sparar shell-output; snapshot efter `dotnet run`/`watch`/`test`
-- **postToolUse** — tidslinje för agentverktyg; snapshot efter Shell/MCP
-- **stop** — sista snapshot + kort follow-up till agenten
+- **sessionStart** -- creates session folder
+- **afterShellExecution** -- saves shell output; snapshot after `dotnet run`/`watch`/`test`
+- **postToolUse** -- timeline for agent tools; snapshot after Shell/MCP
+- **stop** -- final snapshot + short follow-up to the agent
 
-## Manuell snapshot
+## Manual snapshot
 
-När appen kör lokalt (t.ex. `dotnet run --project src/FactoryGame.Api`):
+When the app runs locally (e.g. `dotnet run --project src/FactoryGame.Api`):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/local-playtest-log/snapshot-local-logs.ps1
 ```
 
-## Konfiguration
+## Configuration
 
-Redigera `.cursor/hooks/local-playtest-log/config.json` om du kör andra portar:
+Edit `.cursor/hooks/local-playtest-log/config.json` if you use other ports:
 
-- API (standard): `https://localhost:7145`, `http://localhost:5176`
-- UI separat: `https://localhost:7048` postar klientloggar till lokal API enligt `index.html`
+- API (default): `https://localhost:7145`, `http://localhost:5176`
+- UI separate: `https://localhost:7048` posts client logs to local API per `index.html`
 
-## Felsökning
+## Troubleshooting
 
-- Hooks syns under **Cursor → Settings → Hooks** och i **Hooks** output channel.
-- Om inget händer: spara om `hooks.json` eller starta om Cursor.
-- Hooks **fail open** — de blockerar aldrig agenten vid fel.
+- Hooks appear under **Cursor -> Settings -> Hooks** and in the **Hooks** output channel.
+- If nothing happens: re-save `hooks.json` or restart Cursor.
+- Hooks **fail open** -- they never block the agent on error.
 
-## För agenten
+## For the agent
 
-När användaren rapporterar en bugg efter lokalt speltest:
+When the user reports a bug after local playtesting:
 
-1. Läs `.local-logs/current-session.txt` → sessionsmapp
-2. Jämför användarens tid/händelse mot `agent-activity.ndjson` och `ui-client.log` / `api-recent.log`
-3. Kör snapshot-skriptet om API fortfarande kör
+1. Read `.local-logs/current-session.txt` -> session folder
+2. Compare the user's time/event against `agent-activity.ndjson` and `ui-client.log` / `api-recent.log`
+3. Run the snapshot script if the API is still running

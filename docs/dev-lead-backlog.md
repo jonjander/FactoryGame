@@ -1,22 +1,11 @@
-# Dev-lead backlog (större ändringar)
+# Dev-lead backlog (larger changes)
 
+Items that need separate review -- not blockers for the minimal local loop.
 
-
-Punkter som kräver separat granskning — inte blocker för minimal lokal loop.
-
-
-
-| Prio | Ämne | Beskrivning |
-
-|------|------|-------------|
-
-| ~~P2~~ | ~~SQLite-lås vid långkörande API~~ | **Löst (0.3.0):** Azure SQL / SQL Server med EF migrations; SQLite kvar enbart för tester. |
-
-| ~~P3~~ | ~~Admin list players~~ | **Löst:** `CreatedAtUtcTicks` på `Players` med index; `GET /v1/admin/players` sorterar i databasen (`OrderByDescending` + `Take(200)`). |
-
-| P2 | Balans — tid till första intäkt | `BaseIncome` var 5:e minut (`BaseIncomeIntervalMinutes`); minimalLoop gav ingen cash-delta på ~6 s. Överväg kortare intervall i dev, tydligare UI om passiv inkomst, eller fabrik→börs-intäkt tidigare i tutorial. |
-
-| P3 | Server `BoardSummary` vs tystade varningar | Klienten justerar hint/badge för **vald** bräda; list-API (`Health`/`StatusHint`) känner inte till browser-mutes. Ev. server-side mute eller synkad preview. |
-
-| ~~P3~~ | ~~Motspelare-börs~~ | **Verifierad lokalt (iter2:local):** två gäster köper/säljer element 7, P2P-matchning OK, pool uppdateras. Fix: `ExchangeService` använder `CreateExecutionStrategy()` med SQL Server retry. |
-
+| Prio | Topic | Description |
+|------|-------|-------------|
+| ~~P2~~ | ~~SQLite lock on long-running API~~ | **Resolved (0.3.0):** Azure SQL / SQL Server with EF migrations; SQLite remains only for tests. |
+| ~~P3~~ | ~~Admin list players~~ | **Resolved:** `CreatedAtUtcTicks` on `Players` with index; `GET /v1/admin/players` sorts in the database (`OrderByDescending` + `Take(200)`). |
+| P2 | Balance -- time to first income | `BaseIncome` every 5 minutes (`BaseIncomeIntervalMinutes`); minimalLoop gave no cash delta in ~6 s. Consider shorter interval in dev, clearer UI for passive income, or factory->exchange income earlier in the tutorial. |
+| P3 | Server `BoardSummary` vs muted warnings | The client adjusts hint/badge for the **selected** board; list API (`Health`/`StatusHint`) does not know browser mutes. Possible server-side mute or synced preview. |
+| ~~P3~~ | ~~Opponent exchange~~ | **Verified locally (iter2:local):** two guests buy/sell element 7, P2P matching OK, pool updates. Fix: `ExchangeService` uses `CreateExecutionStrategy()` with SQL Server retry. |

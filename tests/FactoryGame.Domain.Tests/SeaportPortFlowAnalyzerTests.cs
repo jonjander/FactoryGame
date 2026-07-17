@@ -39,6 +39,6 @@ public sealed class SeaportPortFlowAnalyzerTests
 
         var seaportIn = Assert.Single(ports, p => p.Port == "in");
         Assert.False(seaportIn.IsConnected);
-        Assert.Contains("ej kopplad", seaportIn.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not connected", seaportIn.Summary, StringComparison.OrdinalIgnoreCase);
     }
 }

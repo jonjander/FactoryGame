@@ -1,22 +1,22 @@
 ---
 name: factory-game-dev-lead
 description: >-
-  Orkestrerar lokal FactoryGame utvecklingsloop: build, API på localhost:5176,
-  MCP factorygame-local, playtest-iterationer, buggfix, balans, backlog för stora
-  ändringar. Använd när du ska spela, utvärdera och mogenhetsutveckla spelet
-  iterativt utan Azure.
+  Orchestrates local FactoryGame development loop: build, API on localhost:5176,
+  MCP factorygame-local, playtest iterations, bugfix, balance, backlog for larger
+  changes. Use when you need to play, evaluate, and mature the game iteratively
+  without Azure.
 disable-model-invocation: true
 ---
 
-# FactoryGame — dev lead (lokal loop)
+# FactoryGame -- dev lead (local loop)
 
-## Snabbstart
+## Quick start
 
 ```powershell
-# Terminal 1 — API (http-profil, port 5176)
+# Terminal 1 -- API (http profile, port 5176)
 dotnet run --project src/FactoryGame.Api --launch-profile http
 
-# Terminal 2 — MCP-skript
+# Terminal 2 -- MCP scripts
 cd tools/factorygame-mcp
 npm install
 npm run smoke:local
@@ -25,35 +25,35 @@ npm run iter2:local
 npm run iter3:local
 ```
 
-Cursor: MCP-server **`factorygame-local`** i `.cursor/mcp.json`.
+Cursor: MCP server **`factorygame-local`** in `.cursor/mcp.json`.
 
 ## Subagent
 
-Delegera hela loopen till **`factory-game-dev-lead`** (`.cursor/agents/factory-game-dev-lead.md`).
+Delegate the full loop to **`factory-game-dev-lead`** (`.cursor/agents/factory-game-dev-lead.md`).
 
-## Iterationer
+## Iterations
 
-1. **Minimal fabrik** — `fixtures/plans.json` → `minimalLoop`
-2. **Ekonomi** — wallet, pool, transactions
-3. **Pengar** — börsordrar, sälj från pool
-4. **Avancerat** — separator, maskinlager
-5. **Motspelare** — `factory-game-playtester` med annan `deviceKey`
+1. **Minimal factory** -- `fixtures/plans.json` -> `minimalLoop`
+2. **Economy** -- wallet, pool, transactions
+3. **Money** -- exchange orders, sell from pool
+4. **Advanced** -- separator, machine inventory
+5. **Opponent** -- `factory-game-playtester` with another `deviceKey`
 
-## Efter varje runda
+## After each round
 
-- Findings-tabell (bug / balans / MCP / krav)
-- Små fix → test → omstart loop
-- Stora → `docs/dev-lead-backlog.md`
+- Findings table (bug / balance / MCP / requirements)
+- Small fix -> test -> restart loop
+- Large -> `docs/dev-lead-backlog.md`
 
-## Leverans
+## Delivery
 
-Följ `factory-game-version-and-tags` och `factory-game-git-commit-push`. Lokal loop innebär **inte** att Azure-test ersätts — ägaren synkar deploy manuellt.
+Follow `factory-game-version-and-tags` and `factory-game-git-commit-push`. Local loop does **not** replace Azure testing -- owner syncs deploy manually.
 
-## Relaterat
+## Related
 
-| Resurs | Syfte |
+| Resource | Purpose |
 |--------|--------|
-| `@factory-game-mcp-server` | 32 verktyg |
-| `@factory-game-mcp-playtest` | Flöden |
-| `factory-game-playtester` | MCP mot krav |
+| `@factory-game-mcp-server` | 32 tools |
+| `@factory-game-mcp-playtest` | Flows |
+| `factory-game-playtester` | MCP against requirements |
 | `factory-game-tester` | xUnit |

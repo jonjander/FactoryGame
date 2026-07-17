@@ -13,32 +13,32 @@
     <nav class="fg-game-toolbar-nav">
         @if (string.IsNullOrEmpty(Tokens.BearerToken))
         {
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("login") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("login", "/")'>Logga in</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("login") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("login", "/")'>Log in</button>
         }
         else
         {
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("exchange") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("exchange", "/exchange")' title="Handel">Börs</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("market") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("market", "/market")'>Marknad</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("exchange") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("exchange", "/exchange")' title="Trading">Exchange</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("market") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("market", "/market")'>Market</button>
             <button type="button" class="fg-game-btn @(Windows.IsOpen("pool") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("pool", "/pool")'>Pool</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("transactions") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("transactions", "/transactions")'>Konto</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("transactions") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("transactions", "/transactions")'>Account</button>
             <button type="button" class="fg-game-btn @(Windows.IsOpen("wiki") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("wiki", "/wiki")'>Wiki</button>
             <button type="button" class="fg-game-btn @(Windows.IsOpen("cli") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("cli", "/cli")'>CLI</button>
 
             <span class="fg-game-toolbar-divider"></span>
 
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("boards-picker") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("boards-picker", "/boards")'>Spelplaner</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("store") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("store")'>Butik</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("machine-settings") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("machine-settings")'>Inställningar</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("board-info") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("board-info")'>Info</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("place-machine") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("place-machine")'>Placera</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("pipe-form") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("pipe-form")'>Rör</button>
-            <button type="button" class="fg-game-btn @(Windows.IsOpen("plan-json") ? "fg-game-btn-active" : "")" @onclick='() => ToggleFabrik("plan-json")'>JSON</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("boards-picker") ? "fg-game-btn-active" : "")" @onclick='() => OpenWindow("boards-picker", "/boards")'>Boards</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("store") ? "fg-game-btn-active" : "")" @onclick='() => TogglePanel("store")'>Store</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("machine-settings") ? "fg-game-btn-active" : "")" @onclick='() => TogglePanel("machine-settings")'>Settings</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("board-info") ? "fg-game-btn-active" : "")" @onclick='() => TogglePanel("board-info")'>Info</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("place-machine") ? "fg-game-btn-active" : "")" @onclick='() => TogglePanel("place-machine")'>Place</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("pipe-form") ? "fg-game-btn-active" : "")" @onclick='() => TogglePanel("pipe-form")'>Pipes</button>
+            <button type="button" class="fg-game-btn @(Windows.IsOpen("plan-json") ? "fg-game-btn-active" : "")" @onclick='() => TogglePanel("plan-json")'>JSON</button>
 
             <span class="fg-game-toolbar-divider"></span>
 
-            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.SavePlanAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Spara</button>
+            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.SavePlanAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Save</button>
             <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.StartAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Start</button>
-            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.StopAsync" disabled="@(Session.Busy || !Session.IsSelectedBoardRunning())">Stopp</button>
+            <button type="button" class="fg-game-btn fg-game-btn-sim" @onclick="Session.StopAsync" disabled="@(Session.Busy || !Session.IsSelectedBoardRunning())">Stop</button>
             <button type="button" class="fg-game-btn fg-game-btn-sim secondary" @onclick="Session.SnapshotAsync" disabled="@Session.Busy">Snapshot</button>
         }
     </nav>
@@ -46,16 +46,16 @@
     <span class="fg-game-session">
         @if (Wallet.Cash is { } cash)
         {
-            <span class="wallet" title="Kassa">@cash.ToString("0.##")</span>
+            <span class="wallet" title="Cash">@cash.ToString("0.##")</span>
         }
         @if (!string.IsNullOrEmpty(Wallet.BaseIncomeHint))
         {
-            <span class="muted fg-base-income-hint" title="Passiv basinkomst">@Wallet.BaseIncomeHint</span>
+            <span class="muted fg-base-income-hint" title="Passive base income">@Wallet.BaseIncomeHint</span>
         }
         <span class="muted fg-game-version">v@AppReleaseVersion.Current</span>
         @if (!string.IsNullOrEmpty(Tokens.BearerToken))
         {
-            <button type="button" class="secondary session-action" @onclick="LogoutAsync">Logga ut</button>
+            <button type="button" class="secondary session-action" @onclick="LogoutAsync">Log out</button>
         }
     </span>
 </header>
@@ -78,7 +78,7 @@
             Nav.NavigateTo(route);
     }
 
-    private void ToggleFabrik(string id)
+    private void TogglePanel(string id)
     {
         ShellNav.EnsureRegistered();
         Windows.Toggle(id);

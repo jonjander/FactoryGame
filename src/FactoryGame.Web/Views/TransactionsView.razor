@@ -4,34 +4,34 @@
 @inject HttpClient Http
 @inject TokenStore Tokens
 
-<PageTitle>Transaktioner</PageTitle>
+<PageTitle>Transactions</PageTitle>
 
 @if (string.IsNullOrEmpty(Tokens.BearerToken))
 {
     <div class="panel">
-        <h2>Konto</h2>
-        <p class="muted">Du måste <a href="/">logga in som gäst</a> för att se transaktioner.</p>
+        <h2>Account</h2>
+        <p class="muted">You must <a href="/">log in as guest</a> to view transactions.</p>
     </div>
 }
 else
 {
     <div class="panel">
         <div class="pool-toolbar">
-            <h2>Konto</h2>
-            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+            <h2>Account</h2>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Refresh</button>
         </div>
 
         <div class="tx-filters">
             <label class="tx-filter-field">
-                <span class="muted">Datum från</span>
+                <span class="muted">Date from</span>
                 <input type="date" @bind="_dateFrom" @bind:format="yyyy-MM-dd" />
             </label>
             <label class="tx-filter-field">
-                <span class="muted">Datum till</span>
+                <span class="muted">Date to</span>
                 <input type="date" @bind="_dateTo" @bind:format="yyyy-MM-dd" />
             </label>
-            <button type="button" class="secondary" @onclick="ApplyFiltersAsync" disabled="@_busy">Filtrera</button>
-            <button type="button" class="secondary" @onclick="ClearFiltersAsync" disabled="@_busy">Rensa filter</button>
+            <button type="button" class="secondary" @onclick="ApplyFiltersAsync" disabled="@_busy">Filter</button>
+            <button type="button" class="secondary" @onclick="ClearFiltersAsync" disabled="@_busy">Clear filters</button>
         </div>
 
         @if (!string.IsNullOrEmpty(_error))
@@ -40,11 +40,11 @@ else
         }
         @if (_busy)
         {
-            <p class="muted">Laddar…</p>
+            <p class="muted">Loading...</p>
         }
         else if (_page?.Items.Count == 0)
         {
-            <p class="muted">Inga transaktioner för valt filter.</p>
+            <p class="muted">No transactions for the selected filter.</p>
         }
         else if (_page is not null)
         {
@@ -52,10 +52,10 @@ else
                 <table class="pool-holdings-table">
                     <thead>
                         <tr>
-                            <th>Tid</th>
-                            <th>Typ</th>
-                            <th class="pool-col-num">Belopp</th>
-                            <th>Detalj</th>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th class="pool-col-num">Amount</th>
+                            <th>Detail</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,11 +75,11 @@ else
             </div>
 
             <div class="tx-pager">
-                <button type="button" class="secondary" disabled="@(_busy || _pageNumber <= 1)" @onclick="() => GoToPageAsync(_pageNumber - 1)">Föregående</button>
+                <button type="button" class="secondary" disabled="@(_busy || _pageNumber <= 1)" @onclick="() => GoToPageAsync(_pageNumber - 1)">Previous</button>
                 <span class="muted">
-                    Sida @_pageNumber av @TotalPages · @_page.TotalCount transaktion(er)
+                    Page @_pageNumber of @TotalPages · @_page.TotalCount transaction(s)
                 </span>
-                <button type="button" class="secondary" disabled="@(_busy || _pageNumber >= TotalPages)" @onclick="() => GoToPageAsync(_pageNumber + 1)">Nästa</button>
+                <button type="button" class="secondary" disabled="@(_busy || _pageNumber >= TotalPages)" @onclick="() => GoToPageAsync(_pageNumber + 1)">Next</button>
             </div>
         }
     </div>
@@ -136,8 +136,8 @@ else
             if (!res.IsSuccessStatusCode)
             {
                 _error = res.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "Kunde inte läsa transaktioner (är du inloggad?)"
-                    : "Kunde inte läsa transaktioner.";
+                    ? "Could not load transactions (are you logged in?)"
+                    : "Could not load transactions.";
                 return;
             }
 
@@ -174,15 +174,15 @@ else
 
     private static string FormatType(string type) => type switch
     {
-        "MachinePurchase" => "Maskinköp",
-        "BoardStartAudit" => "Fabriksstart",
-        "MachinePlacement" => "Maskinplacering",
-        "BaseIncome" => "Basinkomst",
-        "StarterPool" => "Startpaket",
-        "InitialCash" => "Startkapital",
-        "MarketBuy" => "Börsköp",
-        "MarketSell" => "Börssälj",
-        "MarketTrade" => "Börssälj",
+        "MachinePurchase" => "Machine purchase",
+        "BoardStartAudit" => "Factory start",
+        "MachinePlacement" => "Machine placement",
+        "BaseIncome" => "Base income",
+        "StarterPool" => "Starter pack",
+        "InitialCash" => "Starting cash",
+        "MarketBuy" => "Exchange buy",
+        "MarketSell" => "Exchange sell",
+        "MarketTrade" => "Exchange sell",
         _ => type
     };
 }

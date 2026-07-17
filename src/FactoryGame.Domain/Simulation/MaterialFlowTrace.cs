@@ -93,12 +93,12 @@ internal static class MaterialFlowTrace
         if (machine.Type.Equals("Boiler", StringComparison.OrdinalIgnoreCase))
         {
             outputDna = DnaTransforms.Heat(sourceDna);
-            note = "värms i Boiler";
+            note = "heated in Boiler";
         }
         else if (machine.Type.Equals("Heater", StringComparison.OrdinalIgnoreCase))
         {
             outputDna = DnaTransforms.Heat(sourceDna, 4);
-            note = "värms i Heater";
+            note = "heated in Heater";
         }
         else if (machine.Type.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
         {
@@ -110,7 +110,7 @@ internal static class MaterialFlowTrace
         else if (machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
         {
             outputDna = DnaTransforms.Condense(sourceDna);
-            note = "kondenseras till vätska";
+            note = "condensed to liquid";
         }
         else if (machine.Type.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
         {
@@ -122,8 +122,8 @@ internal static class MaterialFlowTrace
             outputDna = dna;
             note = solid
                 ? passes <= 1
-                    ? "kristalliseras till fast form"
-                    : $"kristalliseras till fast form (~{passes} kylsteg)"
+                    ? "crystallized to solid form"
+                    : $"crystallized to solid form (~{passes} cooling steps)"
                 : DnaBandDiagnostics.FormatCrystallizerPending(sourceDna, cut, chill);
         }
         else if (machine.Type.Equals("Melter", StringComparison.OrdinalIgnoreCase))
@@ -136,21 +136,21 @@ internal static class MaterialFlowTrace
             outputDna = dna;
             note = melted
                 ? passes <= 1
-                    ? "smälts till vätska"
-                    : $"smälts till vätska (~{passes} värme-steg)"
+                    ? "melted to liquid"
+                    : $"melted to liquid (~{passes} heat steps)"
                 : DnaBandDiagnostics.FormatMelterPending(sourceDna, cut, heat);
         }
         else if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
         {
             return new PredictedOutput(
                 inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase,
-                "blandas i Mixer (kräver två ingångar; intensitet styr kvalitet)", false);
+                "mixed in Mixer (requires two inputs; intensity controls quality)", false);
         }
         else if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
         {
             var ids = ParseSorterOutElements(machine.Settings?.GetRawText(), outPort);
             if (ids.Count == 1)
-                return new PredictedOutput(ids[0], SymbolFor(ids[0]), ElementCatalogLookup.CatalogDnaFor(ids[0]), inputPhase, inputPhase, "sorteras ut", false);
+                return new PredictedOutput(ids[0], SymbolFor(ids[0]), ElementCatalogLookup.CatalogDnaFor(ids[0]), inputPhase, inputPhase, "sorted out", false);
             if (ids.Count > 1)
                 return new PredictedOutput(null, null, null, inputPhase, null, $"sorter: {string.Join(", ", ids.Select(SymbolFor))}", false);
             return new PredictedOutput(inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase, null, false);
@@ -164,7 +164,7 @@ internal static class MaterialFlowTrace
         var outputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(outputDna));
         var dnaChanged = sourceDna != outputDna;
         if (inputPhase != outputPhase && note != null)
-            note = $"{MaterialPhaseLabels.PhaseLabelSv(inputPhase)} → {MaterialPhaseLabels.PhaseLabelSv(outputPhase)}";
+            note = $"{MaterialPhaseLabels.PhaseLabel(inputPhase)} → {MaterialPhaseLabels.PhaseLabel(outputPhase)}";
 
         return new PredictedOutput(
             resolved.OutputId ?? inputElementId,
@@ -223,7 +223,7 @@ internal static class MaterialFlowTrace
         if (inputElementId is > 0 && !string.IsNullOrEmpty(inputSymbol))
             return (inputElementId, inputSymbol, transformNote);
 
-        return (null, inputSymbol != null ? $"{inputSymbol}*" : null, $"{transformNote} (nytt DNA)");
+        return (null, inputSymbol != null ? $"{inputSymbol}*" : null, $"{transformNote} (new DNA)");
     }
 
     internal static string? ResolveUpstreamInputPort(string machineType, string outPort) =>

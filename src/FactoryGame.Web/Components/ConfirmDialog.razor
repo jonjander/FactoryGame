@@ -2,7 +2,7 @@
 {
     <div class="fg-modal-backdrop" @onclick="CancelAsync">
         <div class="fg-modal" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="fg-confirm-title">
-            <h4 id="fg-confirm-title" class="fg-modal-title">Bekräfta</h4>
+            <h4 id="fg-confirm-title" class="fg-modal-title">Confirm</h4>
             <p class="fg-modal-message">@Message</p>
             <div class="fg-modal-actions">
                 <button type="button" @onclick="ConfirmAsync">@ConfirmLabel</button>
@@ -20,10 +20,10 @@
     public string Message { get; set; } = "";
 
     [Parameter]
-    public string ConfirmLabel { get; set; } = "Ja";
+    public string ConfirmLabel { get; set; } = "Yes";
 
     [Parameter]
-    public string CancelLabel { get; set; } = "Avbryt";
+    public string CancelLabel { get; set; } = "Cancel";
 
     [Parameter]
     public EventCallback OnConfirm { get; set; }

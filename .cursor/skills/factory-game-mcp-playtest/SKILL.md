@@ -8,38 +8,38 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — MCP headless playtest
+# FactoryGame -- MCP headless playtest
 
-## Syfte
+## Purpose
 
-Kör spelflöden via MCP (`factorygame`) mot `/v1` utan PWA. Teknisk referens: **`@factory-game-mcp-server`**.
+Run game flows via MCP (`factorygame`) against `/v1` without PWA. Technical reference: **`@factory-game-mcp-server`**.
 
-## Snabbstart
+## Quick start
 
-1. `npm install` + `npm run build` i `tools/factorygame-mcp/`.
+1. `npm install` + `npm run build` in `tools/factorygame-mcp/`.
 2. **Azure:** `npm run smoke` / `npm run playtest`
-3. **Lokal:** starta API (`dotnet run --project src/FactoryGame.Api --launch-profile http`), sedan `npm run smoke:local` / `npm run playtest:local`
-4. Cursor: aktivera `factorygame-local` i MCP för lokal utveckling (se `@factory-game-mcp-server`).
-5. Starta om Cursor efter MCP/env-ändringar.
+3. **Local:** start API (`dotnet run --project src/FactoryGame.Api --launch-profile http`), then `npm run smoke:local` / `npm run playtest:local`
+4. Cursor: enable `factorygame-local` in MCP for local development (see `@factory-game-mcp-server`).
+5. Restart Cursor after MCP/env changes.
 
 **Fixtures:** `tools/factorygame-mcp/fixtures/plans.json` (`minimalLoop`, `liquidSeparatorFlow`).
 
-## Typiska flöden
+## Typical flows
 
-**Fabrik:** `guest_auth` → `boards_create` → `boards_save_plan` → `boards_info_preview` → `boards_get_plan` → `boards_start` → `boards_keyframes` → `boards_info` → `boards_stop`
+**Factory:** `guest_auth` -> `boards_create` -> `boards_save_plan` -> `boards_info_preview` -> `boards_get_plan` -> `boards_start` -> `boards_keyframes` -> `boards_info` -> `boards_stop`
 
-**Maskinlager:** `content_machine_store` → `player_machine_purchase` → `player_machine_inventory` → `boards_place_from_stock` → `boards_get_plan`
+**Machine inventory:** `content_machine_store` -> `player_machine_purchase` -> `player_machine_inventory` -> `boards_place_from_stock` -> `boards_get_plan`
 
-**Ekonomi:** `guest_auth` → `player_wallet` → `player_pool_view` → `player_transactions`
+**Economy:** `guest_auth` -> `player_wallet` -> `player_pool_view` -> `player_transactions`
 
-**Börs:** `market_summary` → `market_element_depth` → `market_place_order` → `market_orders_mine`
+**Exchange:** `market_summary` -> `market_element_depth` -> `market_place_order` -> `market_orders_mine`
 
-**Felsökning:** `diagnostics_recent_logs` efter Azure-test.
+**Troubleshooting:** `diagnostics_recent_logs` after Azure test.
 
-## Delegering
+## Delegation
 
-Strukturerad kravvalidering: subagent **`factory-game-playtester`**.
+Structured requirement validation: subagent **`factory-game-playtester`**.
 
-## Drift
+## Operations
 
-Repo-ägaren verifierar i Azure enligt `.cursor/rules/factory-game-team.mdc`. MCP ersätter inte kravgranskning i `KRAVSPEC.md`.
+Repo owner verifies in Azure per `.cursor/rules/factory-game-team.mdc`. MCP does not replace requirement review in `KRAVSPEC.md`.

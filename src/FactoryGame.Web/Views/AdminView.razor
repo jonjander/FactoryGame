@@ -8,19 +8,19 @@
 <PageTitle>Admin</PageTitle>
 
 <div class="panel">
-    <h2>Admin — sponsrade företag</h2>
-    <p class="muted">Kräver bootstrap-token (<code>X-Admin-Token</code>). Sidan är inte länkad i menyn — lås ned senare med riktig auth.</p>
+    <h2>Admin -- sponsored companies</h2>
+    <p class="muted">Requires bootstrap token (<code>X-Admin-Token</code>). This page is not linked in the menu -- lock down later with real auth.</p>
     @if (string.IsNullOrEmpty(AdminTokens.Token))
     {
         <form @onsubmit="SaveTokenAsync" @onsubmit:preventDefault="true">
-            <label for="admin-token">Admin-token</label>
+            <label for="admin-token">Admin token</label>
             <input id="admin-token" type="password" @bind="_tokenInput" />
-            <button type="submit">Spara token</button>
+            <button type="submit">Save token</button>
         </form>
     }
     else
     {
-        <p>Token sparad. <button type="button" class="secondary" @onclick="ClearTokenAsync">Byt token</button></p>
+        <p>Token saved. <button type="button" class="secondary" @onclick="ClearTokenAsync">Change token</button></p>
     }
 </div>
 
@@ -32,22 +32,22 @@
     }
 
     <div class="panel admin-create-company">
-        <h3>Skapa företag</h3>
+        <h3>Create company</h3>
         <form @onsubmit="CreateCompanyAsync" @onsubmit:preventDefault="true">
             <div class="admin-form-grid">
-                <label>Namn <input @bind="_newName" required /></label>
-                <label>Beskrivning <textarea @bind="_newDescription" rows="2"></textarea></label>
-                <label>Logo-URL <input @bind="_newLogoUrl" /></label>
-                <label>Läge
+                <label>Name <input @bind="_newName" required /></label>
+                <label>Description <textarea @bind="_newDescription" rows="2"></textarea></label>
+                <label>Logo URL <input @bind="_newLogoUrl" /></label>
+                <label>Mode
                     <select @bind="_newFundingMode">
                         <option value="Budget">Budget</option>
-                        <option value="Utopia">Utopi (obegränsad)</option>
+                        <option value="Utopia">Utopia (unlimited)</option>
                     </select>
                 </label>
                 <label>Budget <input type="number" step="0.01" @bind="_newBudget" disabled="@(_newFundingMode == "Utopia")" /></label>
-                <label>Exposure tier (1–5) <input type="number" min="1" max="5" @bind="_newTier" /></label>
+                <label>Exposure tier (1-5) <input type="number" min="1" max="5" @bind="_newTier" /></label>
             </div>
-            <button type="submit" disabled="@_busy">Skapa företag</button>
+            <button type="submit" disabled="@_busy">Create company</button>
         </form>
     </div>
 
@@ -67,24 +67,24 @@
                         <p class="muted">
                             @company.FundingMode · Tier @company.ExposureTier ·
                             Budget @FormatBudget(company) ·
-                            Volym @company.Stats.TotalVolume · Avslut @company.Stats.TradeCount
+                            Volume @company.Stats.TotalVolume · Trades @company.Stats.TradeCount
                         </p>
                     </div>
                     <label class="admin-active-toggle">
                         <input type="checkbox" checked="@company.IsActive" @onchange="e => ToggleActiveAsync(company, e)" />
-                        Aktiv
+                        Active
                     </label>
                 </div>
 
-                <h4>Stående order</h4>
+                <h4>Standing orders</h4>
                 @if (!_standingOrders.TryGetValue(company.Id, out var orders) || orders.Count == 0)
                 {
-                    <p class="muted">Inga stående order.</p>
+                    <p class="muted">No standing orders.</p>
                 }
                 else
                 {
                     <table class="exchange-trades-table">
-                        <thead><tr><th>Element</th><th>Sida</th><th>Limit</th><th>Målvolym</th><th>Aktiv</th><th></th></tr></thead>
+                        <thead><tr><th>Element</th><th>Side</th><th>Limit</th><th>Target qty</th><th>Active</th><th></th></tr></thead>
                         <tbody>
                             @foreach (var o in orders)
                             {
@@ -93,8 +93,8 @@
                                     <td>@o.Side</td>
                                     <td>@o.LimitPrice.ToString("0.##")</td>
                                     <td>@o.TargetQuantity</td>
-                                    <td>@(o.IsActive ? "Ja" : "Nej")</td>
-                                    <td><button type="button" class="danger-outline" @onclick="() => DeleteOrderAsync(company.Id, o.Id)">Ta bort</button></td>
+                                    <td>@(o.IsActive ? "Yes" : "No")</td>
+                                    <td><button type="button" class="danger-outline" @onclick="() => DeleteOrderAsync(company.Id, o.Id)">Remove</button></td>
                                 </tr>
                             }
                         </tbody>
@@ -102,21 +102,21 @@
                 }
 
                 <details>
-                    <summary>Lägg till stående order</summary>
+                    <summary>Add standing order</summary>
                     <form @onsubmit="() => CreateOrderAsync(company.Id)" @onsubmit:preventDefault="true">
                         <div class="admin-form-grid">
                             <label>ElementId <input type="number" @bind="_orderElementId" /></label>
                             <label>Dna <input type="number" @bind="_orderDna" /></label>
-                            <label>Sida
+                            <label>Side
                                 <select @bind="_orderSide">
-                                    <option value="buy">Köp</option>
-                                    <option value="sell">Sälj</option>
+                                    <option value="buy">Buy</option>
+                                    <option value="sell">Sell</option>
                                 </select>
                             </label>
                             <label>Limit <input type="number" step="0.01" @bind="_orderPrice" /></label>
-                            <label>Målvolym <input type="number" @bind="_orderQty" /></label>
+                            <label>Target qty <input type="number" @bind="_orderQty" /></label>
                         </div>
-                        <button type="submit" disabled="@_busy">Lägg till order</button>
+                        <button type="submit" disabled="@_busy">Add order</button>
                     </form>
                 </details>
             </div>
@@ -291,6 +291,6 @@
 
     private static string FormatBudget(SponsorCompanyDto c) =>
         c.FundingMode.Equals("Utopia", StringComparison.OrdinalIgnoreCase)
-            ? "∞"
+            ? "unlimited"
             : (c.BudgetRemaining?.ToString("0.##") ?? "0");
 }

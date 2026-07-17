@@ -11,31 +11,31 @@
         <a class="brand" href="/">FactoryGame</a>
         <nav class="nav">
             <a href="/">Home</a>
-            <a href="/exchange" title="Handel — köp och sälj grundämnen i din pool">Börs</a>
-            <a href="/market" title="Topplistor, prisanalys och rankning per grundämne">Marknad</a>
+            <a href="/exchange" title="Trading — buy and sell elements in your pool">Exchange</a>
+            <a href="/market" title="Leaderboards, price analysis and ranking per element">Market</a>
             <a href="/pool">Pool</a>
-            <a href="/boards">Fabrik</a>
-            <a href="/transactions" title="Ekonomihistorik — köp, sälj och inkomster">Konto</a>
+            <a href="/boards">Factory</a>
+            <a href="/transactions" title="Economy history — buys, sells and income">Account</a>
             <a href="/wiki">Wiki</a>
             <a href="/cli">CLI</a>
         </nav>
         <span class="session">
             @if (Wallet.Cash is { } cash)
             {
-                <span class="wallet" title="Kassa">@cash.ToString("0.##")</span>
+                <span class="wallet" title="Cash">@cash.ToString("0.##")</span>
             }
             @if (!string.IsNullOrEmpty(Wallet.BaseIncomeHint))
             {
-                <span class="muted fg-base-income-hint" title="Passiv basinkomst">@Wallet.BaseIncomeHint</span>
+                <span class="muted fg-base-income-hint" title="Passive base income">@Wallet.BaseIncomeHint</span>
             }
-            @(string.IsNullOrEmpty(Tokens.BearerToken) ? "Ej inloggad" : "Inloggad")
+            @(string.IsNullOrEmpty(Tokens.BearerToken) ? "Not logged in" : "Logged in")
             @if (!string.IsNullOrEmpty(Tokens.BearerToken))
             {
-                <button type="button" class="secondary session-action" @onclick="LogoutAsync">Logga ut</button>
+                <button type="button" class="secondary session-action" @onclick="LogoutAsync">Log out</button>
             }
             else
             {
-                <a class="session-action" href="/">Logga in</a>
+                <a class="session-action" href="/">Log in</a>
             }
         </span>
     </header>
@@ -45,16 +45,16 @@
     @if (AppVersion.UpdateAvailable)
     {
         <div class="app-update-banner" role="status">
-            <span>Ny version @AppVersion.ServerVersion finns (du kör @AppReleaseVersion.Current).</span>
+            <span>New version @AppVersion.ServerVersion available (you are running @AppReleaseVersion.Current).</span>
             <button type="button" @onclick="HardReloadClientAsync" disabled="@_reloadBusy">
-                @(_reloadBusy ? "Uppdaterar…" : "Uppdatera nu")
+                @(_reloadBusy ? "Updating..." : "Update now")
             </button>
         </div>
     }
     <footer class="app-footer muted">
         <span>Version @AppReleaseVersion.Current</span>
-        <button type="button" class="secondary" @onclick="HardReloadClientAsync" disabled="@_reloadBusy" title="Rensa PWA-cache och ladda om så senaste WASM hämtas">
-            @(_reloadBusy ? "Uppdaterar…" : "Hämta senaste app")
+        <button type="button" class="secondary" @onclick="HardReloadClientAsync" disabled="@_reloadBusy" title="Clear PWA cache and reload to fetch latest WASM">
+            @(_reloadBusy ? "Updating..." : "Fetch latest app")
         </button>
     </footer>
     <SnackbarHost />

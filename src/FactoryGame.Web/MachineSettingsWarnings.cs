@@ -41,13 +41,13 @@ public static class MachineSettingsWarnings
                 continue;
 
             warnings.Add(
-                $"Detta ämne kommer blockera maskin {downstream.Id} ({downstream.Type}): {reason}");
+                $"This material will block machine {downstream.Id} ({downstream.Type}): {reason}");
         }
 
         if (fieldJsonKey is "outElementId" && element.Decoded.Phase == "Solid")
         {
             warnings.Add(
-                "Fast fas i pool — många processmaskiner (Boiler, Destilator, …) kräver vätska eller gas. Smält eller välj annat ämne.");
+                "Solid phase in pool — many process machines (Boiler, Destillator, ...) require liquid or gas. Melt or pick another element.");
         }
 
         return warnings;
@@ -79,8 +79,8 @@ public static class MachineSettingsWarnings
             return null;
 
         return dna == 0
-            ? $"Poolen har inget kvar av {element.Symbol} ({element.Name}) — seaport kan inte mata in."
-            : $"Poolen har inget kvar av vald variant ({element.Symbol}) — seaport kan inte mata in.";
+            ? $"Pool has none left of {element.Symbol} ({element.Name}) — seaport cannot feed in."
+            : $"Pool has none left of the selected variant ({element.Symbol}) — seaport cannot feed in.";
     }
 
     private static bool IsSeaportOutMachine(string machineType) =>
@@ -93,28 +93,28 @@ public static class MachineSettingsWarnings
         var phase = d.Phase;
 
         if (t.Equals("Boiler", StringComparison.OrdinalIgnoreCase) && phase != "Liquid")
-            return "Boiler kräver vätskefas — smält fast material med Melter eller välj annat ämne.";
+            return "Boiler requires liquid phase — melt solid material with Melter or pick another element.";
 
         if (t.Equals("LiquidSeparator", StringComparison.OrdinalIgnoreCase) && phase != "Liquid")
-            return "Liquid separator kräver vätskefas.";
+            return "Liquid separator requires liquid phase.";
 
         if (t.Equals("Destilator", StringComparison.OrdinalIgnoreCase) && phase == "Solid")
-            return "Destilator blockeras av fast fas — använd Melter eller välj vätske-/gasämne.";
+            return "Distillator blocked by solid phase — use Melter or pick a liquid/gas element.";
 
         if (t.Equals("Condenser", StringComparison.OrdinalIgnoreCase) && phase != "Gas")
-            return "Condenser kräver gasfas — värm vätska med Boiler/Heater.";
+            return "Condenser requires gas phase — heat liquid with Boiler/Heater.";
 
         if (t.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase) && phase != "Liquid")
-            return "Crystallizer kräver vätskefas.";
+            return "Crystallizer requires liquid phase.";
 
         if (t.Equals("Melter", StringComparison.OrdinalIgnoreCase) && phase != "Solid")
-            return "Melter kräver fast fas.";
+            return "Melter requires solid phase.";
 
         if (t.Equals("Heater", StringComparison.OrdinalIgnoreCase) && d.Explosivity > 85)
-            return "Heater blockeras — explosiviteten är för hög. Välj ett mindre explosivt ämne.";
+            return "Heater blocked — explosivity is too high. Pick a less explosive element.";
 
         if (t.Equals("Cooler", StringComparison.OrdinalIgnoreCase) && d.Toxicity > 90)
-            return "Cooler blockeras — toxiciteten är för hög.";
+            return "Cooler blocked — toxicity is too high.";
 
         return null;
     }

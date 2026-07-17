@@ -3,11 +3,11 @@
 @inject HttpClient Http
 @inject TokenStore Tokens
 
-<PageTitle>Marknad</PageTitle>
+<PageTitle>Market</PageTitle>
 
 <div class="panel">
-    <h2>Marknadsanalys</h2>
-    <p class="muted">Topplistor och hetaste marknaderna — sponsrade företag syns med namn och logga.</p>
+    <h2>Market analysis</h2>
+    <p class="muted">Leaderboards and hottest markets — sponsored companies show name and logo.</p>
 </div>
 
 @if (_error is { } err)
@@ -17,33 +17,33 @@
 
 @if (_boards is null && !_busy)
 {
-    <div class="panel"><p class="muted">Laddar…</p></div>
+    <div class="panel"><p class="muted">Loading...</p></div>
 }
 else if (_boards is { } boards)
 {
     <div class="market-layout">
         <section class="panel">
-            <h3>Big spenders — spelare</h3>
+            <h3>Big spenders — players</h3>
             @RenderLeaderboard(boards.BigSpendersPlayers, spend: true)
         </section>
         <section class="panel">
-            <h3>Big spenders — företag</h3>
+            <h3>Big spenders — companies</h3>
             @RenderLeaderboard(boards.BigSpendersSponsors, spend: true, sponsors: true)
         </section>
         <section class="panel">
-            <h3>Högst volym — spelare</h3>
+            <h3>Highest volume — players</h3>
             @RenderLeaderboard(boards.TopVolumePlayers, spend: false)
         </section>
         <section class="panel">
-            <h3>Högst volym — företag</h3>
+            <h3>Highest volume — companies</h3>
             @RenderLeaderboard(boards.TopVolumeSponsors, spend: false, sponsors: true)
         </section>
         <section class="panel">
-            <h3>Mest aktiva — spelare</h3>
+            <h3>Most active — players</h3>
             @RenderLeaderboard(boards.MostActivePlayers, spend: false, countFocus: true)
         </section>
         <section class="panel">
-            <h3>Mest aktiva — företag</h3>
+            <h3>Most active — companies</h3>
             @RenderLeaderboard(boards.MostActiveSponsors, spend: false, sponsors: true, countFocus: true)
         </section>
     </div>
@@ -52,9 +52,9 @@ else if (_boards is { } boards)
 @if (_insights?.SellOpportunities.Count > 0)
 {
     <div class="panel">
-        <h3>Hetaste marknaderna (företag köper)</h3>
+        <h3>Hottest markets (companies buying)</h3>
         <table class="exchange-trades-table">
-            <thead><tr><th>Företag</th><th>Variant</th><th>Pris</th><th>Volym</th><th></th></tr></thead>
+            <thead><tr><th>Company</th><th>Variant</th><th>Price</th><th>Volume</th><th></th></tr></thead>
             <tbody>
                 @foreach (var i in _insights.SellOpportunities.Take(15))
                 {
@@ -69,7 +69,7 @@ else if (_boards is { } boards)
                         <td><span class="fg-element-badge">@i.Symbol</span> @i.PhaseLabel</td>
                         <td>@i.LimitPrice.ToString("0.##")</td>
                         <td>@i.OpenQuantity</td>
-                        <td><a href="/exchange">Handla</a></td>
+                        <td><a href="/exchange">Trade</a></td>
                     </tr>
                 }
             </tbody>
@@ -113,7 +113,7 @@ else if (_boards is { } boards)
     {
         if (entries.Count == 0)
         {
-            __builder.AddContent(0, "Ingen data ännu.");
+            __builder.AddContent(0, "No data yet.");
             return;
         }
         __builder.OpenElement(1, "ol");
@@ -131,11 +131,11 @@ else if (_boards is { } boards)
             }
             __builder.AddContent(8, $"#{e.Rank} {e.Label} — ");
             if (countFocus)
-                __builder.AddContent(9, $"{e.TradeCount} avslut");
+                __builder.AddContent(9, $"{e.TradeCount} trades");
             else if (spend)
-                __builder.AddContent(10, $"{e.TotalSpend:0.##} spenderat");
+                __builder.AddContent(10, $"{e.TotalSpend:0.##} spent");
             else
-                __builder.AddContent(11, $"{e.TotalVolume} st");
+                __builder.AddContent(11, $"{e.TotalVolume} units");
             __builder.CloseElement();
         }
         __builder.CloseElement();

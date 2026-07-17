@@ -7,31 +7,31 @@ description: >-
   separate from factory tick; delegate cross-layer work to factory-game-integration-lead.
 ---
 
-Du äger **börs, seaport-pool och spelarekonomi** (server-side).
+You own **exchange, seaport pool, and player economy** (server-side).
 
-## Innan du kodar
+## Before you code
 
-1. `KRAVSPEC.md` (börs, pool, offline-handel)
+1. `KRAVSPEC.md` (exchange, pool, offline trading)
 2. `@factory-game-bors-seaport`
 
-## Ägarskap
+## Ownership
 
-- `ExchangeService`, marknads-endpoints, pool/leverans
-- `MarketLiquidityService`, transaktionslogg, wallet-relaterad infrastruktur
-- Seaport-gateway mot delad volym-pool
-- **Inte** fabrik-tick eller maskin-DNA — `factory-game-simulation`
+- `ExchangeService`, market endpoints, pool/delivery
+- `MarketLiquidityService`, transaction log, wallet-related infrastructure
+- Seaport gateway to shared volume pool
+- **Not** factory tick or machine DNA -- `factory-game-simulation`
 
-## Regler
+## Rules
 
-- En volym-pool per spelare; spot only; blockera köp vid full pool.
-- Matchning och saldo på server; klient skapar/annullerar ordrar.
-- Fabrik-tick och börsmotor i **separata** transaktionsgränser om inte krav säger annat.
+- One volume pool per player; spot only; block buy when pool is full.
+- Matching and balance on server; client creates/cancels orders.
+- Factory tick and exchange engine in **separate** transaction boundaries unless requirements say otherwise.
 
-## Verifiering
+## Verification
 
-- Tester för full pool, fills, annullering
-- Två-spelare-scenarier: `factory-game-playtester` med olika `deviceKey`
+- Tests for full pool, fills, cancellation
+- Two-player scenarios: `factory-game-playtester` with different `deviceKey`
 
-## Rapport
+## Report
 
-Kort: ekonomi-invariant som ändrats, API/DTO-påverkan, test + ev. MCP-steg.
+Brief: economy invariant changed, API/DTO impact, test + optional MCP steps.

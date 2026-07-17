@@ -13,13 +13,13 @@
                         Element @Element.Id
                     </p>
                 </div>
-                <button type="button" class="secondary pool-analysis-close" @onclick="CloseAsync" aria-label="Stäng">✕</button>
+                <button type="button" class="secondary pool-analysis-close" @onclick="CloseAsync" aria-label="Close">X</button>
             </div>
 
             <p class="pool-analysis-narrative">@ElementPropertyNarrator.Describe(Element)</p>
 
-            <h4 class="pool-analysis-section-title">DNA-uppbyggnad</h4>
-            <div class="pool-dna-chart" aria-label="DNA-band">
+            <h4 class="pool-analysis-section-title">DNA breakdown</h4>
+            <div class="pool-dna-chart" aria-label="DNA bands">
                 @foreach (var band in GetDnaBands(Element))
                 {
                     <div class="pool-dna-band">
@@ -33,20 +33,20 @@
             </div>
             <p class="muted pool-dna-hex">DNA: 0x@Element.Dna.ToString("X16")</p>
 
-            <h4 class="pool-analysis-section-title">Egenskaper</h4>
+            <h4 class="pool-analysis-section-title">Properties</h4>
             <dl class="pool-props-grid">
-                <dt>Fas</dt><dd>@Element.Decoded.Phase</dd>
-                <dt>Explosivitet</dt><dd>@Element.Decoded.Explosivity %</dd>
-                <dt>Brandfarlighet</dt><dd>@Element.Decoded.Flammability %</dd>
-                <dt>Toxicitet</dt><dd>@Element.Decoded.Toxicity %</dd>
-                <dt>Kokpunkt</dt><dd>@Element.Decoded.BoilingPoint</dd>
-                <dt>Fryspunkt</dt><dd>@Element.Decoded.FreezePoint</dd>
-                <dt>Familj</dt><dd>@Element.Decoded.FamilyId</dd>
+                <dt>Phase</dt><dd>@Element.Decoded.Phase</dd>
+                <dt>Explosivity</dt><dd>@Element.Decoded.Explosivity %</dd>
+                <dt>Flammability</dt><dd>@Element.Decoded.Flammability %</dd>
+                <dt>Toxicity</dt><dd>@Element.Decoded.Toxicity %</dd>
+                <dt>Boiling point</dt><dd>@Element.Decoded.BoilingPoint</dd>
+                <dt>Freeze point</dt><dd>@Element.Decoded.FreezePoint</dd>
+                <dt>Family</dt><dd>@Element.Decoded.FamilyId</dd>
             </dl>
 
             <div class="fg-modal-actions pool-analysis-footer">
-                <a class="button-link" href="/wiki?elementId=@Element.Id">Öppna i wiki</a>
-                <button type="button" class="secondary" @onclick="CloseAsync">Stäng</button>
+                <a class="button-link" href="/wiki?elementId=@Element.Id">Open in wiki</a>
+                <button type="button" class="secondary" @onclick="CloseAsync">Close</button>
             </div>
         </div>
     </div>
@@ -69,13 +69,13 @@
         var d = element.Decoded;
         return
         [
-            Band("Fas", PhasePercent(d.Phase), d.Phase),
-            Band("Explosiv", d.Explosivity, $"{d.Explosivity}%"),
-            Band("Brand", d.Flammability, $"{d.Flammability}%"),
-            Band("Toxisk", d.Toxicity, $"{d.Toxicity}%"),
-            Band("Kok", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString()),
-            Band("Frys", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString()),
-            Band("Familj", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString())
+            Band("Phase", PhasePercent(d.Phase), d.Phase),
+            Band("Explosive", d.Explosivity, $"{d.Explosivity}%"),
+            Band("Fire", d.Flammability, $"{d.Flammability}%"),
+            Band("Toxic", d.Toxicity, $"{d.Toxicity}%"),
+            Band("Boil", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString()),
+            Band("Freeze", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString()),
+            Band("Family", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString())
         ];
     }
 

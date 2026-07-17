@@ -61,7 +61,7 @@
             storageGet: (k) => localStorage.getItem(k),
             storageSet: (k, v) => localStorage.setItem(k, v),
             isOnline: () => navigator.onLine,
-            /** Avregistrerar service worker, rensar Cache API, laddar om (senaste WASM efter deploy). */
+            /** Unregisters service worker, clears Cache API, reloads (latest WASM after deploy). */
             hardReloadClient: function () {
                 void (async () => {
                     try {

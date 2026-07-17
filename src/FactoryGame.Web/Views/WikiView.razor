@@ -10,11 +10,11 @@
     <header class="panel wiki-hero">
         <div class="wiki-hero-top">
             <div>
-                <h2 class="wiki-title">Spelwiki</h2>
-                <p class="muted wiki-subtitle">100&nbsp;% genererad från samma regeldata som servern — maskiner, DNA och grundämnen i realtid.</p>
+                <h2 class="wiki-title">Game wiki</h2>
+                <p class="muted wiki-subtitle">100% generated from the same rule data as the server -- machines, DNA, and base elements in real time.</p>
             </div>
             <button type="button" class="secondary wiki-refresh" @onclick="LoadAsync" disabled="@_busy">
-                @(_busy ? "Hämtar…" : "Uppdatera")
+                @(_busy ? "Loading..." : "Refresh")
             </button>
         </div>
 
@@ -25,29 +25,29 @@
         else if (_wiki is not null)
         {
             <div class="wiki-meta">
-                <span>@_wiki.Machines.Count maskiner</span>
+                <span>@_wiki.Machines.Count machines</span>
                 <span aria-hidden="true">·</span>
-                <span>@_wiki.Elements.Count grundämnen</span>
+                <span>@_wiki.Elements.Count base elements</span>
                 <span aria-hidden="true">·</span>
-                <span>namn v@_wiki.NameGeneratorVersion</span>
+                <span>names v@_wiki.NameGeneratorVersion</span>
             </div>
-            <p class="wiki-daily-tip">💡 @WikiPresentation.DailyTip(_wiki.Machines)</p>
+            <p class="wiki-daily-tip">@WikiPresentation.DailyTip(_wiki.Machines)</p>
         }
 
         <div class="wiki-search-row">
             <input type="search"
                    class="wiki-search"
-                   placeholder="Sök maskin, symbol, namn, fas… (prova ”aska” eller ”dna”)"
+                   placeholder="Search machine, symbol, name, phase... (try &quot;ash&quot; or &quot;dna&quot;)"
                    @bind="_search"
                    @bind:event="oninput"
-                   aria-label="Sök i wiki" />
+                   aria-label="Search wiki" />
             @if (!string.IsNullOrWhiteSpace(_search))
             {
-                <button type="button" class="secondary wiki-search-clear" @onclick="ClearSearch">Rensa</button>
+                <button type="button" class="secondary wiki-search-clear" @onclick="ClearSearch">Clear</button>
             }
         </div>
 
-        <nav class="wiki-tabs" aria-label="Wiki-sektioner">
+        <nav class="wiki-tabs" aria-label="Wiki sections">
             @foreach (var tab in Tabs)
             {
                 <button type="button"
@@ -62,31 +62,31 @@
     @if (_showFallbackCard)
     {
         <section class="panel wiki-fallback-card">
-            <h3>🧹 Fallback-material</h3>
-            <p>När en maskin inte får rätt input (fel fas, blockerande egenskaper, trasiga regler) blir output <strong>aska</strong> eller <strong>goo</strong> — värdelöst skräp som syns tydligt i loggar och fabrikinformation.</p>
-            <p class="muted">Tips: läs maskinens krav här i wiki innan du kopplar rör — eller kolla varför en maskin är röd/blockerad på fabriksplanen.</p>
+            <h3>Fallback material</h3>
+            <p>When a machine does not get the right input (wrong phase, blocking properties, broken rules), output becomes <strong>ash</strong> or <strong>goo</strong> -- worthless junk that shows clearly in logs and factory info.</p>
+            <p class="muted">Tip: read the machine requirements here in the wiki before wiring pipes -- or check why a machine is red/blocked on the factory floor.</p>
         </section>
     }
 
     @if (_showDnaExplainerFlag)
     {
         <section class="panel wiki-dna-explainer">
-            <h3>🧬 DNA — spelets kemiska fingeravtryck</h3>
-            <p>Varje grundämne har ett 64-bitars DNA som kodar fas, explosivitet, kok/fryspunkt och familj. Maskiner läser och skriver i band — deterministiskt, inga magiska undantag per ämne.</p>
+            <h3>DNA -- the game's chemical fingerprint</h3>
+            <p>Each base element has 64-bit DNA encoding phase, explosivity, boil/freeze point, and family. Machines read and write bands -- deterministically, no magic exceptions per element.</p>
             <div class="wiki-dna-legend">
-                <span class="wiki-legend-chip wiki-dna-bar-phase">Fas</span>
-                <span class="wiki-legend-chip wiki-dna-bar-explosive">Explosiv</span>
-                <span class="wiki-legend-chip wiki-dna-bar-fire">Brand</span>
-                <span class="wiki-legend-chip wiki-dna-bar-toxic">Toxisk</span>
-                <span class="wiki-legend-chip wiki-dna-bar-boil">Kok</span>
-                <span class="wiki-legend-chip wiki-dna-bar-freeze">Frys</span>
+                <span class="wiki-legend-chip wiki-dna-bar-phase">Phase</span>
+                <span class="wiki-legend-chip wiki-dna-bar-explosive">Explosive</span>
+                <span class="wiki-legend-chip wiki-dna-bar-fire">Fire</span>
+                <span class="wiki-legend-chip wiki-dna-bar-toxic">Toxic</span>
+                <span class="wiki-legend-chip wiki-dna-bar-boil">Boil</span>
+                <span class="wiki-legend-chip wiki-dna-bar-freeze">Freeze</span>
             </div>
         </section>
     }
 
     @if (_wiki is null && !_busy && string.IsNullOrEmpty(_error))
     {
-        <div class="panel"><p class="muted">Laddar wiki…</p></div>
+        <div class="panel"><p class="muted">Loading wiki...</p></div>
     }
     else if (_wiki is not null)
     {
@@ -94,24 +94,24 @@
             <aside class="wiki-sidebar panel">
                 @if (_activeTab == "overview")
                 {
-                    <h3 class="wiki-sidebar-title">Snabblänkar</h3>
+                    <h3 class="wiki-sidebar-title">Quick links</h3>
                     <ul class="wiki-quick-links">
-                        <li><button type="button" class="wiki-link-btn" @onclick='() => SelectTab("machines")'>⚙️ Alla maskiner</button></li>
-                        <li><button type="button" class="wiki-link-btn" @onclick='() => SelectTab("elements")'>🧪 Grundämnen</button></li>
-                        <li><button type="button" class="wiki-link-btn" @onclick="ShowDnaExplainer">🧬 Vad är DNA?</button></li>
-                        <li><a href="/boards">🏭 Till fabriken</a></li>
-                        <li><a href="/pool">🚢 Seaport-pool</a></li>
-                        <li><a href="/exchange">📈 Börsen</a></li>
+                        <li><button type="button" class="wiki-link-btn" @onclick='() => SelectTab("machines")'>⚙️ All machines</button></li>
+                        <li><button type="button" class="wiki-link-btn" @onclick='() => SelectTab("elements")'>🧪 Base elements</button></li>
+                        <li><button type="button" class="wiki-link-btn" @onclick="ShowDnaExplainer">🧬 What is DNA?</button></li>
+                        <li><a href="/boards">🏭 To the factory</a></li>
+                        <li><a href="/pool">🚢 Seaport pool</a></li>
+                        <li><a href="/exchange">📈 Exchange</a></li>
                     </ul>
 
                     @if (_phaseStats.Count > 0)
                     {
-                        <h4 class="wiki-sidebar-subtitle">Fasfördelning</h4>
+                        <h4 class="wiki-sidebar-subtitle">Phase distribution</h4>
                         <div class="wiki-phase-bars">
                             @foreach (var stat in _phaseStats)
                             {
                                 <div class="wiki-phase-bar-row">
-                                    <span class="@WikiPresentation.PhaseCssClass(stat.Phase)">@WikiPresentation.PhaseLabelSv(stat.Phase)</span>
+                                    <span class="@WikiPresentation.PhaseCssClass(stat.Phase)">@WikiPresentation.PhaseLabel(stat.Phase)</span>
                                     <div class="wiki-phase-bar-track">
                                         <div class="wiki-phase-bar-fill wiki-phase-fill-@stat.Phase.ToLowerInvariant()"
                                              style="width: @(stat.Percent)%"></div>
@@ -126,7 +126,7 @@
                 {
                     <h3 class="wiki-sidebar-title">Filter</h3>
                     <div class="wiki-filter-chips">
-                        <button type="button" class="wiki-chip @(_machineCategory == "" ? "wiki-chip-active" : "")" @onclick='() => _machineCategory = ""'>Alla</button>
+                        <button type="button" class="wiki-chip @(_machineCategory == "" ? "wiki-chip-active" : "")" @onclick='() => _machineCategory = ""'>All</button>
                         @foreach (var cat in MachineCategories)
                         {
                             <button type="button"
@@ -136,7 +136,7 @@
                             </button>
                         }
                     </div>
-                    <p class="muted wiki-sidebar-hint">@FilteredMachines.Count() träffar</p>
+                    <p class="muted wiki-sidebar-hint">@FilteredMachines.Count() matches</p>
                     <ul class="wiki-sidebar-list">
                         @foreach (var m in FilteredMachines)
                         {
@@ -151,14 +151,14 @@
                 }
                 else
                 {
-                    <h3 class="wiki-sidebar-title">Grundämnen</h3>
+                    <h3 class="wiki-sidebar-title">Base elements</h3>
                     <div class="wiki-filter-chips">
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = ""'>Alla faser</button>
+                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = ""'>All phases</button>
                         <button type="button" class="wiki-chip @(_elementPhaseFilter == "Gas" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Gas"'>Gas</button>
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Liquid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Liquid"'>Vätska</button>
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Solid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Solid"'>Fast</button>
+                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Liquid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Liquid"'>Liquid</button>
+                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Solid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Solid"'>Solid</button>
                     </div>
-                    <p class="muted wiki-sidebar-hint">@FilteredElements.Count() träffar</p>
+                    <p class="muted wiki-sidebar-hint">@FilteredElements.Count() matches</p>
                     <ul class="wiki-sidebar-list wiki-sidebar-list-elements">
                         @foreach (var item in FilteredElements.Take(120))
                         {
@@ -170,7 +170,7 @@
                                     @if (el is not null)
                                     {
                                         <span class="fg-phase-badge @WikiPresentation.PhaseCssClass(el.Decoded.Phase) wiki-sidebar-phase">
-                                            @WikiPresentation.PhaseLabelSv(el.Decoded.Phase)
+                                            @WikiPresentation.PhaseLabel(el.Decoded.Phase)
                                         </span>
                                     }
                                 </button>
@@ -184,37 +184,37 @@
                 @if (_activeTab == "overview")
                 {
                     <section class="panel wiki-overview">
-                        <h3>Välkommen till fabrikens uppslagsverk</h3>
-                        <p>Här växer allt från samma regler som simuleringen kör. Välj en maskin eller ett grundämne till vänster — eller hoppa direkt till det du bygger med.</p>
+                        <h3>Welcome to the factory reference</h3>
+                        <p>Everything here grows from the same rules the simulation runs. Pick a machine or base element on the left -- or jump straight to what you are building with.</p>
 
                         <div class="wiki-feature-grid">
                             <button type="button" class="wiki-feature-card wiki-feature-heat" @onclick='() => { _machineCategory = "heat"; SelectTab("machines"); }'>
                                 <span class="wiki-feature-icon">🔥</span>
-                                <strong>Värme & smältning</strong>
-                                <span class="muted">Panna, värmare, kylare, smältugn</span>
+                                <strong>Heat and melting</strong>
+                                <span class="muted">Boiler, heater, cooler, melter</span>
                             </button>
                             <button type="button" class="wiki-feature-card wiki-feature-sep" @onclick='() => { _machineCategory = "separation"; SelectTab("machines"); }'>
                                 <span class="wiki-feature-icon">⚗️</span>
                                 <strong>Separation</strong>
-                                <span class="muted">Blandare, destillator, sorterare</span>
+                                <span class="muted">Mixer, distillator, sorter</span>
                             </button>
                             <button type="button" class="wiki-feature-card wiki-feature-logistics" @onclick='() => { _machineCategory = "logistics"; SelectTab("machines"); }'>
                                 <span class="wiki-feature-icon">🚢</span>
                                 <strong>Seaport</strong>
-                                <span class="muted">Pool ↔ fabrik</span>
+                                <span class="muted">Pool ↔ factory</span>
                             </button>
                             <button type="button" class="wiki-feature-card wiki-feature-elements" @onclick='() => SelectTab("elements")'>
                                 <span class="wiki-feature-icon">🧪</span>
-                                <strong>Grundämnen</strong>
-                                <span class="muted">@_wiki.Elements.Count st med genererade namn</span>
+                                <strong>Base elements</strong>
+                                <span class="muted">@_wiki.Elements.Count with generated names</span>
                             </button>
                         </div>
 
                         @if (_highlightElement is not null && GetElementDetail(_highlightElement.Id) is { } highlighted)
                         {
                             <div class="wiki-highlight-banner">
-                                <p>Du kom hit från pool-analys — visar <strong>@highlighted.Name</strong>.</p>
-                                <button type="button" class="secondary" @onclick="() => SelectElement(highlighted.Id)">Visa detaljer</button>
+                                <p>You arrived from pool analysis -- showing <strong>@highlighted.Name</strong>.</p>
+                                <button type="button" class="secondary" @onclick="() => SelectElement(highlighted.Id)">Show details</button>
                             </div>
                         }
                     </section>
@@ -225,7 +225,7 @@
                             <button type="button" class="panel wiki-machine-card" @onclick="() => SelectMachine(m)">
                                 <WikiMachineIcon Type="@m.Type" Ports="@m.Ports" />
                                 <h4>@WikiPresentation.MachineDisplayName(m.Type)</h4>
-                                <p class="muted">@m.Ports in→ut · @Truncate(m.Summary, 90)</p>
+                                <p class="muted">@m.Ports in->out · @Truncate(m.Summary, 90)</p>
                             </button>
                         }
                     </section>
@@ -239,13 +239,13 @@
                                 <h3>@WikiPresentation.MachineDisplayName(machine.Type)</h3>
                                 <p class="muted wiki-detail-meta">
                                     <span class="wiki-type-mono">@machine.Type</span>
-                                    · portar @machine.Ports
+                                    · ports @machine.Ports
                                     · @WikiPresentation.MachineCategoryLabel(WikiPresentation.MachineCategory(machine.Type))
                                 </p>
                             </div>
                         </div>
 
-                        <div class="wiki-port-diagram" aria-label="Portschema">
+                        <div class="wiki-port-diagram" aria-label="Port layout">
                             @{
                                 var portSpec = WikiPresentation.ParsePortSpec(machine.Ports);
                             }
@@ -268,7 +268,7 @@
 
                         <p class="wiki-detail-summary">@WikiPresentation.ExtendedSummary(machine.Type, machine.Summary)</p>
 
-                        <h4 class="wiki-section-label">Tips från regelmotorn</h4>
+                        <h4 class="wiki-section-label">Tips from the rule engine</h4>
                         <ul class="wiki-tips-list">
                             @foreach (var tip in WikiPresentation.MachineTips(machine.Type))
                             {
@@ -277,8 +277,8 @@
                         </ul>
 
                         <div class="wiki-detail-actions">
-                            <a class="button-link" href="/boards">Bygg i fabriken →</a>
-                            <button type="button" class="secondary" @onclick="ClearMachineSelection">Stäng</button>
+                            <a class="button-link" href="/boards">Build in factory -></a>
+                            <button type="button" class="secondary" @onclick="ClearMachineSelection">Close</button>
                         </div>
                     </article>
                 }
@@ -305,39 +305,39 @@
                                 <p class="muted wiki-detail-meta">
                                     <span class="fg-element-badge">@element.Symbol</span>
                                     Element @element.Id
-                                    · <span class="fg-phase-badge @WikiPresentation.PhaseCssClass(element.Decoded.Phase)">@WikiPresentation.PhaseLabelSv(element.Decoded.Phase)</span>
+                                    · <span class="fg-phase-badge @WikiPresentation.PhaseCssClass(element.Decoded.Phase)">@WikiPresentation.PhaseLabel(element.Decoded.Phase)</span>
                                 </p>
                             </div>
                         </div>
 
                         <p class="wiki-detail-narrative">@ElementPropertyNarrator.Describe(element)</p>
 
-                        <h4 class="wiki-section-label">DNA-uppbyggnad</h4>
+                        <h4 class="wiki-section-label">DNA breakdown</h4>
                         <WikiDnaChart Element="element" />
                         <p class="muted pool-dna-hex">DNA: 0x@element.Dna.ToString("X16")</p>
 
-                        <h4 class="wiki-section-label">Egenskaper</h4>
+                        <h4 class="wiki-section-label">Properties</h4>
                         <dl class="pool-props-grid">
-                            <dt>Fas</dt><dd>@WikiPresentation.PhaseLabelSv(element.Decoded.Phase)</dd>
-                            <dt>Explosivitet</dt><dd>@element.Decoded.Explosivity %</dd>
-                            <dt>Brandfarlighet</dt><dd>@element.Decoded.Flammability %</dd>
-                            <dt>Toxicitet</dt><dd>@element.Decoded.Toxicity %</dd>
-                            <dt>Kokpunkt</dt><dd>@element.Decoded.BoilingPoint</dd>
-                            <dt>Fryspunkt</dt><dd>@element.Decoded.FreezePoint</dd>
-                            <dt>Familj</dt><dd>@element.Decoded.FamilyId</dd>
+                            <dt>Phase</dt><dd>@WikiPresentation.PhaseLabel(element.Decoded.Phase)</dd>
+                            <dt>Explosivity</dt><dd>@element.Decoded.Explosivity %</dd>
+                            <dt>Flammability</dt><dd>@element.Decoded.Flammability %</dd>
+                            <dt>Toxicity</dt><dd>@element.Decoded.Toxicity %</dd>
+                            <dt>Boiling point</dt><dd>@element.Decoded.BoilingPoint</dd>
+                            <dt>Freeze point</dt><dd>@element.Decoded.FreezePoint</dd>
+                            <dt>Family</dt><dd>@element.Decoded.FamilyId</dd>
                         </dl>
 
                         <div class="wiki-detail-actions">
-                            <a class="button-link" href="@ExchangeHrefFor(element)">Handla på börsen →</a>
-                            <a class="button-link secondary-link" href="/pool">Se pool →</a>
-                            <button type="button" class="secondary" @onclick="ClearElementSelection">Stäng</button>
+                            <a class="button-link" href="@ExchangeHrefFor(element)">Trade on exchange -></a>
+                            <a class="button-link secondary-link" href="/pool">View pool -></a>
+                            <button type="button" class="secondary" @onclick="ClearElementSelection">Close</button>
                         </div>
                     </article>
                 }
                 else if (_activeTab == "elements")
                 {
                     <div class="panel wiki-empty-detail">
-                        <p class="muted">Välj ett grundämne i listan — eller sök på symbol, namn eller fas.</p>
+                        <p class="muted">Pick a base element from the list -- or search by symbol, name, or phase.</p>
                     </div>
                 }
             </main>
@@ -348,9 +348,9 @@
 @code {
     private static readonly (string Id, string Label)[] Tabs =
     [
-        ("overview", "Översikt"),
-        ("machines", "Maskiner"),
-        ("elements", "Grundämnen")
+        ("overview", "Overview"),
+        ("machines", "Machines"),
+        ("elements", "Base elements")
     ];
 
     private static readonly string[] MachineCategories = ["heat", "phase", "separation", "logistics"];
@@ -382,8 +382,8 @@
         _error = null;
         try
         {
-            var wikiTask = Http.GetFromJsonAsync<WikiContentResponse>("/v1/content/wiki?locale=sv");
-            var elementsTask = Http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=sv");
+            var wikiTask = Http.GetFromJsonAsync<WikiContentResponse>("/v1/content/wiki?locale=en");
+            var elementsTask = Http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=en");
             await Task.WhenAll(wikiTask, elementsTask);
 
             _wiki = await wikiTask;
@@ -391,7 +391,7 @@
 
             if (_wiki == null)
             {
-                _error = "Kunde inte läsa wiki.";
+                _error = "Could not load wiki.";
                 return;
             }
 
@@ -505,14 +505,14 @@
                 return e.Symbol.Contains(s, StringComparison.OrdinalIgnoreCase)
                        || e.DisplayName.Contains(s, StringComparison.OrdinalIgnoreCase)
                        || e.Id.ToString() == s
-                       || (detail != null && WikiPresentation.PhaseLabelSv(detail.Decoded.Phase)
+                       || (detail != null && WikiPresentation.PhaseLabel(detail.Decoded.Phase)
                            .Contains(s, StringComparison.OrdinalIgnoreCase));
             }).OrderBy(e => e.DisplayName);
         }
     }
 
     private bool _showFallbackCard =>
-        _search.Contains("aska", StringComparison.OrdinalIgnoreCase)
+        _search.Contains("ash", StringComparison.OrdinalIgnoreCase)
         || _search.Contains("goo", StringComparison.OrdinalIgnoreCase)
         || _search.Contains("fallback", StringComparison.OrdinalIgnoreCase);
 
@@ -611,7 +611,7 @@
     }
 
     private static string Truncate(string text, int max) =>
-        text.Length <= max ? text : text[..(max - 1)] + "…";
+        text.Length <= max ? text : text[..(max - 1)] + "...";
 
     private static string ExchangeHrefFor(ElementContentItem element) =>
         $"/exchange?elementId={element.Id}&dna={element.Dna}";

@@ -1,29 +1,29 @@
 ---
-description: Appversion (Directory.Build.props), UI/Swagger, git-tag v+semver, releases.md; commit ska alltid innehålla Version; meddela levererad version i chatten.
+description: App version (Directory.Build.props), UI/Swagger, git tag v+semver, releases.md; commit must always contain Version; report delivered version in chat.
 alwaysApply: true
 ---
 
-# Appversion, UI och git-taggar
+# App version, UI, and git tags
 
-## KRITISKT — versionsnummer i commit
+## CRITICAL -- version number in commit
 
-Alla commits som rör repot ska följa **factory-game-git-commit-push**: meddelandet **måste innehålla** värdet av **`Version`** från `Directory.Build.props`. För ren release-commit räcker **exakt** `<Version>` som hela meddelandet; annars prefix `<Version>` + beskrivning. Att glömma versionsnummer i commit-raden är **otillåtet** enligt projektregler.
+All commits that touch the repo must follow **factory-game-git-commit-push**: the message **must contain** the value of **`Version`** from `Directory.Build.props`. For a pure release commit, **exactly** `<Version>` as the entire message is enough; otherwise prefix `<Version>` + description. Forgetting the version number in the commit line is **not allowed** per project rules.
 
-## Källa
+## Source
 
-- **Enda manuella sanningskällan** för löpnummer: `Directory.Build.props` → egenskapen **`Version`** (semver, t.ex. `0.1.0`).
-- Bygg sätter `AssemblyInformationalVersion` så att **webklienten** (`AppReleaseVersion` / sidfot) och **API Swagger** (`OpenApiInfo.Version`) visar samma värde utan duplicerad konstant i kod.
-- **`releases.md`**: mänsklig, kortfattad beskrivning av vad som är nytt per version (inte duplicerad i git commit-rad).
+- **Only manual source of truth** for the running number: `Directory.Build.props` -> property **`Version`** (semver, e.g. `0.1.0`).
+- Build sets `AssemblyInformationalVersion` so the **web client** (`AppReleaseVersion` / footer) and **API Swagger** (`OpenApiInfo.Version`) show the same value without a duplicated constant in code.
+- **`releases.md`**: human-readable, concise description of what is new per version (not duplicated in the git commit line).
 
-## Vid leverans av en större ändring
+## When delivering a larger change
 
-1. **Öka `Version`** i `Directory.Build.props` (patch/minor/major enligt omfattning).
-2. **`releases.md`**: lägg till en sektion för den nya versionen (semver som rubrik) och kortfattade punkter om vad som är nytt eller ändrat.
-3. **Commit (obligatoriskt versionsnummer):** meddelandet ska **innehålla** den nya `<Version>`. För release-leverans ska det vara **exakt** semver, identisk med `<Version>` (t.ex. `0.1.1`) — ingen extra text, ingen `v`-prefix i commit-raden. Detta är **icke förhandlingsbart** tillsammans med regeln ovan.
-4. **Push** commit till `origin`.
-5. **Tag** annoterad tag med `v`-prefix: `git tag -a v0.1.1 -m "0.1.1"` på samma commit (eller omedelbart efter), sedan `git push origin v0.1.1` (eller `git push origin --tags` om flera taggar ska upp samtidigt — undvik oavsiktliga extra-taggar).
-6. **I chattsvaret** till användaren: skriv uttryckligen vilken version som levererats, t.ex. *Levererat: **v0.1.1** (Version 0.1.1 i UI).*
+1. **Bump `Version`** in `Directory.Build.props` (patch/minor/major by scope).
+2. **`releases.md`**: add a section for the new version (semver as heading) and concise bullets on what is new or changed.
+3. **Commit (version number mandatory):** the message must **contain** the new `<Version>`. For release delivery it must be **exactly** semver, identical to `<Version>` (e.g. `0.1.1`) -- no extra text, no `v` prefix in the commit line. This is **non-negotiable** together with the rule above.
+4. **Push** commit to `origin`.
+5. **Tag** annotated tag with `v` prefix: `git tag -a v0.1.1 -m "0.1.1"` on the same commit (or immediately after), then `git push origin v0.1.1` (or `git push origin --tags` if several tags go up at once -- avoid accidental extra tags).
+6. **In the chat response** to the user: state explicitly which version was delivered, e.g. *Delivered: **v0.1.1** (Version 0.1.1 in UI).*
 
-## Konsekvens
+## Consistency
 
-- Git-tag `v{Version}` ska peka på samma kod som användaren ser när UI visar **Version {Version}**.
+- Git tag `v{Version}` must point at the same code the user sees when the UI shows **Version {Version}**.

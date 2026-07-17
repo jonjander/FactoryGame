@@ -490,7 +490,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         BoardPlanDto plan)
     {
         var parts = new List<string>();
-        parts.Add(mode == BoardMode.Running ? "Kör" : "Stoppad");
+        parts.Add(mode == BoardMode.Running ? "Running" : "Stopped");
 
         if (plan.Machines.Count == 0 && plan.Connections.Count == 0)
             parts.Add("tom plan");

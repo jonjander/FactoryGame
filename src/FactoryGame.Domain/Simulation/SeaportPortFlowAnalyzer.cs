@@ -83,8 +83,8 @@ public static class SeaportPortFlowAnalyzer
         if (!connected)
         {
             summary = isInPort
-                ? "Ingång «in» ej kopplad — inget material från fabriken till poolen."
-                : "Utgång «out» ej kopplad — inget material från poolen till fabriken.";
+                ? "Input «in» not connected — no material from factory to pool."
+                : "Output «out» not connected — no material from pool to factory.";
         }
         else if (isInPort)
         {
@@ -112,14 +112,14 @@ public static class SeaportPortFlowAnalyzer
             }
 
             var depositPhase = pkt != null
-                ? MaterialPhaseLabels.PhaseLabelSv(MaterialPhaseLabels.DecodePhase(pkt.Dna))
+                ? MaterialPhaseLabels.PhaseLabel(MaterialPhaseLabels.DecodePhase(pkt.Dna))
                 : ResolvePredictedDepositPhase(linkedMachineId, linkedPort, machineById, connections, runtime);
             var path = FormatPath(linkedMachineId, linkedPort, m.Id, portName);
             summary = elementSymbol != null
                 ? depositPhase != null
-                    ? $"Till pool: {elementSymbol} ({depositPhase}) via {path}"
-                    : $"Till pool: {elementSymbol} via {path}"
-                : $"Till pool via {path} (element ej bestämt i förväg)";
+                    ? $"To pool: {elementSymbol} ({depositPhase}) via {path}"
+                    : $"To pool: {elementSymbol} via {path}"
+                : $"To pool via {path} (element not predetermined)";
         }
         else
         {
@@ -131,7 +131,7 @@ public static class SeaportPortFlowAnalyzer
                 var materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(
                     m.Settings?.GetRawText(), elementId.Value);
                 var displayName = ElementNameGenerator.Generate(
-                    materialDna > 0 ? materialDna : ElementCatalogLookup.CatalogDnaFor(elementId.Value), "sv");
+                    materialDna > 0 ? materialDna : ElementCatalogLookup.CatalogDnaFor(elementId.Value), "en");
                 if (!string.IsNullOrEmpty(elementSymbol))
                     elementSymbol = $"{elementSymbol} ({displayName})";
             }
@@ -152,8 +152,8 @@ public static class SeaportPortFlowAnalyzer
 
             var path = FormatPath(m.Id, portName, linkedMachineId, linkedPort);
             summary = elementSymbol != null
-                ? $"Från pool: {elementSymbol} → {path}"
-                : $"Från pool → {path}";
+                ? $"From pool: {elementSymbol} → {path}"
+                : $"From pool → {path}";
         }
 
         results.Add(new SeaportPortFlowDetail(
@@ -280,7 +280,7 @@ public static class SeaportPortFlowAnalyzer
             machine, linkedPort, traced.ElementId, traced.ElementSymbol, inputDna);
         return predicted.OutputPhase == null
             ? null
-            : MaterialPhaseLabels.PhaseLabelSv(predicted.OutputPhase);
+            : MaterialPhaseLabels.PhaseLabel(predicted.OutputPhase);
     }
 
     private static string? ResolveUpstreamInputPort(string machineType, string outPort) =>

@@ -53,7 +53,7 @@ public sealed class MachinePortFlowAnalyzerTests
 
         Assert.Equal("E01", boilerOut.InputElementSymbol);
         Assert.NotNull(boilerOut.OutputElementSymbol);
-        Assert.Contains("värms", boilerOut.TransformNote ?? boilerOut.Summary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("heated", boilerOut.TransformNote ?? boilerOut.Summary, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

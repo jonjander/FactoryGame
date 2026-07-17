@@ -12,11 +12,11 @@
     }
     else
     {
-        <p class="muted">Välj en spelplan för att se fabrikinformation.</p>
+        <p class="muted">Select a board to view factory information.</p>
     }
     <div class="fg-toolbar" style="margin-top:0.75rem">
-        <button type="button" class="secondary" @onclick="Session.ReloadPlanUiAsync" disabled="@Session.Busy">Läs om plan</button>
-        <button type="button" class="secondary" @onclick="Session.RefreshBoardInfoAsync" disabled="@Session.Busy">Uppdatera info</button>
+        <button type="button" class="secondary" @onclick="Session.ReloadPlanUiAsync" disabled="@Session.Busy">Reload plan</button>
+        <button type="button" class="secondary" @onclick="Session.RefreshBoardInfoAsync" disabled="@Session.Busy">Refresh info</button>
     </div>
 </div>
 

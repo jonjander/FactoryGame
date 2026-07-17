@@ -8,61 +8,61 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — desktop game shell
+# FactoryGame -- desktop game shell
 
-## Snabböversikt
+## Quick overview
 
-| Viewport | Layout | Navigation | Innehåll |
+| Viewport | Layout | Navigation | Content |
 |----------|--------|------------|----------|
-| `< 900px` | `MainLayout` | Top-nav länkar | `Pages/*` → `Views/*` direkt |
-| `≥ 900px` | `GameShellLayout` | `GameToolbar` | Canvas + flytande fönster (`Views/*` i `DynamicComponent`) |
+| `< 900px` | `MainLayout` | Top-nav links | `Pages/*` -> `Views/*` directly |
+| `>= 900px` | `GameShellLayout` | `GameToolbar` | Canvas + floating windows (`Views/*` in `DynamicComponent`) |
 
-Breakpoint: `ViewportLayoutService.DesktopMinWidth` = **900px** (`matchMedia` i `wwwroot/js/viewport-layout.js`).
+Breakpoint: `ViewportLayoutService.DesktopMinWidth` = **900px** (`matchMedia` in `wwwroot/js/viewport-layout.js`).
 
-## Arkitektur (ändra rätt lager)
+## Architecture (change the right layer)
 
 ```
-ResponsiveApp → ViewportLayoutService → MainLayout | GameShellLayout
-GameShellLayout → GameToolbar + FactoryCanvas(FillViewport) + FloatingWindowHost
-GameShellNavigation → route synkar öppet fönster (URL behålls)
-GameWindowService → register/toggle/open/close/focus fönster
-BoardCanvasSession → fabrik-state (singleton; mobil + desktop delar)
-Pages/*.razor → tunna wrappers: @if (!Viewport.UseGameShell) { <XxxView /> }
+ResponsiveApp -> ViewportLayoutService -> MainLayout | GameShellLayout
+GameShellLayout -> GameToolbar + FactoryCanvas(FillViewport) + FloatingWindowHost
+GameShellNavigation -> route syncs open window (URL preserved)
+GameWindowService -> register/toggle/open/close/focus windows
+BoardCanvasSession -> factory state (singleton; mobile + desktop share)
+Pages/*.razor -> thin wrappers: @if (!Viewport.UseGameShell) { <XxxView /> }
 ```
 
-**Regel:** På desktop mountas sidor med dolt `@Body`; innehåll visas **endast** i fönster via `GameWindowService` — duplicera inte state mellan page och fönster.
+**Rule:** On desktop pages mount with hidden `@Body`; content shows **only** in windows via `GameWindowService` -- do not duplicate state between page and window.
 
-## Ny funktion i befintlig vy
+## New feature in existing view
 
-1. Extrahera/utöka `Views/<Namn>View.razor` (markup + `@code`).
-2. `Pages/<Namn>.razor` behåll `@page` + mobil-guard.
-3. Registrera fönster i `GameShellNavigation.EnsureRegistered()` (id, titel, `typeof(...View)`, storlek).
-4. Lägg toolbar-knapp i `GameToolbar.razor` om användaren ska nå det från shell.
-5. CSS under `.game-shell` / `.fg-floating-window` i `app.css` — **inte** ändra mobil-layout i `MainLayout` utan skäl.
+1. Extract/extend `Views/<Name>View.razor` (markup + `@code`).
+2. `Pages/<Name>.razor` keeps `@page` + mobile guard.
+3. Register window in `GameShellNavigation.EnsureRegistered()` (id, title, `typeof(...View)`, size).
+4. Add toolbar button in `GameToolbar.razor` if the user should reach it from shell.
+5. CSS under `.game-shell` / `.fg-floating-window` in `app.css` -- **do not** change mobile layout in `MainLayout` without reason.
 
-## Fabrik på desktop
+## Factory on desktop
 
-- Canvas ägs av `GameShellLayout`, data från `BoardCanvasSession`.
-- Fabrik-verktyg som egna fönster: `boards-picker`, `store`, `machine-settings`, `board-info`, `place-machine`, `pipe-form`, `plan-json`.
-- Sim-knappar (Spara/Start/Stopp/Snapshot) ligger i toolbar — inte i sidfot.
-- Senast vald bräda: `BrowserStorage` nyckel `fg_last_board_id`.
+- Canvas owned by `GameShellLayout`, data from `BoardCanvasSession`.
+- Factory tools as separate windows: `boards-picker`, `store`, `machine-settings`, `board-info`, `place-machine`, `pipe-form`, `plan-json`.
+- Sim buttons (Save/Start/Stop/Snapshot) are in the toolbar -- not in the footer.
+- Last selected board: `BrowserStorage` key `fg_last_board_id`.
 
-Ny fabriklogik → `BoardCanvasSession.cs` först; mobil `BoardsMobileView` och shell ska återanvända samma service.
+New factory logic -> `BoardCanvasSession.cs` first; mobile `BoardsMobileView` and shell should reuse the same service.
 
-## Flytande fönster
+## Floating windows
 
-- `FloatingWindow.razor` + `wwwroot/js/floating-window.js` (drag titelrad, resize hörn).
-- `ConfirmDialog` / små modaler: behåll `fg-modal-backdrop` ovanpå fönster.
-- Toggle: andra klick på samma toolbar-knapp stänger fönstret.
+- `FloatingWindow.razor` + `wwwroot/js/floating-window.js` (drag title bar, resize corner).
+- `ConfirmDialog` / small modals: keep `fg-modal-backdrop` above windows.
+- Toggle: second click on same toolbar button closes the window.
 
-## Checklista
+## Checklist
 
-- [ ] Mobil `< 900px`: `MainLayout` + sidnav oförändrat; ingen game-shell-CSS synlig.
-- [ ] Desktop: canvas fyller yta under toolbar; inga `max-width: 1100px` på shell.
-- [ ] Deep links (`/exchange`, `/boards`, …) öppnar rätt fönster via `GameShellNavigation`.
-- [ ] Inloggning på desktop stänger `login`-fönster; redirect till börs **inte** automatiskt (skillnad mot mobil).
-- [ ] `dotnet build` på `FactoryGame.Web` efter ändring.
+- [ ] Mobile `< 900px`: `MainLayout` + side nav unchanged; no game-shell CSS visible.
+- [ ] Desktop: canvas fills area under toolbar; no `max-width: 1100px` on shell.
+- [ ] Deep links (`/exchange`, `/boards`, ...) open the right window via `GameShellNavigation`.
+- [ ] Login on desktop closes `login` window; redirect to exchange **not** automatic (difference vs mobile).
+- [ ] `dotnet build` on `FactoryGame.Web` after change.
 
-## Detaljer
+## Details
 
-Filkarta, fönster-id:n och CSS-klasser: [reference.md](reference.md)
+File map, window ids, and CSS classes: [reference.md](reference.md)

@@ -28,13 +28,13 @@ async function main() {
 
   const sessionToken = await guestAuth(client, "mcp-smoke");
 
-  await callOk(client, "content_list_elements", { locale: "sv" });
-  await callOk(client, "content_wiki", { locale: "sv" });
+  await callOk(client, "content_list_elements", { locale: "en" });
+  await callOk(client, "content_wiki", { locale: "en" });
   await callOk(client, "content_machine_store", {});
 
   await callOk(client, "player_wallet", { sessionToken });
   await callOk(client, "player_pool", { sessionToken });
-  await callOk(client, "player_pool_view", { sessionToken, locale: "sv" });
+  await callOk(client, "player_pool_view", { sessionToken, locale: "en" });
   await callOk(client, "player_machine_inventory", { sessionToken });
 
   for (const name of ["player_transactions", "market_orders_mine"]) {
@@ -45,7 +45,7 @@ async function main() {
     }
   }
 
-  await callOk(client, "market_summary", { sessionToken, locale: "sv" });
+  await callOk(client, "market_summary", { sessionToken, locale: "en" });
   await callOk(client, "market_element_depth", { elementId: 1 });
   await callOk(client, "market_element_history", { elementId: 1, points: 12 });
   await callOk(client, "market_open_orders", {});

@@ -17,11 +17,11 @@
 @inject SnackbarService Snackbar
 @inject BoardIssueMuteStore IssueMutes
 
-<PageTitle>Fabrik</PageTitle>
+<PageTitle>Factory</PageTitle>
 
 <ConfirmDialog Visible="Session.ConfirmVisible"
                Message="Session.ConfirmMessage"
-               ConfirmLabel="Ja, byt koppling"
+               ConfirmLabel="Yes, replace connection"
                OnConfirm="Session.OnConfirmDialogYesAsync"
                OnCancel="Session.OnConfirmDialogNoAsync" />
 
@@ -30,9 +30,9 @@
                        OnClose="Session.CloseStoreInfo" />
 
 <div class="panel">
-    <h2>Spelplaner</h2>
-    <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">Lista</button>
-    <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">Ny plan</button>
+    <h2>Boards</h2>
+    <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">List</button>
+    <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">New board</button>
     @if (!string.IsNullOrEmpty(Session.Error))
     {
         <p class="error">@Session.Error</p>
@@ -52,12 +52,12 @@
                         <span class="fg-status-pill @Session.GetBoardStatusPillCss(b)">@Session.GetBoardStatusLabel(b)</span>
                     </span>
                     <span class="fg-board-tile-meta muted">
-                        @b.PlanMachineCount maskin@(b.PlanMachineCount == 1 ? "" : "er")
-                        ┬À @b.PlanConnectionCount r├Âr
-                        ┬À rev @b.RevisionVersion
+                        @b.PlanMachineCount machine@(b.PlanMachineCount == 1 ? "" : "s")
+                        · @b.PlanConnectionCount pipes
+                        · rev @b.RevisionVersion
                         @if (b.SimulationTick > 0)
                         {
-                            <span> ┬À tick @b.SimulationTick</span>
+                            <span> · tick @b.SimulationTick</span>
                         }
                     </span>
                     @{
@@ -74,18 +74,18 @@
 </div>
 
 <div class="panel fg-store">
-    <h2>Maskinbutik & lager</h2>
-    <p class="muted">K├Âp maskiner till ditt lager. Placera dem p├Ñ en sparad plan med valfritt maskin-id (bokst├ñver, siffror, <code>_</code>, <code>-</code>). Seaport: k├Âp <strong>Seaport connector</strong> och placera som vanlig maskin.</p>
+    <h2>Machine store & inventory</h2>
+    <p class="muted">Buy machines into your inventory. Place them on a saved board with any machine id (letters, digits, <code>_</code>, <code>-</code>). Seaport: buy <strong>Seaport connector</strong> and place like any other machine.</p>
     @if (Session.StoreItems.Count == 0 && Session.Connectors.Count == 0)
     {
-        <p class="muted">Laddar butikÔÇª</p>
+        <p class="muted">Loading store...</p>
     }
     else
     {
         <div class="fg-table-wrap">
             <table class="fg-table">
                 <thead>
-                <tr><th>Maskin</th><th>Pris</th><th></th></tr>
+                <tr><th>Machine</th><th>Price</th><th></th></tr>
                 </thead>
                 <tbody>
                 @foreach (var item in Session.StoreItems)
@@ -95,24 +95,24 @@
                         <td>@item.Price.ToString("0.##")</td>
                         <td>
                             <button type="button" class="secondary" @onclick="() => Session.ShowStoreInfo(item)">Info</button>
-                            <button type="button" class="secondary" @onclick="async () => await Session.PurchaseAsync(item.Type)" disabled="@Session.Busy">K├Âp</button>
+                            <button type="button" class="secondary" @onclick="async () => await Session.PurchaseAsync(item.Type)" disabled="@Session.Busy">Buy</button>
                         </td>
                     </tr>
                 }
                 </tbody>
             </table>
         </div>
-        <h3>Ditt maskinlager</h3>
+        <h3>Your machine inventory</h3>
         @if (Session.Inventory.Count == 0)
         {
-            <p class="muted">Inga k├Âpta maskiner i lager.</p>
+            <p class="muted">No purchased machines in inventory.</p>
         }
         else
         {
             <ul>
                 @foreach (var row in Session.Inventory)
                 {
-                    <li><span class="fg-id-short" title="@row.Id">@DisplayIds.ShortGuid(row.Id)</span> ÔÇö @row.MachineType</li>
+                    <li><span class="fg-id-short" title="@row.Id">@DisplayIds.ShortGuid(row.Id)</span> — @row.MachineType</li>
                 }
             </ul>
         }
@@ -126,10 +126,10 @@
             @if (Session.RenamingBoard)
             {
                 <div class="fg-board-rename-row">
-                    <label for="fg-board-rename">Namn</label>
+                    <label for="fg-board-rename">Name</label>
                     <input id="fg-board-rename" @bind="Session.RenameDraft" maxlength="120" />
-                    <button type="button" @onclick="Session.SaveRenameAsync" disabled="@Session.Busy">Spara namn</button>
-                    <button type="button" class="secondary" @onclick="Session.CancelRename" disabled="@Session.Busy">Avbryt</button>
+                    <button type="button" @onclick="Session.SaveRenameAsync" disabled="@Session.Busy">Save name</button>
+                    <button type="button" class="secondary" @onclick="Session.CancelRename" disabled="@Session.Busy">Cancel</button>
                 </div>
             }
             else
@@ -138,13 +138,13 @@
                     @Session.GetSelectedBoardName()
                     <span class="fg-id-short muted" title="@Session.Selected.Value.ToString()">@DisplayIds.ShortGuid(Session.Selected.Value)</span>
                 </h3>
-                <button type="button" class="secondary" @onclick="Session.BeginRename" disabled="@Session.Busy">Byt namn</button>
+                <button type="button" class="secondary" @onclick="Session.BeginRename" disabled="@Session.Busy">Rename</button>
             }
         </div>
 
         <div class="fg-toolbar">
-            <button type="button" class="secondary" @onclick="Session.ReloadPlanUiAsync" disabled="@Session.Busy">L├ñs om plan fr├Ñn server</button>
-            <button type="button" class="secondary" @onclick="Session.RefreshBoardInfoAsync" disabled="@Session.Busy">Uppdatera info</button>
+            <button type="button" class="secondary" @onclick="Session.ReloadPlanUiAsync" disabled="@Session.Busy">Reload plan from server</button>
+            <button type="button" class="secondary" @onclick="Session.RefreshBoardInfoAsync" disabled="@Session.Busy">Refresh info</button>
         </div>
 
         @if (Session.BoardInfo != null)
@@ -152,13 +152,13 @@
             <div class="fg-board-mode-banner @Session.GetBoardModeCss()">
                 @if (Session.IsSelectedBoardRunning())
                 {
-                    <span class="fg-status-pill fg-status-running">K├Âr</span>
-                    <span class="muted">Redigering l├Ñst tills du stoppar</span>
+                    <span class="fg-status-pill fg-status-running">Running</span>
+                    <span class="muted">Editing locked until you stop</span>
                 }
                 else
                 {
-                    <span class="fg-status-pill fg-status-stopped">Stoppad</span>
-                    <span class="muted">Redigera plan, spara och starta simulering</span>
+                    <span class="fg-status-pill fg-status-stopped">Stopped</span>
+                    <span class="muted">Edit plan, save and start simulation</span>
                 }
             </div>
             <BoardInfoPanel Info="Session.BoardInfo"
@@ -170,7 +170,7 @@
         @if (Session.TryDeserializePlan(out var canvasPlan))
         {
             <div class="panel fg-sub fg-factory-view">
-                <h4>Fabrik (visuell)</h4>
+                <h4>Factory (visual)</h4>
                 <FactoryCanvas @key="Session.Selected"
                                Plan="canvasPlan"
                                ElementCatalog="Session.Elements"
@@ -195,14 +195,14 @@
         @if (Session.GetPlanMachines().Count > 0)
         {
             <div class="panel fg-sub">
-                <h4>Maskininst├ñllningar</h4>
-                <p class="muted">Klicka en maskin i canvas eller v├ñlj i listan. Endast fasta steg (dropdown). Spara planen efter ├ñndring.</p>
-                <label for="fg-settings-machine-pick">Maskin</label>
+                <h4>Machine settings</h4>
+                <p class="muted">Click a machine on the canvas or pick from the list. Fixed steps only (dropdown). Save the plan after changes.</p>
+                <label for="fg-settings-machine-pick">Machine</label>
                 <select id="fg-settings-machine-pick"
                         class="fg-select fg-settings-machine-pick"
                         disabled="@(Session.Busy || Session.IsSelectedBoardRunning())"
                         @bind="Session.SettingsMachineId">
-                    <option value="">ÔÇö V├ñlj ÔÇö</option>
+                    <option value="">— Select —</option>
                     @foreach (var m in Session.GetPlanMachines())
                     {
                         <option value="@m.Id">@m.Id (@m.Type)</option>
@@ -221,12 +221,12 @@
         }
 
         <div class="panel fg-sub">
-            <h4>Placera fr├Ñn lager</h4>
+            <h4>Place from inventory</h4>
             <div class="fg-row">
                 <div>
-                    <label>Lagerpost</label>
+                    <label>Inventory item</label>
                     <select class="fg-select" @bind="Session.PlaceStockId" @bind:after="Session.OnPlaceStockChanged">
-                        <option value="">ÔÇö V├ñlj ÔÇö</option>
+                        <option value="">— Select —</option>
                         @foreach (var row in Session.Inventory)
                         {
                             <option value="@row.Id">@row.MachineType (@DisplayIds.ShortGuid(row.Id))</option>
@@ -234,21 +234,21 @@
                     </select>
                 </div>
                 <div>
-                    <label>Nytt maskin-id p├Ñ planen</label>
-                    <input @bind="Session.PlaceMachineId" placeholder="t.ex. boiler1" />
+                    <label>New machine id on board</label>
+                    <input @bind="Session.PlaceMachineId" placeholder="e.g. boiler1" />
                 </div>
-                <button type="button" @onclick="Session.PlaceFromStockAsync" disabled="@Session.Busy">Placera</button>
+                <button type="button" @onclick="Session.PlaceFromStockAsync" disabled="@Session.Busy">Place</button>
             </div>
         </div>
 
         <div class="panel fg-sub">
-            <h4>Koppla r├Âr</h4>
-            <p class="muted">Alla portar kan v├ñljas. Om en port redan ├ñr kopplad f├Ñr du bekr├ñfta innan den gamla kopplingen byts ut.</p>
+            <h4>Connect pipes</h4>
+            <p class="muted">All ports can be selected. If a port is already connected you must confirm before the old connection is replaced.</p>
             <div class="fg-pipe-grid">
                 <div>
-                    <label>Fr├Ñn maskin</label>
+                    <label>From machine</label>
                     <select class="fg-select" @bind="Session.PipeFromId" @bind:after="Session.OnPipeEndpointChanged">
-                        <option value="">ÔÇö V├ñlj ÔÇö</option>
+                        <option value="">— Select —</option>
                         @foreach (var m in Session.GetPlanMachines())
                         {
                             <option value="@m.Id">@m.Id (@m.Type)</option>
@@ -256,9 +256,9 @@
                     </select>
                 </div>
                 <div>
-                    <label>Fr├Ñn utg├Ñng</label>
+                    <label>From output</label>
                     <select class="fg-select" @bind="Session.PipeFromPort" @bind:after="Session.OnPipeEndpointChanged">
-                        <option value="">ÔÇö V├ñlj ÔÇö</option>
+                        <option value="">— Select —</option>
                         @foreach (var p in Session.GetOutputPortChoices(Session.PipeFromId))
                         {
                             <option value="@p.Name">@p.Label</option>
@@ -266,9 +266,9 @@
                     </select>
                 </div>
                 <div>
-                    <label>Till maskin</label>
+                    <label>To machine</label>
                     <select class="fg-select" @bind="Session.PipeToId" @bind:after="Session.OnPipeEndpointChanged">
-                        <option value="">ÔÇö V├ñlj ÔÇö</option>
+                        <option value="">— Select —</option>
                         @foreach (var m in Session.GetPlanMachines())
                         {
                             <option value="@m.Id">@m.Id (@m.Type)</option>
@@ -276,9 +276,9 @@
                     </select>
                 </div>
                 <div>
-                    <label>Till ing├Ñng</label>
+                    <label>To input</label>
                     <select class="fg-select" @bind="Session.PipeToPort" @bind:after="Session.OnPipeEndpointChanged">
-                        <option value="">ÔÇö V├ñlj ÔÇö</option>
+                        <option value="">— Select —</option>
                         @foreach (var p in Session.GetInputPortChoices(Session.PipeToId))
                         {
                             <option value="@p.Name">@p.Label</option>
@@ -286,7 +286,7 @@
                     </select>
                 </div>
                 <div class="fg-pipe-actions">
-                    <button type="button" class="secondary" @onclick="Session.AddPipeToPlanAsync" disabled="@Session.Busy">L├ñgg r├Âr</button>
+                    <button type="button" class="secondary" @onclick="Session.AddPipeToPlanAsync" disabled="@Session.Busy">Add pipe</button>
                 </div>
             </div>
             @{
@@ -300,12 +300,12 @@
                         var conn = planConnections[ci];
                         var connIndex = ci;
                         <li>
-                            <span class="fg-connection-label">@conn.FromId.@conn.FromPort ÔåÆ @conn.ToId.@conn.ToPort</span>
+                            <span class="fg-connection-label">@conn.FromId.@conn.FromPort -> @conn.ToId.@conn.ToPort</span>
                             <button type="button"
                                     class="secondary"
                                     disabled="@(Session.Busy || Session.IsSelectedBoardRunning())"
                                     @onclick="@(async () => await Session.RemoveConnectionAtAsync(connIndex))">
-                                Ta bort
+                                Remove
                             </button>
                         </li>
                     }
@@ -316,20 +316,20 @@
         <h4>Plan (JSON)</h4>
         <textarea class="fg-json" rows="14" @bind="Session.PlanJson" @bind:event="oninput"></textarea>
         <div class="fg-toolbar fg-sim-controls">
-            <button type="button" @onclick="Session.SavePlanAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Spara</button>
+            <button type="button" @onclick="Session.SavePlanAsync" disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Save</button>
             <button type="button"
                     class="@(Session.IsSelectedBoardRunning() ? "secondary fg-btn-disabled-visual" : "")"
                     @onclick="Session.StartAsync"
                     disabled="@(Session.Busy || Session.IsSelectedBoardRunning())"
-                    title="@(Session.IsSelectedBoardRunning() ? "Fabriken k├Âr redan" : "Starta simulering")">
+                    title="@(Session.IsSelectedBoardRunning() ? "Factory is already running" : "Start simulation")">
                 Start
             </button>
             <button type="button"
                     class="@(!Session.IsSelectedBoardRunning() ? "secondary fg-btn-disabled-visual" : "")"
                     @onclick="Session.StopAsync"
                     disabled="@(Session.Busy || !Session.IsSelectedBoardRunning())"
-                    title="@(!Session.IsSelectedBoardRunning() ? "Fabriken ├ñr redan stoppad" : "Stoppa simulering")">
-                Stopp
+                    title="@(!Session.IsSelectedBoardRunning() ? "Factory is already stopped" : "Stop simulation")">
+                Stop
             </button>
             <button type="button" class="secondary" @onclick="Session.SnapshotAsync" disabled="@Session.Busy">Snapshot</button>
         </div>

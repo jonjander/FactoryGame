@@ -9,39 +9,39 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — webklient och synk
+# FactoryGame -- web client and sync
 
-## Layout: mobil vs desktop
+## Layout: mobile vs desktop
 
-- **Mobil (`< 900px`):** `MainLayout` + sidnav; sidor i `Pages/*` renderar `Views/*`.
-- **Desktop (`≥ 900px`):** `GameShellLayout` — canvas fyller skärmen, toolbar + flytande fönster.
+- **Mobile (`< 900px`):** `MainLayout` + side nav; pages in `Pages/*` render `Views/*`.
+- **Desktop (`>= 900px`):** `GameShellLayout` -- canvas fills screen, toolbar + floating windows.
 
-Detaljerad shell-arkitektur: **`@factory-game-game-shell`** (`.cursor/skills/factory-game-game-shell/`).
+Detailed shell architecture: **`@factory-game-game-shell`** (`.cursor/skills/factory-game-game-shell/`).
 
-## Synk
+## Sync
 
-- Server är sanning: hämta **keyframes** / snapshot + tick-index periodiskt.
-- Lokalt: interpolera/approximera för känsla av realtid; **jamka** vid ny keyframe.
-- Offline: redigera och stoppa; **sparning köas**; vid konflikt: **merge**-flöde (inte tyst kasta lokal ändring utan användarval där det är lämpligt).
+- Server is truth: fetch **keyframes** / snapshot + tick index periodically.
+- Locally: interpolate/approximate for realtime feel; **reconcile** on new keyframe.
+- Offline: edit and stop; **save is queued**; on conflict: **merge** flow (do not silently discard local change without user choice where appropriate).
 
-## Börs-UI offline
+## Exchange UI offline
 
-- Visa tydligt att börsen är otillgänglig; ev. cache med varning eller dölj handel tills online (följ produktbeslut i `KRAVSPEC.md`).
+- Show clearly that the exchange is unavailable; optional cache with warning or hide trading until online (follow product decision in `KRAVSPEC.md`).
 
-## Klient vs API
+## Client vs API
 
-- Officiell klient använder samma öppna API som tredjepart.
-- OAuth för interaktiv användning; API-nycklar med scopes för skript/botar (serverstöd).
+- Official client uses the same open API as third parties.
+- OAuth for interactive use; API keys with scopes for scripts/bots (server support).
 
-## Mobil (F19)
+## Mobile (F19)
 
-- Responsiv webklient: samma API och funktioner som desktop.
-- På mobil: **mindre dekor**, **tydligare menyer**, touch-vänliga mål — **inte** game shell.
-- Ändra inte `MainLayout` / mobil-CSS när du bara jobbar med desktop shell.
+- Responsive web client: same API and features as desktop.
+- On mobile: **less decoration**, **clearer menus**, touch-friendly targets -- **not** game shell.
+- Do not change `MainLayout` / mobile CSS when you only work on desktop shell.
 
-## Checklista
+## Checklist
 
-- [ ] Inga spelkritiska beslut enbart på klienten.
-- [ ] Tydliga felmeddelanden vid avvisade kommandon (valideringsorsak från server).
-- [ ] Mobil: paritet + navigering enligt F19 (ingen avkapad logik).
-- [ ] Desktop shell: innehåll i `Views/`, state i services (`BoardCanvasSession`), inte duplicerat i dold `@Body`.
+- [ ] No game-critical decisions on client only.
+- [ ] Clear error messages on rejected commands (validation reason from server).
+- [ ] Mobile: parity + navigation per F19 (no cut-down logic).
+- [ ] Desktop shell: content in `Views/`, state in services (`BoardCanvasSession`), not duplicated in hidden `@Body`.

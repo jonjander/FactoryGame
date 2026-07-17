@@ -1,23 +1,23 @@
-# Game shell — referens
+# Game shell -- reference
 
-## Kärnfiler
+## Core files
 
-| Fil | Roll |
+| File | Role |
 |-----|------|
-| `Components/ResponsiveApp.razor` | Väljer layout efter viewport |
+| `Components/ResponsiveApp.razor` | Chooses layout by viewport |
 | `Services/ViewportLayoutService.cs` | `UseGameShell`, `Changed` event |
 | `wwwroot/js/viewport-layout.js` | `matchMedia (min-width: 900px)` |
-| `Layout/GameShellLayout.razor` | Canvas + toolbar + fönster + dolt `@Body` |
-| `Layout/MainLayout.razor` | Mobil — oförändrad top-nav |
-| `Components/GameToolbar.razor` | Desktop-knappar + sim-kontroller |
-| `Components/FloatingWindow.razor` | Ett flytande fönster |
-| `Components/FloatingWindowHost.razor` | Renderar öppna fönster |
-| `Services/GameWindowService.cs` | Fönster-register, z-index, position/storlek |
-| `Services/GameShellNavigation.cs` | Route → fönster-id |
-| `Services/BoardCanvasSession.cs` | Fabrik-state, API, polling, plan-JSON |
-| `wwwroot/js/floating-window.js` | Pointer-drag för fönster |
+| `Layout/GameShellLayout.razor` | Canvas + toolbar + windows + hidden `@Body` |
+| `Layout/MainLayout.razor` | Mobile -- unchanged top nav |
+| `Components/GameToolbar.razor` | Desktop buttons + sim controls |
+| `Components/FloatingWindow.razor` | One floating window |
+| `Components/FloatingWindowHost.razor` | Renders open windows |
+| `Services/GameWindowService.cs` | Window registry, z-index, position/size |
+| `Services/GameShellNavigation.cs` | Route -> window id |
+| `Services/BoardCanvasSession.cs` | Factory state, API, polling, plan JSON |
+| `wwwroot/js/floating-window.js` | Pointer drag for windows |
 
-## Fönster-id → View
+## Window id -> View
 
 | Id | View | Route |
 |----|------|-------|
@@ -30,25 +30,25 @@
 | `cli` | `CliView` | `/cli` |
 | `admin` | `AdminView` | `/admin` |
 | `boards-picker` | `BoardPickerView` | `/boards` |
-| `store` | `MachineStoreView` | — |
-| `machine-settings` | `MachineSettingsView` | — |
-| `board-info` | `BoardInfoView` | — |
-| `place-machine` | `PlaceMachineView` | — |
-| `pipe-form` | `PipeFormView` | — |
-| `plan-json` | `PlanJsonView` | — |
+| `store` | `MachineStoreView` | -- |
+| `machine-settings` | `MachineSettingsView` | -- |
+| `board-info` | `BoardInfoView` | -- |
+| `place-machine` | `PlaceMachineView` | -- |
+| `pipe-form` | `PipeFormView` | -- |
+| `plan-json` | `PlanJsonView` | -- |
 
-Registrering: `GameShellNavigation.EnsureRegistered()`.
+Registration: `GameShellNavigation.EnsureRegistered()`.
 
-## Views och mobil
+## Views and mobile
 
-| View | Mobil via |
+| View | Mobile via |
 |------|-----------|
 | `HomeView` | `Pages/Home.razor` |
 | `ExchangeView` | `Pages/Exchange.razor` |
-| … | `Pages/<Namn>.razor` |
+| ... | `Pages/<Name>.razor` |
 | `BoardsMobileView` | `Pages/Boards.razor` |
 
-Mönster i Page:
+Pattern in Page:
 
 ```razor
 @page "/pool"
@@ -56,28 +56,28 @@ Mönster i Page:
 @if (!Viewport.UseGameShell) { <PoolView /> }
 ```
 
-## FactoryCanvas i shell
+## FactoryCanvas in shell
 
-Parametrar för helskärm:
+Parameters for fullscreen:
 
-- `FillViewport="true"` — wrapper/SVG fyller `game-shell-canvas-area`
-- `HideHelpText="true"` — döljer hjälptext; pipe-toolbar vid valt rör behålls
+- `FillViewport="true"` -- wrapper/SVG fills `game-shell-canvas-area`
+- `HideHelpText="true"` -- hides help text; pipe toolbar on selected pipe remains
 
 ## CSS (desktop)
 
-| Klass | Syfte |
+| Class | Purpose |
 |-------|--------|
-| `.game-shell` | `100vh`, flex-kolumn |
-| `.fg-game-toolbar` | RCT-liknande top-bar |
-| `.fg-game-btn` | Toolbar-knapp |
-| `.game-shell-canvas-area` | Rutnät-bakgrund, flex 1 |
+| `.game-shell` | `100vh`, flex column |
+| `.fg-game-toolbar` | RCT-like top bar |
+| `.fg-game-btn` | Toolbar button |
+| `.game-shell-canvas-area` | Grid background, flex 1 |
 | `.fg-floating-window` | Fixed, draggable |
-| `.fg-floating-window-header` | Drag-handle |
-| `.fg-floating-window-resize` | Resize-hörn |
-| `.fg-window-panel` | Innehåll utan `.panel`-ram i fönster |
-| `.game-shell-hidden-body` | Döljer `@Body` på desktop |
+| `.fg-floating-window-header` | Drag handle |
+| `.fg-floating-window-resize` | Resize corner |
+| `.fg-window-panel` | Content without `.panel` frame in window |
+| `.game-shell-hidden-body` | Hides `@Body` on desktop |
 
-Mobil: `@media (max-width: 899px)` döljer `.game-shell`, `.fg-game-toolbar`, `.fg-floating-window`.
+Mobile: `@media (max-width: 899px)` hides `.game-shell`, `.fg-game-toolbar`, `.fg-floating-window`.
 
 ## DI (`Program.cs`)
 
@@ -88,9 +88,9 @@ builder.Services.AddSingleton<BoardCanvasSession>();
 builder.Services.AddSingleton<GameShellNavigation>();
 ```
 
-## Vanliga misstag
+## Common mistakes
 
-- Logik i `Pages/` som bara körs på mobil — glöm inte `Views/` + fönsterregistrering för desktop.
-- Ny `@bind` mot `BoardCanvasSession`-property med `private set` — kräver public setter.
-- Dubbel `InitializeAsync` på session — guard med `Session.IsInitialized`.
-- Zoom/pan på canvas finns **inte** ännu; kräver ny JS om det läggs till.
+- Logic in `Pages/` that only runs on mobile -- do not forget `Views/` + window registration for desktop.
+- New `@bind` to `BoardCanvasSession` property with `private set` -- requires public setter.
+- Double `InitializeAsync` on session -- guard with `Session.IsInitialized`.
+- Zoom/pan on canvas **not** implemented yet; needs new JS if added.

@@ -2,10 +2,10 @@
 @implements IDisposable
 
 <div class="fg-window-panel">
-    <h3>Spelplaner</h3>
+    <h3>Boards</h3>
     <div class="fg-toolbar">
-        <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">Lista</button>
-        <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">Ny plan</button>
+        <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">List</button>
+        <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">New board</button>
     </div>
     @if (!string.IsNullOrEmpty(Session.Error))
     {
@@ -26,8 +26,8 @@
                         <span class="fg-status-pill @GetBoardStatusPillCss(b)">@GetBoardStatusLabel(b)</span>
                     </span>
                     <span class="fg-board-tile-meta muted">
-                        @b.PlanMachineCount maskin@(b.PlanMachineCount == 1 ? "" : "er")
-                        · @b.PlanConnectionCount rör
+                        @b.PlanMachineCount machine@(b.PlanMachineCount == 1 ? "" : "s")
+                        · @b.PlanConnectionCount pipes
                     </span>
                 </button>
             </li>
@@ -63,9 +63,9 @@
     private string GetBoardStatusLabel(FactoryGame.Contracts.Boards.BoardSummaryDto board) =>
         Session.GetEffectiveBoardHealth(board) switch
         {
-            "running" => "Kör",
-            "error" => "Fel",
-            "warning" => "Varning",
-            _ => "Stoppad"
+            "running" => "Running",
+            "error" => "Error",
+            "warning" => "Warning",
+            _ => "Stopped"
         };
 }

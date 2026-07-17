@@ -1,26 +1,26 @@
-# FactoryGame — testreferens
+# FactoryGame -- test reference
 
-## Testprojekt
+## Test projects
 
-| Projekt | Sökväg | Innehåll |
+| Project | Path | Content |
 |---------|--------|----------|
 | Domain | `tests/FactoryGame.Domain.Tests` | `BoardTickEngine`, DNA, analyzers |
-| Api | `tests/FactoryGame.Api.Tests` | HTTP mot `Program`, SQLite in-memory |
-| Web | `tests/FactoryGame.Web.Tests` | `ApiEndpointResolver` m.m. |
+| Api | `tests/FactoryGame.Api.Tests` | HTTP against `Program`, SQLite in-memory |
+| Web | `tests/FactoryGame.Web.Tests` | `ApiEndpointResolver` etc. |
 
-## API-fixtures
+## API fixtures
 
-**Delad** — `ApiWebApplicationFixture`:
+**Shared** -- `ApiWebApplicationFixture`:
 
-- Långt tick-intervall (600 s) — bra för marknad/pool, inte fabrik-sim
+- Long tick interval (600 s) -- good for market/pool, not factory sim
 - `MarketLiquidity:RefreshOnSummaryRequest: true`
 
-**Egen host** — `IAsyncLifetime` (t.ex. `SimpleGameFlowTests`, `BoardSimulationFlowTests`):
+**Own host** -- `IAsyncLifetime` (e.g. `SimpleGameFlowTests`, `BoardSimulationFlowTests`):
 
-- Kort `SimulationTickIntervalSeconds` eller avregistrerad `SimulationTickHostedService`
-- Unikt `FactoryGameTest_{guid}` DB-namn
+- Short `SimulationTickIntervalSeconds` or unregistered `SimulationTickHostedService`
+- Unique `FactoryGameTest_{guid}` DB name
 
-## Manuella fabrik-tick (API-test)
+## Manual factory ticks (API test)
 
 ```csharp
 await using var scope = factory.Services.CreateAsyncScope();
@@ -28,7 +28,7 @@ var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 var runner = scope.ServiceProvider.GetRequiredService<BoardSimulationRunner>();
 var board = await db.Boards.FirstAsync(b => b.Id == boardId);
 var clock = await db.SimulationClock.FirstOrDefaultAsync(c => c.Id == 1)
-    ?? /* skapa SimulationClockEntity Id=1 */;
+    ?? /* create SimulationClockEntity Id=1 */;
 for (var i = 0; i < n; i++)
 {
     clock.CurrentTick++;
@@ -37,36 +37,36 @@ for (var i = 0; i < n; i++)
 await db.SaveChangesAsync();
 ```
 
-## Maskin → test
+## Machine -> test
 
-| Maskin | Domäntest | API-tips |
+| Machine | Domain test | API tip |
 |--------|-------------|----------|
-| Boiler | Vätske-DNA | `heatDelta` i settings |
-| LiquidSeparator | `MeasureDnaSpreadPermille` ≥ 220 | `out1`+`out2` → seaport |
-| Destilator | Gasfas | `cutBoiling` |
+| Boiler | Liquid DNA | `heatDelta` in settings |
+| LiquidSeparator | `MeasureDnaSpreadPermille` >= 220 | `out1`+`out2` -> seaport |
+| Destilator | Gas phase | `cutBoiling` |
 | SeaportConnector | `outElementId` | Pool per `ElementId` |
 
-## Elementval
+## Element choice
 
-- Startpaket: element 1–5 (`StartingElementIds`)
-- Köp utanför start: t.ex. 6–20 via börs
-- Välj fas/DNA som maskinen accepterar (`MachineDnaCompatibility`)
+- Starter pack: elements 1-5 (`StartingElementIds`)
+- Buy outside starter: e.g. 6-20 via exchange
+- Choose phase/DNA the machine accepts (`MachineDnaCompatibility`)
 
-## Vanliga assertion-fällor
+## Common assertion pitfalls
 
-| Symptom | Orsak |
+| Symptom | Cause |
 |---------|--------|
-| Köp `Open` | Limit under `BestAsk` / ingen likviditet |
-| `keyframes/latest` 404 | Inga tick eller board ej Running |
-| `withdrawn=0` i summa | Fel `outElementId`; kolla `LastSnapshotNote` |
-| HTTP 500 på sälj | Otillräcklig pool; fabrik fortfarande aktiv |
-| Hang ~100 s | Parallell tick + HTTP; isolera tick eller stäng hosted service |
+| Buy `Open` | Limit below `BestAsk` / no liquidity |
+| `keyframes/latest` 404 | No ticks or board not Running |
+| `withdrawn=0` in sum | Wrong `outElementId`; check `LastSnapshotNote` |
+| HTTP 500 on sell | Insufficient pool; factory still active |
+| Hang ~100 s | Parallel tick + HTTP; isolate tick or disable hosted service |
 
-## Referenstester i repo
+## Reference tests in repo
 
-- `SimpleGameFlowTests` — köp E07, LiquidSeparator-loop, säljordrar
-- `BoardCyclePlanTests` — seaport ↔ boiler plan
-- `BoardSimulationFlowTests` — start + keyframe poll
-- `MarketSoloTradeTests` — solo-köp mot syntetisk likviditet
-- `GuestFlowTests` — två gäster matchar
-- `BoardTickEngineTests` — alla maskinprocessorer
+- `SimpleGameFlowTests` -- buy E07, LiquidSeparator loop, sell orders
+- `BoardCyclePlanTests` -- seaport <-> boiler plan
+- `BoardSimulationFlowTests` -- start + keyframe poll
+- `MarketSoloTradeTests` -- solo buy against synthetic liquidity
+- `GuestFlowTests` -- two guests match
+- `BoardTickEngineTests` -- all machine processors

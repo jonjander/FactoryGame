@@ -16,7 +16,7 @@
         <div class="pool-toolbar">
             <h2 class="pool-title">Seaport-pool</h2>
         </div>
-        <p class="muted pool-empty">Du måste <a href="/">logga in som gäst</a> för att se poolen.</p>
+        <p class="muted pool-empty">You must <a href="/">sign in as guest</a> to view the pool.</p>
     </div>
 }
 else if (_overview is null && !_busy)
@@ -24,9 +24,9 @@ else if (_overview is null && !_busy)
     <div class="panel pool-page">
         <div class="pool-toolbar">
             <h2 class="pool-title">Seaport-pool</h2>
-            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Refresh</button>
         </div>
-        <p class="muted pool-empty">Kunde inte läsa poolen.</p>
+        <p class="muted pool-empty">Could not load pool.</p>
         @if (!string.IsNullOrEmpty(_error))
         {
             <p class="error pool-error">@_error</p>
@@ -38,9 +38,9 @@ else if (GetGroups().Count == 0 && !_busy)
     <div class="panel pool-page">
         <div class="pool-toolbar">
             <h2 class="pool-title">Seaport-pool</h2>
-            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Refresh</button>
         </div>
-        <p class="muted pool-empty">Inget material i poolen. Öppna sidan igen efter inloggning om du nyss skapade konto — startpaket läggs i poolen automatiskt.</p>
+        <p class="muted pool-empty">No material in pool. Reopen this page after login if you just created an account — starter pack is added to the pool automatically.</p>
     </div>
 }
 else if (_overview is not null)
@@ -48,9 +48,9 @@ else if (_overview is not null)
     <div class="panel pool-page">
         <div class="pool-toolbar">
             <h2 class="pool-title">Seaport-pool</h2>
-            <span class="pool-stat muted">Volym <strong>@_overview.UsedVolume</strong>/@_overview.MaxVolume</span>
-            <span class="pool-stat pool-stat-total">Värde <strong>@_overview.TotalEstimatedValue.ToString("0.##")</strong></span>
-            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Uppdatera</button>
+            <span class="pool-stat muted">Volume <strong>@_overview.UsedVolume</strong>/@_overview.MaxVolume</span>
+            <span class="pool-stat pool-stat-total">Value <strong>@_overview.TotalEstimatedValue.ToString("0.##")</strong></span>
+            <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Refresh</button>
         </div>
         @if (!string.IsNullOrEmpty(_error))
         {
@@ -60,11 +60,11 @@ else if (_overview is not null)
             <table class="pool-holdings-table">
                 <thead>
                     <tr>
-                        <th>Ämne</th>
+                        <th>Element</th>
                         <th>Variant</th>
-                        <th class="pool-col-num">Antal</th>
-                        <th class="pool-col-num">Pris/enh</th>
-                        <th class="pool-col-num">Radvärde</th>
+                        <th class="pool-col-num">Qty</th>
+                        <th class="pool-col-num">Price/unit</th>
+                        <th class="pool-col-num">Line value</th>
                         <th class="pool-col-rank">Rank</th>
                         <th class="pool-col-action"></th>
                     </tr>
@@ -95,7 +95,7 @@ else if (_overview is not null)
         @if (GetGroups().Any(g => g.Variants.Count > 1))
         {
             <p class="muted pool-variant-hint">
-                Samma grundämne kan ha flera rader (olika DNA/fas). Processat material — t.ex. kristalliserat fast E03 — hamnar som egen variant, inte i startvätskans rad.
+                The same base element can have multiple rows (different DNA/phase). Processed material — e.g. crystallized solid E03 — appears as its own variant, not in the starter liquid row.
             </p>
         }
     </div>
@@ -174,8 +174,8 @@ else if (_overview is not null)
             if (!res.IsSuccessStatusCode)
             {
                 _error = res.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "Kunde inte läsa pool (är du inloggad?)"
-                    : "Kunde inte läsa pool.";
+                    ? "Could not load pool (are you signed in?)"
+                    : "Could not load pool.";
                 _overview = null;
                 return;
             }
@@ -198,7 +198,7 @@ else if (_overview is not null)
         if (_elements.Count > 0)
             return;
 
-        var items = await Http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=sv");
+        var items = await Http.GetFromJsonAsync<List<ElementContentItem>>("/v1/content/elements?locale=en");
         _elements = items ?? [];
     }
 

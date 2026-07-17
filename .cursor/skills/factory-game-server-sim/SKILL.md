@@ -8,22 +8,22 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — server-simulering
+# FactoryGame -- server simulation
 
-## Icke förhandlingsbara krav
+## Non-negotiable requirements
 
-- **Determinism:** samma input + inställningar + regelversion ⇒ samma utfall. Ingen icke-seedad slump i produktionsmotor.
-- **Tick:** max 5 s per logisk tick; vid belastning får servern köra catch-up-ticks ( dokumentera gränser för CPU-spik ).
-- **Running:** maskininställningar är låsta; ändringar endast i Edit. Vid start: spara state + ekonomisk granskning.
-- **Sorter:** grundämne → port där det är konfigurerat; annars port 4. Inget grundämne på två portar 1–3 (validera vid save/start).
+- **Determinism:** same input + settings + rule version => same outcome. No non-seeded randomness in the production engine.
+- **Tick:** max 5 s per logical tick; under load the server may run catch-up ticks (document limits for CPU spikes).
+- **Running:** machine settings are locked; changes only in Edit. On start: save state + economic audit.
+- **Sorter:** base element -> port where configured; otherwise port 4. No base element on two ports 1-3 (validate on save/start).
 
-## Implementationstips (.NET)
+## Implementation tips (.NET)
 
-- Håll bitmask-/DNA-transformationer i ren, testbar domänmodell (inga `if` per grundämne-id).
-- Logga transformationstillstånd för replay och wiki-generering.
-- Simulering ska kunna köras oberoende av global synk mellan spelare (per spelare/shard).
+- Keep bitmask/DNA transformations in pure, testable domain model (no `if` per base-element id).
+- Log transformation state for replay and wiki generation.
+- Simulation should run independently of global sync between players (per player/shard).
 
-## Checklista
+## Checklist
 
-- [ ] Enhetstester för minst en maskin kedja + sorter edge cases (tom port, okänt ämne → port 4).
-- [ ] Versionera regel-/generatorpaket tillsammans med sparad spelplan.
+- [ ] Unit tests for at least one machine chain + sorter edge cases (empty port, unknown element -> port 4).
+- [ ] Version rule/generator packages together with saved board plan.

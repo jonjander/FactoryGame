@@ -30,7 +30,7 @@ public static class BoardInfoAnalyzer
         {
             if (!MachinePortCatalog.IsKnownMachineType(m.Type))
             {
-                issues.Add(BoardIssue.Warning("unknown_machine_type", $"Okänd maskintyp «{m.Type}» på {m.Id}.", m.Id));
+                issues.Add(BoardIssue.Warning("unknown_machine_type", $"Unknown machine type «{m.Type}» at {m.Id}.", m.Id));
                 continue;
             }
 
@@ -52,7 +52,7 @@ public static class BoardInfoAnalyzer
                 {
                     issues.Add(BoardIssue.Warning(
                         "port_unconnected",
-                        $"Port «{p.Name}» ({p.Direction}) på {m.Id} ({m.Type}) är inte kopplad.",
+                        $"Port «{p.Name}» ({p.Direction}) on {m.Id} ({m.Type}) is not connected.",
                         m.Id));
                 }
             }
@@ -61,7 +61,7 @@ public static class BoardInfoAnalyzer
             {
                 issues.Add(BoardIssue.Warning(
                     "machine_isolated",
-                    $"Maskin {m.Id} ({m.Type}) har inga rörkopplingar.",
+                    $"Machine {m.Id} ({m.Type}) has no pipe connections.",
                     m.Id));
             }
 
@@ -73,7 +73,7 @@ public static class BoardInfoAnalyzer
         {
             issues.Add(BoardIssue.Warning(
                 "no_seaport",
-                "Planen saknar seaport-anslutning — material kan inte flöda till/från poolen.",
+                "The layout has no seaport connection — material cannot flow to/from the pool.",
                 null));
         }
 
@@ -84,7 +84,7 @@ public static class BoardInfoAnalyzer
             {
                 issues.Add(BoardIssue.Info(
                     "cycle_detected",
-                    "Planen innehåller en slinga (t.ex. seaport → maskin → seaport). Det är tillåtet; simuleringen kör i stabil maskinordning.",
+                    "The layout contains a loop (e.g. seaport → machine → seaport). This is allowed; simulation runs in stable machine order.",
                     null));
             }
         }
@@ -119,21 +119,21 @@ public static class BoardInfoAnalyzer
                 totalUps = EstimateInternalLoopThroughput(machines, tickSec);
 
             throughputSourceNote = deltaUps >= 0.001 && flowListUps < 0.001
-                ? "Mätt från senaste simuleringstick."
+                ? "Measured from the latest simulation tick."
                 : flowListUps >= 0.001 && deltaUps < 0.001
-                    ? "Uppskattat från flödesrader (senaste tick utan seaport-rörelse)."
+                    ? "Estimated from flow rows (latest tick with no seaport movement)."
                     : deltaUps >= 0.001
-                        ? "Mätt från senaste simuleringstick."
+                        ? "Measured from the latest simulation tick."
                         : totalUps >= 0.001
-                            ? "Intern slinga — uppskattad maskinhastighet."
-                            : "Baserat på planstruktur och maskinspecifika flödesrater.";
+                            ? "Internal loop — estimated machine rate."
+                            : "Based on layout structure and machine-specific flow rates.";
         }
         else
         {
             totalUps = intoUps + outUps;
             throughputSourceNote = isEstimate
-                ? "Uppskattning från plan (fabriken kör inte)."
-                : "Baserat på planstruktur och maskinspecifika flödesrater.";
+                ? "Estimate from layout (factory is not running)."
+                : "Based on layout structure and machine-specific flow rates.";
         }
 
         var valuePerSec = EstimateValuePerSecond(intoUps, outUps, request.ElementPrices, machines, isEstimate);
@@ -142,12 +142,12 @@ public static class BoardInfoAnalyzer
         var throughputNote = request.IsRunning
             ? throughputSourceNote
             : isEstimate
-                ? "Uppskattning från plan (fabriken kör inte)."
-                : "Baserat på planstruktur och maskinspecifika flödesrater.";
+                ? "Estimate from layout (factory is not running)."
+                : "Based on layout structure and machine-specific flow rates.";
 
         var valueNote = request.IsRunning && request.ElementPrices != null
-            ? "Värde från senaste flöde × spotpris + maskinkapital (timprorata)."
-            : "Värde = flödesuppskattning + installerade maskiner (timprorata).";
+            ? "Value from latest flow × spot price + machine capital (hourly prorated)."
+            : "Value = flow estimate + installed machines (hourly prorated).";
 
         var seaportPorts = SeaportPortFlowAnalyzer.AnalyzePorts(
             machines,
@@ -238,14 +238,14 @@ public static class BoardInfoAnalyzer
             {
                 intoFactory.Add(new SeaportFlowLine(
                     m.Id, m.Type, "out", c.ToId, c.ToPort, unitRate,
-                    $"Pool → fabrik via {m.Id}.out → {c.ToId}.{c.ToPort}"));
+                    $"Pool → factory via {m.Id}.out → {c.ToId}.{c.ToPort}"));
             }
             else if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
                      || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add(BoardIssue.Warning(
                     "seaport_in_idle",
-                    $"Seaport «{m.Id}» matar inte in i fabriken (utgång «out» ej kopplad).",
+                    $"Seaport «{m.Id}» is not feeding into the factory (output «out» not connected).",
                     m.Id));
             }
         }
@@ -257,14 +257,14 @@ public static class BoardInfoAnalyzer
             {
                 outOfFactory.Add(new SeaportFlowLine(
                     m.Id, m.Type, "in", c.FromId, c.FromPort, unitRate,
-                    $"Fabrik → pool via {c.FromId}.{c.FromPort} → {m.Id}.in"));
+                    $"Factory → pool via {c.FromId}.{c.FromPort} → {m.Id}.in"));
             }
             else if (m.Type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase)
                      || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add(BoardIssue.Warning(
                     "seaport_out_idle",
-                    $"Seaport «{m.Id}» tar inte emot från fabriken (ingång «in» ej kopplad).",
+                    $"Seaport «{m.Id}» is not receiving from the factory (input «in» not connected).",
                     m.Id));
             }
         }
@@ -361,7 +361,7 @@ public static class BoardInfoAnalyzer
                 {
                     issues.Add(BoardIssue.Warning(
                         "seaport_no_element",
-                        $"Seaport «{m.Id}» saknar konfigurerad variant (outElementId) — välj ett ämne i inställningarna, annars kör fabriken idle.",
+                        $"Seaport «{m.Id}» has no configured variant (outElementId) — select an element in settings, otherwise the factory runs idle.",
                         m.Id));
                 }
                 continue;
@@ -377,7 +377,7 @@ public static class BoardInfoAnalyzer
             var label = string.IsNullOrEmpty(symbol) ? $"element {elementId}" : symbol;
             issues.Add(BoardIssue.Warning(
                 "pool_empty",
-                $"Seaport «{m.Id}» matar in {label} men poolen har inget kvar.",
+                $"Seaport «{m.Id}» feeds {label} but the pool is empty.",
                 m.Id));
         }
     }
@@ -406,7 +406,7 @@ public static class BoardInfoAnalyzer
                 {
                     issues.Add(BoardIssue.Warning(
                         "pool_empty",
-                        $"Seaport kunde inte hämta element {elementId} — poolen har inget kvar.",
+                        $"Seaport could not withdraw element {elementId} — the pool has none left.",
                         null));
                 }
             }
@@ -425,7 +425,7 @@ public static class BoardInfoAnalyzer
             var rate = (double)qty / tickSec;
             intoFactory.Add(new SeaportFlowLine(
                 "pool", "SeaportPool", "out", null, null, rate,
-                $"Pool → fabrik: element {elementId}, {qty:0.##}/tick"));
+                $"Pool → factory: element {elementId}, {qty:0.##}/tick"));
         }
         foreach (var (elementId, qty) in delta.DepositedToPool)
         {
@@ -433,7 +433,7 @@ public static class BoardInfoAnalyzer
             var rate = (double)qty / tickSec;
             outOfFactory.Add(new SeaportFlowLine(
                 "pool", "SeaportPool", "in", null, null, rate,
-                $"Fabrik → pool: element {elementId}, {qty:0.##}/tick"));
+                $"Factory → pool: element {elementId}, {qty:0.##}/tick"));
         }
     }
 

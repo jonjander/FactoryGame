@@ -10,18 +10,18 @@
 
 <div class="panel fg-window-panel">
     <h1>FactoryGame</h1>
-    <p class="muted">MVP-klient: gästinloggning mot API, sedan Börs / Pool / Fabrik.</p>
+    <p class="muted">MVP client: guest login against the API, then Exchange / Pool / Factory.</p>
 
-    <label>Enhetsnyckel (sparas i webbläsaren — ditt inloggnings-ID)</label>
-    <input @bind="_deviceKey" placeholder="min-enhet" />
+    <label>Device key (saved in browser — your login ID)</label>
+    <input @bind="_deviceKey" placeholder="my-device" />
 
     <div style="margin-top:0.75rem;">
         <button type="button" @onclick="LoginAsync" disabled="@_busy">
-            @(_busy ? "Loggar in…" : "Logga in som gäst")
+            @(_busy ? "Logging in..." : "Log in as guest")
         </button>
         @if (_checkingSession)
         {
-            <p class="muted">Kontrollerar sparad session…</p>
+            <p class="muted">Checking saved session...</p>
         }
         @if (!string.IsNullOrEmpty(_status))
         {
@@ -59,7 +59,7 @@
             if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 await Tokens.ClearAsync();
-                _error = "Tidigare session är inte längre giltig. Logga in som gäst igen.";
+                _error = "Previous session is no longer valid. Log in as guest again.";
                 return;
             }
 
@@ -67,12 +67,12 @@
             {
                 if (Viewport.UseGameShell)
                 {
-                    _status = "Redan inloggad.";
+                    _status = "Already logged in.";
                     Windows.Close("login");
                 }
                 else
                 {
-                    _status = "Redan inloggad — öppnar börsen…";
+                    _status = "Already logged in — opening exchange...";
                     Nav.NavigateTo("/exchange");
                 }
             }
@@ -91,13 +91,13 @@
     {
         if (string.IsNullOrWhiteSpace(_deviceKey))
         {
-            _error = "Ange en enhetsnyckel (valfritt namn, t.ex. min-enhet).";
+            _error = "Enter a device key (optional name, e.g. my-device).";
             return;
         }
 
         _busy = true;
         _error = null;
-        _status = "Kontaktar servern… första inloggningen kan ta några sekunder.";
+        _status = "Contacting server... first login may take a few seconds.";
         try
         {
             var res = await Http.PostAsJsonAsync("/v1/auth/guest", new FactoryGame.Contracts.Auth.GuestAuthRequest(_deviceKey.Trim()));
@@ -110,7 +110,7 @@
             var body = await res.Content.ReadFromJsonAsync<FactoryGame.Contracts.Auth.GuestAuthResponse>();
             if (body == null || string.IsNullOrEmpty(body.SessionToken))
             {
-                _error = "Ogiltigt svar från servern.";
+                _error = "Invalid response from server.";
                 return;
             }
 
@@ -118,12 +118,12 @@
             await Tokens.SetTokenAsync(body.SessionToken);
             if (Viewport.UseGameShell)
             {
-                _status = "Inloggad.";
+                _status = "Logged in.";
                 Windows.Close("login");
             }
             else
             {
-                _status = "Inloggad — laddar börsen…";
+                _status = "Logged in — loading exchange...";
                 Nav.NavigateTo("/exchange");
             }
         }
@@ -141,7 +141,7 @@
     {
         var raw = await res.Content.ReadAsStringAsync();
         if (string.IsNullOrWhiteSpace(raw))
-            return $"Servern svarade {(int)res.StatusCode} {res.StatusCode}.";
+            return $"Server responded {(int)res.StatusCode} {res.StatusCode}.";
 
         try
         {
@@ -156,6 +156,6 @@
             /* use raw */
         }
 
-        return raw.Length > 200 ? raw[..200] + "…" : raw;
+        return raw.Length > 200 ? raw[..200] + "..." : raw;
     }
 }

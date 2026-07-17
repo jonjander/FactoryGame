@@ -10,7 +10,7 @@ public static class MachineBlockedGuidance
     }
 
     public static string FormatBlockedIssue(string machineId, string machineType, string blockedReason) =>
-        $"Maskin {machineId} ({machineType}) är blockerad: {Enrich(machineType, blockedReason)}";
+        $"Machine {machineId} ({machineType}) is blocked: {Enrich(machineType, blockedReason)}";
 
     public static string FormatSorterIssue(
         string downstreamId,
@@ -19,53 +19,53 @@ public static class MachineBlockedGuidance
         int elementId,
         string sorterId,
         string reason) =>
-        $"Maskin {downstreamId} ({downstreamType}) blockeras av element {elementSymbol} (id {elementId}) från sorter {sorterId}: {Enrich(downstreamType, reason)}";
+        $"Machine {downstreamId} ({downstreamType}) is blocked by element {elementSymbol} (id {elementId}) from sorter {sorterId}: {Enrich(downstreamType, reason)}";
 
     private static string GetGuidance(string machineType, string reason)
     {
         var t = machineType.Trim();
 
-        if (reason.Contains("fast fas", StringComparison.OrdinalIgnoreCase)
+        if (reason.Contains("solid phase", StringComparison.OrdinalIgnoreCase)
             && t.Equals("Destilator", StringComparison.OrdinalIgnoreCase))
         {
-            return "Destilator kräver vätske- eller gasfas — smält fast material med Melter, eller välj ett annat grundämne i sorter/port.";
+            return "Destilator requires liquid or gas phase — melt solid material with Melter, or choose a different element in the sorter/port.";
         }
 
-        if (reason.Contains("vätskefas", StringComparison.OrdinalIgnoreCase))
+        if (reason.Contains("liquid phase", StringComparison.OrdinalIgnoreCase))
         {
             if (t.Equals("Boiler", StringComparison.OrdinalIgnoreCase))
-                return "Boiler tar bara vätskor — smält fast material med Melter eller filtrera bort fast fas i sorter.";
+                return "Boiler accepts liquids only — melt solid material with Melter or filter out solid phase in the sorter.";
             if (t.Equals("LiquidSeparator", StringComparison.OrdinalIgnoreCase))
-                return "Liquid separator kräver vätska — kontrollera upstream-process (Melter/Condenser).";
+                return "Liquid separator requires liquid — check upstream process (Melter/Condenser).";
             if (t.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
-                return "Crystallizer kräver vätska — kondensera gas med Condenser eller välj annat ämne.";
+                return "Crystallizer requires liquid — condense gas with Condenser or choose a different element.";
         }
 
-        if (reason.Contains("gasfas", StringComparison.OrdinalIgnoreCase)
+        if (reason.Contains("gas phase", StringComparison.OrdinalIgnoreCase)
             && t.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
         {
-            return "Condenser kräver gas — värm vätska med Boiler/Heater eller Destilator (lätt fraktion).";
+            return "Condenser requires gas — heat liquid with Boiler/Heater or Destilator (light fraction).";
         }
 
-        if (reason.Contains("fast fas", StringComparison.OrdinalIgnoreCase)
+        if (reason.Contains("solid phase", StringComparison.OrdinalIgnoreCase)
             && t.Equals("Melter", StringComparison.OrdinalIgnoreCase))
         {
-            return "Melter kräver fast material — kristallisera vätska med Crystallizer eller välj annat ämne.";
+            return "Melter requires solid material — crystallize liquid with Crystallizer or choose a different element.";
         }
 
-        if (reason.Contains("explosivitet", StringComparison.OrdinalIgnoreCase))
+        if (reason.Contains("explosivity", StringComparison.OrdinalIgnoreCase))
         {
-            return "Välj ett mindre explosivt grundämne, kyl ned med Cooler, eller koppla bort Heater från denna ström.";
+            return "Choose a less explosive element, cool down with Cooler, or disconnect Heater from this stream.";
         }
 
-        if (reason.Contains("toxicitet", StringComparison.OrdinalIgnoreCase))
+        if (reason.Contains("toxicity", StringComparison.OrdinalIgnoreCase))
         {
-            return "Välj ett mindre giftigt grundämne eller undvik att kyla detta material i Cooler.";
+            return "Choose a less toxic element or avoid cooling this material in Cooler.";
         }
 
         if (reason.Contains("pool volume full", StringComparison.OrdinalIgnoreCase))
         {
-            return "Poolen är full — sälj material på börsen eller koppla bort inflödet tills volymen minskar.";
+            return "The pool is full — sell material on the market or disconnect inflow until volume decreases.";
         }
 
         return "";

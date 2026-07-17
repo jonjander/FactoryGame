@@ -22,13 +22,13 @@
         var d = element.Decoded;
         return
         [
-            Band("Fas", PhasePercent(d.Phase), d.Phase, "phase"),
-            Band("Explosiv", d.Explosivity, $"{d.Explosivity}%", "explosive"),
-            Band("Brand", d.Flammability, $"{d.Flammability}%", "fire"),
-            Band("Toxisk", d.Toxicity, $"{d.Toxicity}%", "toxic"),
-            Band("Kok", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString(), "boil"),
-            Band("Frys", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString(), "freeze"),
-            Band("Familj", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString(), "family")
+            Band("Phase", PhasePercent(d.Phase), d.Phase, "phase"),
+            Band("Explosive", d.Explosivity, $"{d.Explosivity}%", "explosive"),
+            Band("Flammable", d.Flammability, $"{d.Flammability}%", "fire"),
+            Band("Toxic", d.Toxicity, $"{d.Toxicity}%", "toxic"),
+            Band("Boil", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString(), "boil"),
+            Band("Freeze", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString(), "freeze"),
+            Band("Family", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString(), "family")
         ];
     }
 

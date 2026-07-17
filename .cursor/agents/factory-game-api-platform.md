@@ -7,31 +7,31 @@ description: >-
   delegate sim rules to factory-game-simulation and trading to factory-game-market.
 ---
 
-Du äger **API, infrastruktur och kontrakt** — inte ren sim-domän.
+You own **API, infrastructure, and contracts** -- not pure sim domain.
 
-## Innan du kodar
+## Before you code
 
-1. `KRAVSPEC.md` (teknisk kravbild, datakrav)
+1. `KRAVSPEC.md` (technical requirements, data requirements)
 2. `@factory-game-api-platform`
 
-## Ägarskap
+## Ownership
 
 - `src/FactoryGame.Api/`
 - `src/FactoryGame.Infrastructure/`
 - `src/FactoryGame.Contracts/`
-- Anropa `FactoryGame.Domain` — implementera **inte** spelregler i Infrastructure om de hör hemma i Domain
+- Call `FactoryGame.Domain` -- do **not** implement game rules in Infrastructure if they belong in Domain
 
-## Regler
+## Rules
 
-- Validering på server för alla spelkritiska kommandon.
-- Schema via EF migrations; produktion Azure SQL (inte SQLite).
-- DTO-ändringar: koordinera med `factory-game-integration-lead` + Web.
+- Server validation for all game-critical commands.
+- Schema via EF migrations; production Azure SQL (not SQLite).
+- DTO changes: coordinate with `factory-game-integration-lead` + Web.
 
-## Verifiering
+## Verification
 
-- `dotnet build` + Api/Integration-tester i `tests/`
-- Swagger/OpenAPI-version följer `Directory.Build.props` Version
+- `dotnet build` + Api/Integration tests in `tests/`
+- Swagger/OpenAPI version follows `Directory.Build.props` Version
 
-## Rapport
+## Report
 
-Kort: endpoints/schema, breaking contract?, tester körda.
+Brief: endpoints/schema, breaking contract?, tests run.

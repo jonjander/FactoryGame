@@ -43,7 +43,7 @@ async function tryOptionalMarketOrder(client, sessionToken) {
   try {
     const { json: summary } = await callOk(client, "market_summary", {
       sessionToken,
-      locale: "sv",
+      locale: "en",
     });
     const row = summary?.[0];
     if (!row?.elementId || !row?.dna) {
@@ -78,13 +78,13 @@ async function main() {
   const sessionToken = await guestAuth(client, "playtest");
 
   console.error("playtest: content + player");
-  await callOk(client, "content_list_elements", { locale: "sv" });
-  await callOk(client, "content_wiki", { locale: "sv" });
+  await callOk(client, "content_list_elements", { locale: "en" });
+  await callOk(client, "content_wiki", { locale: "en" });
   await callOk(client, "player_wallet", { sessionToken });
-  await callOk(client, "player_pool_view", { sessionToken, locale: "sv" });
+  await callOk(client, "player_pool_view", { sessionToken, locale: "en" });
 
   console.error("playtest: market");
-  await callOk(client, "market_summary", { sessionToken, locale: "sv" });
+  await callOk(client, "market_summary", { sessionToken, locale: "en" });
   await callOk(client, "market_element_depth", { elementId: 1 });
 
   console.error("playtest: factory board A (minimal loop)");

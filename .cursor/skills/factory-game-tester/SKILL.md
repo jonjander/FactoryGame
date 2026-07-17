@@ -8,23 +8,23 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — tester (xUnit)
+# FactoryGame -- tests (xUnit)
 
-Du sköter **repo-testerna** (`dotnet test`), inte MCP-playtest. För headless API via MCP: `@factory-game-mcp-playtest` / subagent `factory-game-playtester`.
+You handle **repo tests** (`dotnet test`), not MCP playtest. For headless API via MCP: `@factory-game-mcp-playtest` / subagent `factory-game-playtester`.
 
-## När ska tester skapas?
+## When should tests be created?
 
-| Signal | Rekommendation |
+| Signal | Recommendation |
 |--------|----------------|
-| Ny domänregel (DNA, tick, maskinprocessor) | `FactoryGame.Domain.Tests` — direkt mot `BoardTickEngine` |
-| Nytt API-kontrakt eller HTTP-flöde | `FactoryGame.Api.Tests` — `WebApplicationFactory<Program>` |
-| End-to-end spelflöde (köp → fabrik → sälj) | Ett fokuserat testklass (t.ex. `*FlowTests`) |
-| Ren UI-URL/config | `FactoryGame.Web.Tests` |
-| Trivial getter/setter | **Inget test** |
+| New domain rule (DNA, tick, machine processor) | `FactoryGame.Domain.Tests` -- directly against `BoardTickEngine` |
+| New API contract or HTTP flow | `FactoryGame.Api.Tests` -- `WebApplicationFactory<Program>` |
+| End-to-end game flow (buy -> factory -> sell) | One focused test class (e.g. `*FlowTests`) |
+| Pure UI URL/config | `FactoryGame.Web.Tests` |
+| Trivial getter/setter | **No test** |
 
-Skapa bara tester som fångar **beteende** eller **regression** — inte uppenbara sanningar.
+Create only tests that catch **behavior** or **regression** -- not obvious truths.
 
-## Snabbkommandon
+## Quick commands
 
 ```bash
 dotnet test tests/FactoryGame.Domain.Tests
@@ -33,11 +33,11 @@ dotnet test tests/FactoryGame.Api.Tests --filter "FullyQualifiedName~SimpleGameF
 dotnet test
 ```
 
-Kör alltid i **Cursor**; be inte repo-ägaren köra lokalt (se `factory-game-team`).
+Always run in **Cursor**; do not ask the repo owner to run locally (see `factory-game-team`).
 
-## Val av testnivå
+## Test level choice
 
-**Domän** — snabbt, ingen HTTP:
+**Domain** -- fast, no HTTP:
 
 ```csharp
 var plan = new SimulationPlan([new SimulationMachine("b1", "Boiler", """{"heatDelta":32}""")], []);
@@ -45,14 +45,14 @@ var state = BoardTickEngine.CreateInitialState(plan);
 var result = BoardTickEngine.Advance(plan, state, 1, 1m, pool);
 ```
 
-**API** — delad eller egen host:
+**API** -- shared or own host:
 
-- `IClassFixture<ApiWebApplicationFixture>` för snabba tester utan tick-loop
-- `IAsyncLifetime` + egen `WebApplicationFactory` när tick-intervall eller hosted services måste styras (se `SimpleGameFlowTests`)
+- `IClassFixture<ApiWebApplicationFixture>` for fast tests without tick loop
+- `IAsyncLifetime` + own `WebApplicationFactory` when tick interval or hosted services must be controlled (see `SimpleGameFlowTests`)
 
-Detaljer: [reference.md](reference.md)
+Details: [reference.md](reference.md)
 
-## API-test — obligatoriska inställningar
+## API test -- required settings
 
 ```csharp
 b.UseSetting("ConnectionStrings:DefaultConnection", $"Data Source={dbName};Mode=Memory;Cache=Shared");
@@ -60,51 +60,51 @@ b.UseSetting("MarketLiquidity:BackgroundRefreshEnabled", "false");
 b.UseSetting("Admin:BootstrapToken", "test-bootstrap");
 ```
 
-Gäst + bearer:
+Guest + bearer:
 
 ```csharp
 var auth = await client.PostAsJsonAsync("/v1/auth/guest", new GuestAuthRequest(deviceKey));
 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
 ```
 
-## Fabrik-simulering i tester
+## Factory simulation in tests
 
-- **Deterministiska tick:** stäng av `SimulationTickHostedService` och kör `BoardSimulationRunner.TickBoardAsync` manuellt, eller polla keyframes med kort delay (mönster i `BoardSimulationFlowTests`).
-- **Maskininställningar:** `MachineDto` med `JsonElement` — simuleringen läser via `SimulationPlanMapper` (`JsonSerializer.Serialize`, inte `GetRawText()`).
-- **Seaport:** `{"outElementId":N}` på `SeaportConnector`; verifiera att planen roundtripar via `GET .../plan`.
-- **Två utgångar:** koppla `out1` och `out2` till samma `SeaportConnector.in` (LiquidSeparator, Destilator).
+- **Deterministic ticks:** disable `SimulationTickHostedService` and run `BoardSimulationRunner.TickBoardAsync` manually, or poll keyframes with short delay (pattern in `BoardSimulationFlowTests`).
+- **Machine settings:** `MachineDto` with `JsonElement` -- simulation reads via `SimulationPlanMapper` (`JsonSerializer.Serialize`, not `GetRawText()`).
+- **Seaport:** `{"outElementId":N}` on `SeaportConnector`; verify plan roundtrips via `GET .../plan`.
+- **Two outputs:** connect `out1` and `out2` to same `SeaportConnector.in` (LiquidSeparator, Destilator).
 
-## Marknad i tester
+## Market in tests
 
-- Fräscha likviditet: `MarketLiquidityService.EnsureLiquidityForElementAsync(elementId, force: true)` i scope, eller `GET /v1/market/summary` med `RefreshOnSummaryRequest`.
-- Köp: limit ≥ `max(referencePrice + epsilon, depth.BestAsk)`.
-- Sälj: kräver pool-lager; stoppa fabrik först om pool muteras under körning.
+- Fresh liquidity: `MarketLiquidityService.EnsureLiquidityForElementAsync(elementId, force: true)` in scope, or `GET /v1/market/summary` with `RefreshOnSummaryRequest`.
+- Buy: limit >= `max(referencePrice + epsilon, depth.BestAsk)`.
+- Sell: requires pool inventory; stop factory first if pool mutates during run.
 
-## Felsökning trasiga tester
+## Debugging broken tests
 
-1. Kör **smal filter**: `--filter "FullyQualifiedName~Klassnamn"`.
-2. Läs **felrad** — API: statuskod vs assertion; domän: `BlockedReason` / `SummaryNote` (`withdrawn=`, `deposited=`).
-3. **Flaky timing:** byt från `Task.Delay`-poll till manuella tick eller öka försök; undvik parallell DB-krock (unikt in-memory DB-namn per fixture).
-4. **404 keyframes:** fabrik inte `Running`, eller inga tick än — kontrollera `POST .../start` och revision.
-5. **Pool/seaport:** fel `outElementId` → uttag från element 1 trots köp av annat element.
-6. Efter fix: kör hela testprojektet, inte bara ett test.
+1. Run **narrow filter**: `--filter "FullyQualifiedName~ClassName"`.
+2. Read **error line** -- API: status code vs assertion; domain: `BlockedReason` / `SummaryNote` (`withdrawn=`, `deposited=`).
+3. **Flaky timing:** switch from `Task.Delay` poll to manual ticks or increase attempts; avoid parallel DB collision (unique in-memory DB name per fixture).
+4. **404 keyframes:** factory not `Running`, or no ticks yet -- check `POST .../start` and revision.
+5. **Pool/seaport:** wrong `outElementId` -> withdrawal from element 1 despite buying another element.
+6. After fix: run whole test project, not just one test.
 
-## Minimal checklista för nytt API-flödestest
+## Minimal checklist for new API flow test
 
 ```
-- [ ] Unik guest deviceKey + auth header
-- [ ] Marknadslikviditet för valt element
-- [ ] Köp verifierat (Filled + pool)
-- [ ] Plan sparad med rätt connections
-- [ ] Start → tick/keyframes → Running
-- [ ] Påståenden mot beteende, inte implementationdetaljer
-- [ ] Städa (stop board) före säljordrar om det behövs
+- [ ] Unique guest deviceKey + auth header
+- [ ] Market liquidity for chosen element
+- [ ] Buy verified (Filled + pool)
+- [ ] Plan saved with correct connections
+- [ ] Start -> tick/keyframes -> Running
+- [ ] Assertions against behavior, not implementation details
+- [ ] Cleanup (stop board) before sell orders if needed
 ```
 
-## Relaterat
+## Related
 
-- Krav: `KRAVSPEC.md`
+- Requirements: `KRAVSPEC.md`
 - Sim: `@factory-game-server-sim`
-- Börs: `@factory-game-bors-seaport`
-- Exempel i repo: `tests/FactoryGame.Api.Tests/SimpleGameFlowTests.cs`, `BoardCyclePlanTests.cs`, `BoardSimulationFlowTests.cs`
-- Mönster: [reference.md](reference.md)
+- Exchange: `@factory-game-bors-seaport`
+- Examples in repo: `tests/FactoryGame.Api.Tests/SimpleGameFlowTests.cs`, `BoardCyclePlanTests.cs`, `BoardSimulationFlowTests.cs`
+- Patterns: [reference.md](reference.md)

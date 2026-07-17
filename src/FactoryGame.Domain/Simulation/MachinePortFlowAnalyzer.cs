@@ -57,7 +57,7 @@ public static class MachinePortFlowAnalyzer
                         var phase = MaterialPhaseLabels.DecodePhase(pd);
                         outputPhase = MaterialPhaseLabels.PhaseKey(phase);
                     }
-                    transformNote = "från pool";
+                    transformNote = "from pool";
                     processStatus = outputId > 0 ? MaterialProcessStatus.WaitingMaterial : MaterialProcessStatus.Idle;
                 }
                 else if (link != null)
@@ -117,7 +117,7 @@ public static class MachinePortFlowAnalyzer
                             inputPhase ??= MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(sourceDna));
                             dnaChanged = sourceDna != outPkt.Dna || inputPhase != outputPhase;
                             transformNote = inputPhase != outputPhase
-                                ? $"{MaterialPhaseLabels.PhaseLabelSv(inputPhase)} → {MaterialPhaseLabels.PhaseLabelSv(outputPhase)}"
+                                ? $"{MaterialPhaseLabels.PhaseLabel(inputPhase)} → {MaterialPhaseLabels.PhaseLabel(outputPhase)}"
                                 : MaterialFlowTrace.PredictOutput(
                                     machine, port.Name, inputId, inputSymbol, sourceDna).TransformNote;
                             processStatus = dnaChanged || inputPhase != outputPhase
@@ -211,7 +211,7 @@ public static class MachinePortFlowAnalyzer
         var outPhase = MaterialPhaseLabels.DecodePhase(outPkt.Dna);
         if (inPhase != outPhase)
         {
-            return $"{MaterialPhaseLabels.PhaseLabelSv(inPhase)} → {MaterialPhaseLabels.PhaseLabelSv(outPhase)}";
+            return $"{MaterialPhaseLabels.PhaseLabel(inPhase)} → {MaterialPhaseLabels.PhaseLabel(outPhase)}";
         }
 
         if (inPkt.Dna != outPkt.Dna)
@@ -238,26 +238,26 @@ public static class MachinePortFlowAnalyzer
     {
         if (isPoolSource)
         {
-            var dest = link != null ? $" → {link.ToId}.{link.ToPort}" : " (ej kopplad)";
+            var dest = link != null ? $" → {link.ToId}.{link.ToPort}" : " (not connected)";
             if (outputSymbol != null && outputPhase != null)
-                return $"Pool → fabrik: {outputSymbol} ({MaterialPhaseLabels.PhaseLabelSv(outputPhase)}){dest}";
+                return $"Pool → factory: {outputSymbol} ({MaterialPhaseLabels.PhaseLabel(outputPhase)}){dest}";
             return outputSymbol != null
-                ? $"Pool → fabrik: {outputSymbol}{dest}"
-                : $"Pool → fabrik{dest} — välj variant";
+                ? $"Pool → factory: {outputSymbol}{dest}"
+                : $"Pool → factory{dest} — pick variant";
         }
 
         if (link == null)
-            return "Utgång ej kopplad.";
+            return "Output not connected.";
 
         var phaseArrow = inputPhase != null && outputPhase != null && inputPhase != outputPhase
-            ? $" ({MaterialPhaseLabels.PhaseLabelSv(inputPhase)} → {MaterialPhaseLabels.PhaseLabelSv(outputPhase)})"
+            ? $" ({MaterialPhaseLabels.PhaseLabel(inputPhase)} → {MaterialPhaseLabels.PhaseLabel(outputPhase)})"
             : "";
 
         if (inputSymbol != null && outputSymbol != null)
         {
             if (inputSymbol != outputSymbol || !string.IsNullOrEmpty(phaseArrow))
                 return $"{inputSymbol} → {outputSymbol}{phaseArrow} → {link.ToId}.{link.ToPort}";
-            return $"{outputSymbol} till {link.ToId}.{link.ToPort}";
+            return $"{outputSymbol} to {link.ToId}.{link.ToPort}";
         }
 
         if (!string.IsNullOrEmpty(transformNote))

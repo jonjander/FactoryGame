@@ -6,12 +6,12 @@
 <PageTitle>CLI</PageTitle>
 
 <div class="panel">
-    <h2>Inbäddad CLI</h2>
-    <p class="muted">Kommandon (en per rad): <code>help</code>, <code>guest &lt;deviceKey&gt;</code>, <code>wallet</code>, <code>pool</code>, <code>tx</code>, <code>sync</code></p>
+    <h2>Embedded CLI</h2>
+    <p class="muted">Commands (one per line): <code>help</code>, <code>guest &lt;deviceKey&gt;</code>, <code>wallet</code>, <code>pool</code>, <code>tx</code>, <code>sync</code></p>
     <textarea rows="8" style="width:100%;max-width:100%;font-family:monospace;font-size:0.85rem;" @bind="_input"></textarea>
     <div style="margin-top:0.5rem;">
-        <button type="button" @onclick="RunAsync" disabled="@_busy">Kör</button>
-        <button type="button" class="secondary" @onclick="SyncQueueAsync" disabled="@_busy">Synka offline-kö (@_pending)</button>
+        <button type="button" @onclick="RunAsync" disabled="@_busy">Run</button>
+        <button type="button" class="secondary" @onclick="SyncQueueAsync" disabled="@_busy">Sync offline queue (@_pending)</button>
     </div>
     <pre style="white-space:pre-wrap;font-size:0.85rem;margin-top:0.75rem;">@_output</pre>
 </div>
@@ -36,8 +36,8 @@
             var (sent, err) = await Queue.TryFlushAsync();
             _pending = await Queue.PendingCountAsync();
             _output = err == null
-                ? $"Synk klar. Skickade {sent}. Kö kvar: {_pending}."
-                : $"Synk stoppad: {err}\nSkickade {sent}. Kö kvar: {_pending}.";
+                ? $"Sync complete. Sent {sent}. Queue remaining: {_pending}."
+                : $"Sync stopped: {err}\nSent {sent}. Queue remaining: {_pending}.";
         }
         finally
         {
@@ -73,7 +73,7 @@
             case "guest":
                 if (parts.Length < 2)
                 {
-                    _output = "Ange nyckel: guest my-device";
+                    _output = "Provide a key: guest my-device";
                     return;
                 }
 
@@ -100,7 +100,7 @@
                 await SyncQueueAsync();
                 break;
             default:
-                _output = $"Okänt kommando: {cmd}";
+                _output = $"Unknown command: {cmd}";
                 break;
         }
     }

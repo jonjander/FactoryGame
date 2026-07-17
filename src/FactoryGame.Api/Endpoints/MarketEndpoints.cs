@@ -36,7 +36,7 @@ public static class MarketEndpoints
 
                 var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
                 if (string.IsNullOrEmpty(locale))
-                    locale = "sv";
+                    locale = "en";
                 var rows = await query.GetSummaryForPlayerAsync(playerId, locale, ct);
                 var dtos = rows.Select(r => new MarketElementSummaryDto(
                     r.ElementId,
@@ -74,7 +74,7 @@ public static class MarketEndpoints
                 }
                 catch
                 {
-                    // Returnera befintligt djup även om syntetisk likviditet inte kunde uppdateras.
+                    // Return existing depth even if synthetic liquidity could not be refreshed.
                 }
 
                 var resolvedDna = dna ?? FactoryGame.Domain.Content.ElementCatalogLookup.CatalogDnaFor(elementId);
@@ -283,7 +283,7 @@ public static class MarketEndpoints
                     return Results.Unauthorized();
                 var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
                 if (string.IsNullOrEmpty(locale))
-                    locale = "sv";
+                    locale = "en";
                 var insights = await query.GetInsightsForPlayerAsync(playerId, locale, ct);
                 return Results.Ok(insights);
             })

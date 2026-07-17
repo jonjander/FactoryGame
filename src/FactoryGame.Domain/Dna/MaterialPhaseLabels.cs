@@ -11,22 +11,22 @@ public static class MaterialPhaseLabels
             _ => "Solid"
         };
 
-    public static string PhaseLabelSv(MaterialPhase phase) =>
+    public static string PhaseLabel(MaterialPhase phase) =>
         phase switch
         {
-            MaterialPhase.Gas => "gasform",
-            MaterialPhase.Liquid => "flytande",
-            MaterialPhase.Solid => "fast",
-            _ => "fast"
+            MaterialPhase.Gas => "Gas",
+            MaterialPhase.Liquid => "Liquid",
+            MaterialPhase.Solid => "Solid",
+            _ => "Solid"
         };
 
-    public static string PhaseLabelSv(string phaseKey) =>
+    public static string PhaseLabel(string phaseKey) =>
         phaseKey switch
         {
-            "Gas" => "gasform",
-            "Liquid" => "flytande",
-            "Solid" => "fast",
-            _ => "fast"
+            "Gas" => "Gas",
+            "Liquid" => "Liquid",
+            "Solid" => "Solid",
+            _ => "Solid"
         };
 
     public static MaterialPhase DecodePhase(long dna) => DnaDecoder.Decode(dna).Phase;

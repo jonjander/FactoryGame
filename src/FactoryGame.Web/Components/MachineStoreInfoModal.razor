@@ -9,7 +9,7 @@
                     <h3 class="fg-modal-title">@Item.DisplayName</h3>
                     <p class="muted pool-analysis-subtitle">@Item.Type · @FormatPorts(Item)</p>
                 </div>
-                <button type="button" class="secondary pool-analysis-close" @onclick="CloseAsync" aria-label="Stäng">✕</button>
+                <button type="button" class="secondary pool-analysis-close" @onclick="CloseAsync" aria-label="Close">X</button>
             </div>
 
             <div class="fg-machine-info-icon" aria-hidden="true">
@@ -27,7 +27,7 @@
             </ul>
 
             <div class="fg-modal-actions">
-                <button type="button" class="secondary" @onclick="CloseAsync">Stäng</button>
+                <button type="button" class="secondary" @onclick="CloseAsync">Close</button>
             </div>
         </div>
     </div>
@@ -49,35 +49,35 @@
     {
         var ins = item.Ports.Count(p => p.Direction == "in");
         var outs = item.Ports.Count(p => p.Direction == "out");
-        return $"{ins} in · {outs} ut";
+        return $"{ins} in · {outs} out";
     }
 
     private static string GetSummary(string type) => type switch
     {
-        "Boiler" => "Höjer temperaturen i materialets DNA — vätskor blir varmare och kan förberedas för separation.",
-        "Heater" => "Ökar energi/temperaturband deterministiskt. Undvik högt explosiva ämnen.",
-        "Cooler" => "Sänker energi/temperatur. Giftiga ämnen kan blockera kylning.",
-        "Condenser" => "Omvandlar gas till vätska genom att sänka kokpunktsbandet. Ut-symbol kan vara samma (t.ex. E04) — kolla fas och pool-variant.",
-        "Crystallizer" => "Fryser ostabil vätska till fast form via fryspunktsband.",
-        "Melter" => "Smälter fast material till vätska via kokpunktsband.",
-        "Mixer" => "Blandar två ingångar. Låg intensitet = kompakt DNA; hög intensitet = ostabil/volatil DNA för destillation.",
-        "Destilator" => "Separerar vätska/gas i två fraktioner utifrån kokpunkt och reflux-inställningar.",
-        "LiquidSeparator" => "Delar vätska i två utgångar vid valt cut.",
-        "Sorter" => "Dirigerar konfigurerade grundämnen till port 1–3; övrigt går till rest-port.",
-        "SeaportConnector" => "Kopplar fabriken till din seaport-pool: ut från pool (out), in till pool (in).",
-        _ => "Maskin i fabriken — koppla rör till in/ut-portar enligt schema."
+        "Boiler" => "Raises temperature in the material DNA -- liquids get warmer and can be prepared for separation.",
+        "Heater" => "Increases energy/temperature band deterministically. Avoid highly explosive materials.",
+        "Cooler" => "Lowers energy/temperature. Toxic materials can block cooling.",
+        "Condenser" => "Converts gas to liquid by lowering the boiling-point band. Output symbol may stay the same (e.g. E04) -- check phase and pool variant.",
+        "Crystallizer" => "Freezes unstable liquid into solid form via freeze-point band.",
+        "Melter" => "Melts solid material to liquid via boiling band.",
+        "Mixer" => "Mixes two inputs. Low intensity = compact DNA; high intensity = unstable/volatile DNA for distillation.",
+        "Destilator" => "Separates liquid/gas into two fractions based on boiling point and reflux settings.",
+        "LiquidSeparator" => "Splits liquid into two outputs at the chosen cut.",
+        "Sorter" => "Routes configured base elements to ports 1-3; everything else goes to the rest port.",
+        "SeaportConnector" => "Connects the factory to your seaport pool: out from pool (out), in to pool (in).",
+        _ => "Factory machine -- wire pipes to in/out ports per the schema."
     };
 
     private static IReadOnlyList<string> GetTips(string type) => type switch
     {
-        "Boiler" => ["Kräver vätskefas.", "Koppla seaport out → boiler in för startloop.", "Justera värme efter önskad process."],
-        "Condenser" => ["Kräver gasform.", "Symbolen kan vara oförändrad — fas (gas→vätska) syns i fabrikinformation.", "Kondenserad vätska blir egen pool-variant vid seaport in."],
-        "Destillator" => ["Kräver vätske- eller gasfas — inte fast.", "Använd Mixer på hög intensitet för volatil DNA.", "Ställ kok-cut och reflux efter fraktioner."],
-        "Mixer" => ["Två ingångar (in1, in2).", "Balanserad ratio ger förutsägbar blandning.", "Hög intensitet → bättre destillation downstream."],
-        "Sorter" => ["Välj unika grundämnen på port 1–3.", "Kontrollera att downstream-maskiner tål ämnets DNA.", "Rest-port fångar allt omatchat."],
-        "SeaportConnector" => ["Välj pool-variant (fas) — t.ex. E04 gasform vs E04 flytande.", "Standard är inget utflöde tills du väljer variant.", "Koppla in till pool för att lagra produktion per DNA."],
-        "LiquidSeparator" => ["Endast vätskor.", "Cut styr var gränsen går mellan ut1 och ut2."],
-        _ => ["Placera från maskinlager med unikt id.", "Spara planen efter kopplingar och inställningar.", "Starta fabriken när seaport och loop är kopplade."]
+        "Boiler" => ["Requires liquid phase.", "Wire seaport out -> boiler in for a starter loop.", "Adjust heat for the process you want."],
+        "Condenser" => ["Requires gas phase.", "Symbol may stay the same -- phase (gas->liquid) shows in factory info.", "Condensed liquid becomes its own pool variant at seaport in."],
+        "Destilator" => ["Requires liquid or gas phase -- not solid.", "Use Mixer on high intensity for volatile DNA.", "Set boil cut and reflux for desired fractions."],
+        "Mixer" => ["Two inputs (in1, in2).", "Balanced ratio gives predictable mixing.", "High intensity -> better distillation downstream."],
+        "Sorter" => ["Pick unique base elements on ports 1-3.", "Check that downstream machines tolerate the element DNA.", "Rest port catches everything unmatched."],
+        "SeaportConnector" => ["Pick pool variant (phase) -- e.g. E04 gas vs E04 liquid.", "Default is no outflow until you pick a variant.", "Wire in to pool to store production per DNA."],
+        "LiquidSeparator" => ["Liquids only.", "Cut controls where the split goes between out1 and out2."],
+        _ => ["Place from machine inventory with a unique id.", "Save the plan after wiring and settings.", "Start the factory when seaport and loop are wired."]
     };
 
     private static string BuildIconSvg(string type)

@@ -5,17 +5,17 @@
 <div class="fg-window-panel">
     @if (Session.GetPlanMachines().Count == 0)
     {
-        <p class="muted">Inga maskiner på planen.</p>
+        <p class="muted">No machines on the board.</p>
     }
     else
     {
-        <h4>Maskininställningar</h4>
-        <label for="fg-settings-machine-pick-win">Maskin</label>
+        <h4>Machine settings</h4>
+        <label for="fg-settings-machine-pick-win">Machine</label>
         <select id="fg-settings-machine-pick-win"
                 class="fg-select fg-settings-machine-pick"
                 disabled="@(Session.Busy || Session.IsSelectedBoardRunning())"
                 @bind="Session.SettingsMachineId">
-            <option value="">— Välj —</option>
+            <option value="">— Select —</option>
             @foreach (var m in Session.GetPlanMachines())
             {
                 <option value="@m.Id">@m.Id (@m.Type)</option>

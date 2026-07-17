@@ -8,33 +8,33 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — API och plattform
+# FactoryGame -- API and platform
 
-## Ägarskap
+## Ownership
 
-| Lager | Sökväg |
+| Layer | Path |
 |-------|--------|
 | HTTP / minimal APIs | `src/FactoryGame.Api/Endpoints/` |
-| Kontrakt (DTO) | `src/FactoryGame.Contracts/` |
-| Persistens, tjänster | `src/FactoryGame.Infrastructure/` |
-| Ren spelregel | `src/FactoryGame.Domain/` — **delegera** till `@factory-game-server-sim` |
+| Contracts (DTO) | `src/FactoryGame.Contracts/` |
+| Persistence, services | `src/FactoryGame.Infrastructure/` |
+| Pure game rules | `src/FactoryGame.Domain/` -- **delegate** to `@factory-game-server-sim` |
 
-## Principer
+## Principles
 
-- Server-auktoritativ validering; inga spelkritiska beslut enbart i klienten.
-- Domänlogik anropas från Infrastructure/Api — inte SQL eller HTTP i `Domain`.
-- Ekonomiska kommandon: idempotens och transaktioner där krav säger det (`KRAVSPEC.md`).
-- Versionerat API under `/v1`; håll DTO i sync med klient (`FactoryGame.Web`).
+- Server-authoritative validation; no game-critical decisions on client only.
+- Domain logic called from Infrastructure/Api -- not SQL or HTTP in `Domain`.
+- Economic commands: idempotency and transactions where requirements say so (`KRAVSPEC.md`).
+- Versioned API under `/v1`; keep DTO in sync with client (`FactoryGame.Web`).
 
-## Checklista
+## Checklist
 
-- [ ] Endpoint returnerar tydlig valideringsorsak (inte generisk 500).
-- [ ] EF-migration vid schemaändring; Azure SQL retry där `ExchangeService` mönster gäller.
-- [ ] Inga hemligheter i `appsettings`; använd User Secrets lokalt.
-- [ ] Ändring som påverkar sim/börs/klient → pinga `@factory-game-integration-lead`.
+- [ ] Endpoint returns clear validation reason (not generic 500).
+- [ ] EF migration on schema change; Azure SQL retry where `ExchangeService` pattern applies.
+- [ ] No secrets in `appsettings`; use User Secrets locally.
+- [ ] Change affecting sim/exchange/client -> ping `@factory-game-integration-lead`.
 
-## Delegering
+## Delegation
 
-- Tick, maskiner, DNA → `@factory-game-server-sim` / `factory-game-simulation`
-- Orderbok, pool → `@factory-game-bors-seaport` / `factory-game-market`
-- Blazor, canvas → `@factory-game-web-klient` / `factory-game-web-client`
+- Tick, machines, DNA -> `@factory-game-server-sim` / `factory-game-simulation`
+- Order book, pool -> `@factory-game-bors-seaport` / `factory-game-market`
+- Blazor, canvas -> `@factory-game-web-klient` / `factory-game-web-client`

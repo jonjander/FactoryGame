@@ -8,23 +8,23 @@ description: >-
 disable-model-invocation: true
 ---
 
-# FactoryGame — börs och seaport
+# FactoryGame -- exchange and seaport
 
-## Domänregler
+## Domain rules
 
-- **En volym-pool per spelare**; alla spelplaners seaport-noder ansluter till samma pool.
-- **Spot only:** inga blankningar; saldo i poolen krävs för sälj.
-- **Full pool:** blockera köp (ingen kö, ingen spill).
-- **Offline:** ingen börs-UI som pålitlig; ordrar exekveras på server; klienten visar **transaktionslogg** när online.
-- **Pris på skräp (aska/goo):** marknadsdrivet; kan bli noll utan efterfrågan.
+- **One volume pool per player**; all board seaport nodes connect to the same pool.
+- **Spot only:** no short selling; pool balance required for sell.
+- **Full pool:** block buy (no queue, no spill).
+- **Offline:** no reliable exchange UI; orders execute on server; client shows **transaction log** when online.
+- **Price on junk (ash/goo):** market-driven; can be zero without demand.
 
-## API / transaktioner
+## API / transactions
 
-- All matchning och saldo på server; klient skapar/annullerar ordrar.
-- Idempotens för ekonomiska kommandon där det behövs.
-- Abstrakta enheter konsekvent mellan order, leverans och fabrik.
+- All matching and balance on server; client creates/cancels orders.
+- Idempotency for economic commands where needed.
+- Abstract units consistent between orders, delivery, and factory.
 
-## Checklista
+## Checklist
 
-- [ ] Tester för block vid full pool, partial fills om ni stöder det, annullering.
-- [ ] Tydlig separation: börsmotor vs fabrik-tick.
+- [ ] Tests for block on full pool, partial fills if supported, cancellation.
+- [ ] Clear separation: exchange engine vs factory tick.

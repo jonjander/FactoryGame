@@ -1,24 +1,24 @@
 ---
-description: Efter leverans — commit med Version; push till origin är standard (inte valfritt).
+description: After delivery -- commit with Version; push to origin is standard (not optional).
 alwaysApply: true
 ---
 
-# Git: commit och push efter leverans
+# Git: commit and push after delivery
 
-## KRITISKT — versionsnummer i varje commit
+## CRITICAL -- version number in every commit
 
-**Varje** `git commit` ska ha ett meddelande som **innehåller** den aktuella semver från `Directory.Build.props` → **`Version`**. Inga undantag för “små” ändringar om du ändå committar: utan versionsprefix är commiten **fel**. Läs alltid `Version` innan du skriver `-m`.
+**Every** `git commit` must have a message that **contains** the current semver from `Directory.Build.props` -> **`Version`**. No exceptions for "small" changes if you commit anyway: without the version prefix the commit is **wrong**. Always read `Version` before writing `-m`.
 
-När en **större ändring** är klar (t.ex. ny funktion, beteendeförändring, refaktor över flera filer, väsentlig bugfix, eller när en tydlig milstolpe avslutats):
+When a **larger change** is complete (e.g. new feature, behavior change, refactor across multiple files, significant bugfix, or when a clear milestone is finished):
 
-1. **Verifiera** att bygg/test som hör till ändringen är grönt om det är rimligt i sammanhanget.
-2. **Stage** relevanta filer (`git add`); undvik oavsiktliga filer (t.ex. hemligheter, genererad skräp).
-3. **Commit-meddelande — versionsnummer alltid med:** Läs **`Version`** i `Directory.Build.props` innan du committar. Meddelandet ska **alltid** innehålla den semver-strängen:
-   - **Normalfall (ingen ny release-only commit):** `<Version>` + blanksteg + kort beskrivning, t.ex. `0.1.5 docs: uppdatera Azure-skill`, `0.1.5 fix: swagger middleware order`. Inga commits utan versionsprefix.
-   - **Release enligt factory-game-version-and-tags:** när commiten *enbart* levererar ny appversion (höjd `Version` + `releases.md` + tagg) får meddelandet vara **exakt** `<Version>` utan extra text — det räknas som versionsnummer i meddelandet.
-4. **Push (obligatoriskt som standard):** Efter varje commit som del av en leverans ska agenten **alltid** köra `git push` till `origin` på aktuell branch. Push är **inte** valfritt bara för att användaren inte nämnt det — repo-ägaren förväntar sig att ändringar når remote. **Undantag endast** om användaren uttryckligen bett om att *inte* pusha, eller push misslyckas (auth/konflikt) — då rapportera status och nästa steg; lämna inte commit lokalt utan att säga till.
-5. Om leveransen innebär ny **appversion**: följ **factory-game-version-and-tags** (bump av `Version`, `releases.md`, tag `v{Version}`, **push av tagg**, levererad version i chatten).
+1. **Verify** that build/test related to the change is green if reasonable in context.
+2. **Stage** relevant files (`git add`); avoid accidental files (e.g. secrets, generated junk).
+3. **Commit message -- version number always included:** Read **`Version`** in `Directory.Build.props` before committing. The message must **always** contain that semver string:
+   - **Normal case (not a release-only commit):** `<Version>` + space + short description, e.g. `0.1.5 docs: update Azure skill`, `0.1.5 fix: swagger middleware order`. No commits without version prefix.
+   - **Release per factory-game-version-and-tags:** when the commit *only* delivers a new app version (bumped `Version` + `releases.md` + tag) the message may be **exactly** `<Version>` with no extra text -- that counts as having the version number in the message.
+4. **Push (mandatory by default):** After every commit that is part of a delivery the agent must **always** run `git push` to `origin` on the current branch. Push is **not** optional just because the user did not mention it -- the repo owner expects changes to reach remote. **Exception only** if the user explicitly asked *not* to push, or push fails (auth/conflict) -- then report status and next steps; do not leave a commit local without saying so.
+5. If the delivery includes a new **app version**: follow **factory-game-version-and-tags** (bump `Version`, `releases.md`, tag `v{Version}`, **push tag**, delivered version in chat).
 
-**Räknas inte** som leverans som kräver commit+push: stavfix i en kommentar, en rad formatering, eller ren utforskning utan bestående kodändring — då räcker det ofta att vänta eller batcha.
+**Does not count** as a delivery requiring commit+push: typo fix in a comment, one line of formatting, or pure exploration without lasting code change -- then it is often enough to wait or batch.
 
-Om `git push` misslyckas (konflikt, auth): rapportera felet och föreslå nästa steg (pull/rebase, credential, etc.) utan att gissa lösenord eller tokens.
+If `git push` fails (conflict, auth): report the error and suggest next steps (pull/rebase, credential, etc.) without guessing passwords or tokens.

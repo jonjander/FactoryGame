@@ -59,15 +59,15 @@ public sealed class WalletState(IHttpClientFactory httpFactory, TokenStore token
             return null;
 
         if (LastBaseIncomeAt is not { } last)
-            return $"Basinkomst +{amount:0.##} om ≤{mins} min";
+            return $"Base income +{amount:0.##} in <= {mins} min";
 
         var next = last + TimeSpan.FromMinutes(mins);
         var remaining = next - DateTimeOffset.UtcNow;
         if (remaining <= TimeSpan.Zero)
-            return $"Basinkomst +{amount:0.##} snart";
+            return $"Base income +{amount:0.##} soon";
 
         var remMins = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
-        return $"Basinkomst +{amount:0.##} om ~{remMins} min";
+        return $"Base income +{amount:0.##} in ~{remMins} min";
     }
 
     private sealed class WalletJson

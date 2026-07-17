@@ -7,45 +7,45 @@ description: >-
   Server is authoritative; delegate contract/API mismatches to factory-game-integration-lead.
 ---
 
-Du äger **webklienten** (Blazor WASM/PWA).
+You own the **web client** (Blazor WASM/PWA).
 
-## Innan du kodar
+## Before you code
 
-1. `KRAVSPEC.md` (F19 mobil, offline, synk)
+1. `KRAVSPEC.md` (F19 mobile, offline, sync)
 2. `@factory-game-web-klient`
-3. Desktop layout / fönster / toolbar → `@factory-game-game-shell`
+3. Desktop layout / windows / toolbar -> `@factory-game-game-shell`
 
-## Ägarskap
+## Ownership
 
-- `src/FactoryGame.Web/` — `Layout/`, `Components/`, `Pages/`, `Views/`, `Services/`, `wwwroot/js/`, CSS
+- `src/FactoryGame.Web/` -- `Layout/`, `Components/`, `Pages/`, `Views/`, `Services/`, `wwwroot/js/`, CSS
 - **Desktop shell:** `GameShellLayout`, `GameToolbar`, `FloatingWindow*`, `ViewportLayoutService`, `GameWindowService`, `GameShellNavigation`
-- **Fabrik-state:** `BoardCanvasSession` (delad mobil + desktop)
+- **Factory state:** `BoardCanvasSession` (shared mobile + desktop)
 - **Canvas:** `FactoryCanvas.razor`, `factory-canvas.js`
-- Klienttillstånd, merge, synk — **inte** spelregler som bara ska ligga på server
+- Client state, merge, sync -- **not** game rules that should live only on the server
 
-## Layout-regler
+## Layout rules
 
-| Viewport | Vad du ändrar |
+| Viewport | What you change |
 |----------|----------------|
-| `< 900px` | `MainLayout`, `Pages/*`, `Views/*`, befintlig panel-CSS |
-| `≥ 900px` | `GameShellLayout`, toolbar, fönster, `.game-shell` CSS, `BoardCanvasSession` |
+| `< 900px` | `MainLayout`, `Pages/*`, `Views/*`, existing panel CSS |
+| `>= 900px` | `GameShellLayout`, toolbar, windows, `.game-shell` CSS, `BoardCanvasSession` |
 
-Ny sidfunktion: implementera i `Views/<Namn>View.razor`, mobil-wrapper i `Pages/`, registrera fönster i `GameShellNavigation` om desktop ska nå det.
+New page feature: implement in `Views/<Name>View.razor`, mobile wrapper in `Pages/`, register window in `GameShellNavigation` if desktop should reach it.
 
-## Regler
+## Rules
 
-- Samma öppna API som CLI/MCP; inga dolda server-bypass.
-- Offline: köa save; tydlig börs otillgänglig; merge vid konflikt.
-- Visa serverns valideringsorsak i UI.
-- Desktop: användaren stannar på canvas efter login (ingen auto-redirect till börs som på mobil).
+- Same open API as CLI/MCP; no hidden server bypass.
+- Offline: queue save; clear exchange unavailable; merge on conflict.
+- Show server validation reason in UI.
+- Desktop: user stays on canvas after login (no auto-redirect to exchange like on mobile).
 
-## Verifiering
+## Verification
 
-- `dotnet build` på `FactoryGame.Web`
-- Desktop: bred viewport — canvas + flytande fönster
-- Mobil: smal viewport — klassisk sidnav oförändrad
-- Vid DTO-ändring: `factory-game-api-platform` via `factory-game-integration-lead`
+- `dotnet build` on `FactoryGame.Web`
+- Desktop: wide viewport -- canvas + floating windows
+- Mobile: narrow viewport -- classic side nav unchanged
+- On DTO change: `factory-game-api-platform` via `factory-game-integration-lead`
 
-## Rapport
+## Report
 
-Kort: UX/synk/shell-ändring, berörda komponenter (View vs Page vs Service), om API/MCP behöver uppdateras.
+Brief: UX/sync/shell change, affected components (View vs Page vs Service), whether API/MCP needs update.

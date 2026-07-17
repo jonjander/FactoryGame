@@ -2,22 +2,22 @@
 @using FactoryGame.Web.Services
 
 <div class="panel fg-sub fg-board-info">
-    <h4>Fabrikinformation — @Info.Name</h4>
+    <h4>Factory info — @Info.Name</h4>
     <p class="muted">
-        Läge: <strong>@Info.Mode</strong>
-        · @Info.PlanMachineCount maskin(er), @Info.PlanConnectionCount rör
-        @if (Info.PlanHasCycle) { <span> · slinga</span> }
-        @if (Info.Throughput.IsEstimate) { <span> · uppskattning</span> }
+        Mode: <strong>@Info.Mode</strong>
+        · @Info.PlanMachineCount machine(s), @Info.PlanConnectionCount pipe(s)
+        @if (Info.PlanHasCycle) { <span> · loop</span> }
+        @if (Info.Throughput.IsEstimate) { <span> · estimate</span> }
     </p>
 
     <div class="fg-info-grid">
         <div>
-            <h5>Genomströmning</h5>
-            <p><strong>@Info.Throughput.TotalUnitsPerSecond.ToString("0.##")</strong> enheter/s</p>
+            <h5>Throughput</h5>
+            <p><strong>@Info.Throughput.TotalUnitsPerSecond.ToString("0.##")</strong> units/s</p>
             <p class="muted">@Info.Throughput.Note</p>
         </div>
         <div>
-            <h5>Uppskattat värde</h5>
+            <h5>Estimated value</h5>
             <p><strong>@Info.Value.EstimatedValuePerSecond.ToString("0.##")</strong> /s</p>
             <p class="muted">@Info.Value.Note</p>
         </div>
@@ -31,7 +31,7 @@
     }
     @if (seaportInPorts.Count > 0)
     {
-        <h5>Seaport — ingång «in» (fabrik → pool)</h5>
+        <h5>Seaport — input «in» (factory → pool)</h5>
         <ul class="fg-seaport-port-list">
             @foreach (var port in seaportInPorts)
             {
@@ -41,7 +41,7 @@
                         <span class="muted">@port.MachineType · port @port.Port</span>
                         @if (port.IsEstimate)
                         {
-                            <span class="fg-badge fg-badge-muted">uppskattning</span>
+                            <span class="fg-badge fg-badge-muted">estimate</span>
                         }
                     </div>
                     @if (!string.IsNullOrEmpty(port.ElementSymbol))
@@ -50,24 +50,24 @@
                             <span class="fg-element-badge" title="Element @port.ElementId">@port.ElementSymbol</span>
                             @if (port.LinkedMachineId != null)
                             {
-                                <span class="muted">från @port.LinkedMachineId.@port.LinkedPort</span>
+                                <span class="muted">from @port.LinkedMachineId.@port.LinkedPort</span>
                             }
                         </p>
                     }
                     <p class="fg-seaport-port-summary">@port.Summary</p>
                     @if (!port.IsConnected)
                     {
-                        <p class="muted">Koppla t.ex. <code>boiler1.out</code> → <code>@(port.MachineId).in</code></p>
+                        <p class="muted">Connect e.g. <code>boiler1.out</code> → <code>@(port.MachineId).in</code></p>
                     }
                 </li>
             }
         </ul>
     }
 
-    <h5>In från seaport (pool → fabrik)</h5>
+    <h5>In from seaport (pool → factory)</h5>
     @if (Info.Seaport.IntoFactory.Count == 0)
     {
-        <p class="muted">Inga aktiva inflöden.</p>
+        <p class="muted">No active inflows.</p>
     }
     else
     {
@@ -79,10 +79,10 @@
         </ul>
     }
 
-    <h5>Ut till seaport (fabrik → pool)</h5>
+    <h5>Out to seaport (factory → pool)</h5>
     @if (Info.Seaport.OutOfFactory.Count == 0)
     {
-        <p class="muted">Inga aktiva utflöden.</p>
+        <p class="muted">No active outflows.</p>
     }
     else
     {
@@ -102,8 +102,8 @@
     }
     @if (seaportOutPorts.Count > 0)
     {
-        <h5>Seaport — utgång «out» (pool → fabrik)</h5>
-        <p class="muted">Välj pool-variant i maskininställningar (<code>outElementId</code> + <code>outMaterialDna</code>).</p>
+        <h5>Seaport — output «out» (pool → factory)</h5>
+        <p class="muted">Pick pool variant in machine settings (<code>outElementId</code> + <code>outMaterialDna</code>).</p>
         <ul class="fg-seaport-port-list">
             @foreach (var port in seaportOutPorts)
             {
@@ -116,7 +116,7 @@
                     {
                         <p class="fg-seaport-element">
                             <span class="fg-element-badge">@port.ElementSymbol</span>
-                            <span class="muted">från pool</span>
+                            <span class="muted">from pool</span>
                             @if (port.LinkedMachineId != null)
                             {
                                 <span class="muted">→ @port.LinkedMachineId.@port.LinkedPort</span>
@@ -138,7 +138,7 @@
     }
     @if (machineFlows.Count > 0)
     {
-        <h5>Maskiner — resultat (in → ut)</h5>
+        <h5>Machines — results (in → out)</h5>
         <ul class="fg-seaport-port-list">
             @foreach (var flow in machineFlows)
             {
@@ -146,7 +146,7 @@
                     <div class="fg-seaport-port-header">
                         <strong>@flow.MachineId.@flow.Port</strong>
                         <span class="muted">@flow.MachineType</span>
-                        @if (flow.IsEstimate) { <span class="fg-badge fg-badge-muted">uppskattning</span> }
+                        @if (flow.IsEstimate) { <span class="fg-badge fg-badge-muted">estimate</span> }
                     </div>
                     @if (!string.IsNullOrEmpty(flow.InputElementSymbol) || !string.IsNullOrEmpty(flow.OutputElementSymbol))
                     {
@@ -181,7 +181,7 @@
                     {
                         <p class="fg-process-status fg-process-@flow.ProcessStatus.ToLowerInvariant()">
                             @FormatProcessStatus(flow.ProcessStatus)
-                            @if (flow.DnaChanged) { <span class="muted"> · DNA ändrad</span> }
+                            @if (flow.DnaChanged) { <span class="muted"> · DNA changed</span> }
                         </p>
                     }
                     <p class="fg-seaport-port-summary">@flow.Summary</p>
@@ -190,16 +190,16 @@
         </ul>
     }
 
-    <h5>Rapporter</h5>
+    <h5>Reports</h5>
     @if (VisibleIssues.Count == 0 && MutedWarningCount == 0)
     {
-        <p class="muted">Inga fel eller varningar.</p>
+        <p class="muted">No errors or warnings.</p>
     }
     else
     {
         @if (MutedWarningCount > 0)
         {
-            <p class="muted">@MutedWarningCount varning(ar) tystade — påverkar inte fabrikstatus.</p>
+            <p class="muted">@MutedWarningCount warning(s) muted — does not affect factory status.</p>
             <ul class="fg-issues fg-issues-muted">
                 @foreach (var issue in Info.Issues.Where(i => i.Severity == "warning"
                     && MutedIssueKeys.Contains(BoardIssueMuteStore.IssueKey(i.Code, i.MachineId))))
@@ -208,7 +208,7 @@
                         <span class="muted">@issue.Message</span>
                         @if (OnToggleIssueMute.HasDelegate)
                         {
-                            <button type="button" class="fg-issue-mute-btn secondary" @onclick="() => OnToggleIssueMute.InvokeAsync(issue)">Visa</button>
+                            <button type="button" class="fg-issue-mute-btn secondary" @onclick="() => OnToggleIssueMute.InvokeAsync(issue)">Show</button>
                         }
                     </li>
                 }
@@ -225,9 +225,9 @@
                         {
                             <button type="button"
                                     class="fg-issue-mute-btn secondary"
-                                    title="Tysta denna varning"
+                                    title="Mute this warning"
                                     @onclick="() => OnToggleIssueMute.InvokeAsync(issue)">
-                                Tysta
+                                Mute
                             </button>
                         }
                     </li>
@@ -256,18 +256,18 @@
 
     private static string FormatPhaseLabel(string phaseKey) => phaseKey.ToLowerInvariant() switch
     {
-        "gas" => "gasform",
-        "liquid" => "flytande",
-        "solid" => "fast",
+        "gas" => "gas",
+        "liquid" => "liquid",
+        "solid" => "solid",
         _ => phaseKey
     };
 
     private static string FormatProcessStatus(string status) => status switch
     {
-        "Transformed" => "Transformerad",
-        "Blocked" => "Blockerad",
-        "WaitingMaterial" => "Väntar på material",
-        "Idle" => "Vilar",
+        "Transformed" => "Transformed",
+        "Blocked" => "Blocked",
+        "WaitingMaterial" => "Waiting for material",
+        "Idle" => "Idle",
         _ => status
     };
 }

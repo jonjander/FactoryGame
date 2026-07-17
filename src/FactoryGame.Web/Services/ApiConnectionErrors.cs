@@ -16,12 +16,12 @@ public static class ApiConnectionErrors
             var baseHint = httpClientBaseAddress != null
                 ? $" HttpClient.BaseAddress: {httpClientBaseAddress}"
                 : "";
-            return "Kan inte ansluta till API:et."
+            return "Cannot connect to the API."
                 + baseHint
-                + " Azure: kontrollera deploy och att `ASPNETCORE_ENVIRONMENT` är Production (Release-build). "
-                + "Lokalt: starta API (`dotnet run --project src/FactoryGame.Api`) eller välj VS-profil "
-                + "«https (UI → Azure API)» / «https (UI → lokal API)». Se `factory-config.json` (ApiTarget) och README. "
-                + "Rensa webbplatsdata / service worker vid kvarstående fel efter deploy. Teknik: " + technical;
+                + " Azure: check deploy and that `ASPNETCORE_ENVIRONMENT` is Production (Release build). "
+                + "Local: start the API (`dotnet run --project src/FactoryGame.Api`) or pick the VS profile "
+                + "«https (UI -> Azure API)» / «https (UI -> local API)». See `factory-config.json` (ApiTarget) and README. "
+                + "Clear site data / service worker if errors persist after deploy. Technical: " + technical;
         }
 
         return string.IsNullOrWhiteSpace(ex.Message) ? technical : ex.Message;
@@ -40,8 +40,8 @@ public static class ApiConnectionErrors
         message = "";
         if (FindHttpStatusCode(ex) == HttpStatusCode.Unauthorized)
         {
-            message = "Sessionen är ogiltig eller har gått ut (vanligt efter server-uppdatering). "
-                + "Klicka Logga ut i menyn och logga in som gäst igen.";
+            message = "Session is invalid or expired (common after a server update). "
+                + "Click Log out in the menu and sign in as guest again.";
             return true;
         }
 
@@ -49,7 +49,7 @@ public static class ApiConnectionErrors
         if (text.Contains("401", StringComparison.Ordinal) &&
             text.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase))
         {
-            message = "Sessionen är ogiltig eller har gått ut. Logga ut och logga in som gäst igen.";
+            message = "Session is invalid or expired. Log out and sign in as guest again.";
             return true;
         }
 

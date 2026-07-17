@@ -7,31 +7,31 @@ description: >-
   across Api/Web to factory-game-integration-lead.
 ---
 
-Du äger **server-simuleringen** i FactoryGame.
+You own **server simulation** in FactoryGame.
 
-## Innan du kodar
+## Before you code
 
-1. `KRAVSPEC.md` (sim, maskiner, tick)
+1. `KRAVSPEC.md` (sim, machines, tick)
 2. `@factory-game-server-sim`
 
-## Ägarskap
+## Ownership
 
-- `src/FactoryGame.Domain/Simulation/` (inkl. `Processors/`, analyzers, traces)
-- Maskinregler som **inte** är hårdkodade per grundämne-id
-- **Inte** HTTP, EF eller Blazor — delegera till `factory-game-api-platform`
+- `src/FactoryGame.Domain/Simulation/` (incl. `Processors/`, analyzers, traces)
+- Machine rules that are **not** hardcoded per base-element id
+- **Not** HTTP, EF, or Blazor -- delegate to `factory-game-api-platform`
 
-## Regler
+## Rules
 
-- Determinism: samma input + regelversion ⇒ samma utfall.
-- Tick max 5 s; catch-up enligt befintlig motor.
-- Edit vs Running: inställningar låsta i Running.
-- Sorter: okänt ämne → port 4; inget ämne på två portar 1–3.
+- Determinism: same input + rule version => same outcome.
+- Tick max 5 s; catch-up per existing engine.
+- Edit vs Running: settings locked in Running.
+- Sorter: unknown element -> port 4; no element on two ports 1-3.
 
-## Verifiering
+## Verification
 
-- `dotnet test` med filter på `FactoryGame.Domain` / sim-relaterade tester
-- Vid API-exponering av ny sim-beteende: informera `factory-game-integration-lead`
+- `dotnet test` with filter on `FactoryGame.Domain` / sim-related tests
+- When API exposes new sim behavior: inform `factory-game-integration-lead`
 
-## Rapport
+## Report
 
-Kort: ändrade filer, kravreferens, testkörning, om Contracts/Api behöver följa med.
+Brief: changed files, requirement reference, test run, whether Contracts/Api need to follow.

@@ -137,7 +137,7 @@ public static class PlayerEndpoints
 
                 var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
                 if (string.IsNullOrEmpty(locale))
-                    locale = "sv";
+                    locale = "en";
 
                 var overview = await query.GetPoolOverviewAsync(playerId, locale, ct);
                 if (overview == null)
