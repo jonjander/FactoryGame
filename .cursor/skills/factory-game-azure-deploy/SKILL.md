@@ -88,6 +88,7 @@ After git push + tag (see `factory-game-version-and-tags`):
 | 401 on zipdeploy | Re-download publish profile (password rotated) |
 | Health never Healthy | Portal Log stream / `GET /diagnostics/recent-logs`; check ConnectionStrings |
 | Publish fails | Fix `dotnet publish` locally first |
+| Kudu rsync `Invalid argument (22)` on paths with `\` | Fixed in 0.3.7+ (`New-DeployZip` uses `/`). Clear wwwroot and redeploy. |
 
 ## Related
 

@@ -97,14 +97,52 @@ function Publish-Api {
 
 function New-DeployZip {
     param([string] $SourceDir, [string] $ZipPath)
+    # Linux Kudu rsync fails if zip entries use Windows backslashes (EINVAL on paths like wwwroot\_framework\...).
     if (Test-Path $ZipPath) { Remove-Item -LiteralPath $ZipPath -Force }
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::CreateFromDirectory(
-        $SourceDir,
+    $sourceFull = (Resolve-Path -LiteralPath $SourceDir).Path.TrimEnd('\', '/')
+    $zip = [System.IO.Compression.ZipFile]::Open(
         $ZipPath,
-        [System.IO.Compression.CompressionLevel]::Optimal,
-        $false
+        [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        Get-ChildItem -LiteralPath $sourceFull -Recurse -File -Force | ForEach-Object {
+            $rel = $_.FullName.Substring($sourceFull.Length).TrimStart('\', '/')
+            $entryName = $rel.Replace('\', '/')
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip,
+                $_.FullName,
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal)
+        }
+    } finally {
+        $zip.Dispose()
+    }
+}
+
+function Clear-AzureWwwrootForRedeploy {
+    param(
+        [string] $ScmHost,
+        [string] $UserName,
+        [string] $Password
     )
+    # Wipe publish root so leftover Windows-backslash path names cannot break Linux rsync.
+    $auth = New-BasicAuthHeader -UserName $UserName -Password $Password
+    $body = @{
+        command = 'rm -rf /home/site/wwwroot/* ; ls -la /home/site/wwwroot'
+        dir     = '/home/site/wwwroot'
+    } | ConvertTo-Json
+    try {
+        $r = Invoke-RestMethod -Uri "https://$ScmHost/api/command" `
+            -Method Post `
+            -Headers @{ Authorization = $auth; "Content-Type" = "application/json" } `
+            -Body $body
+        Write-Host "Cleared /home/site/wwwroot for clean Zip Deploy."
+        if ($r.Output) { Write-Host $r.Output }
+        if ($r.Error) { Write-Host $r.Error }
+    } catch {
+        Write-Host "wwwroot clear skipped: $($_.Exception.Message)"
+    }
 }
 
 function Invoke-ZipDeploy {
@@ -122,6 +160,7 @@ function Invoke-ZipDeploy {
         -ContentType "application/octet-stream" `
         -UseBasicParsing
     $location = $response.Headers["Location"]
+    if ($location -is [array]) { $location = $location[0] }
     if (-not $location) {
         # Sync deploy may return 200 with no Location
         Write-Host "Zip Deploy accepted (HTTP $($response.StatusCode))."
@@ -243,6 +282,7 @@ try {
     New-DeployZip -SourceDir $OutputDir -ZipPath $zipPath
     $sizeMb = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
     Write-Host "Zip size: ${sizeMb} MB"
+    Clear-AzureWwwrootForRedeploy -ScmHost $scmHost -UserName $userName -Password $password
     Invoke-ZipDeploy -ScmHost $scmHost -UserName $userName -Password $password -ZipPath $zipPath
 } finally {
     if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue }

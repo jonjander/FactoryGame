@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.7
+
+- **Azure Zip Deploy:** create zip entries with `/` paths (Windows `CreateFromDirectory` used `\`, which broke Linux Kudu rsync with EINVAL).
+- **Deploy:** clear `/home/site/wwwroot` before Zip Deploy so leftover backslash filenames cannot block sync.
+
 ## 0.3.6
 
 - **Azure SQL:** production uses Azure SQL (`rqii` / `fg`) via managed identity (`Authentication=Active Directory Default`); deploy injects connection from `.local/azure-sql-connection.txt` into `appsettings.Production.json`.
