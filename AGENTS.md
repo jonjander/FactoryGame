@@ -46,7 +46,7 @@ flowchart TB
 | **Quality** | `factory-game-tester` | xUnit Domain/Api |
 | **Quality** | `factory-game-playtester` | MCP against API, requirements parity |
 
-**Operations:** The repo owner verifies in **Azure** -- see `.cursor/rules/factory-game-team.mdc`. The agent runs `dotnet build` / `dotnet test` in Cursor. `@factory-game-azure-test`.
+**Operations:** The repo owner verifies in **Azure** -- see `.cursor/rules/factory-game-team.mdc`. The agent runs `dotnet build` / `dotnet test` in Cursor, and **Zip Deploys** after version releases via `@factory-game-azure-deploy`. `@factory-game-azure-test`.
 
 ---
 
@@ -133,7 +133,7 @@ flowchart TB
 
 ### MCP / Azure -- `factory-game-playtester`
 
-- **Skills:** `factory-game-mcp-server`, `factory-game-mcp-playtest`, `factory-game-azure-test`
+- **Skills:** `factory-game-mcp-server`, `factory-game-mcp-playtest`, `factory-game-azure-test`, `factory-game-azure-deploy`
 - **Prompt:** MCP against Azure; `npm run build/smoke/playtest` in `tools/factorygame-mcp/`. No token in repo.
 
 ---
@@ -151,6 +151,7 @@ flowchart TB
 | Integration (lead) | `.cursor/skills/factory-game-integration-lead/` |
 | Architecture (lead) | `.cursor/skills/factory-game-architect/` |
 | Azure test API | `.cursor/skills/factory-game-azure-test/` |
+| Azure deploy (Zip Deploy) | `.cursor/skills/factory-game-azure-deploy/` |
 | MCP server | `.cursor/skills/factory-game-mcp-server/` |
 | MCP playtest | `.cursor/skills/factory-game-mcp-playtest/` |
 | xUnit | `.cursor/skills/factory-game-tester/` |

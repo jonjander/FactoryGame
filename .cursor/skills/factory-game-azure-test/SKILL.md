@@ -26,11 +26,13 @@ Verified externally: `/health` and `/swagger/v1/swagger.json` respond when the a
 
 ## Deploy (how code gets here)
 
-- **Source:** GitHub repo `https://github.com/jonjander/FactoryGame.git` (push to chosen branch, e.g. `master`).
-- **Azure:** Deployment Center with **External Git** + **App Service Build Service** (Oryx); **Sync** (or scheduled pull) builds on Azure.
-- **Monorepo:** app setting **`PROJECT`** = `src/FactoryGame.Api/FactoryGame.Api.csproj` (build correct project).
+**Primary (agent releases):** Zip Deploy with local PublishSettings — see **`@factory-game-azure-deploy`** (`Deploy-Azure.ps1`). Required after each **Version** bump per `factory-game-version-and-tags`.
+
+**Legacy / optional:** GitHub repo + Azure Deployment Center (External Git / Oryx) may still exist in the portal; do **not** treat Oryx sync as the agent release path.
+
+- **Monorepo project:** `src/FactoryGame.Api/FactoryGame.Api.csproj`
 - **Stack:** .NET **10** (`net10.0`); repo has **`global.json`** for SDK 10.
-- **Details:** see `README.md` -> section **Azure Web App (API)**.
+- **Details:** `@factory-game-azure-deploy` and `README.md` -> **Azure Web App (API)**.
 
 ## Quick smoke (authenticated guest)
 
@@ -42,7 +44,7 @@ Other routes per Swagger (boards, market, content, admin etc.).
 ## Admin / secrets
 
 - **Admin:** `X-Admin-Token` against `/v1/admin/*` -- value set in Azure **Application settings** (`Admin:BootstrapToken`); **never store** token in repo or chat.
-- **FTP/zip deploy:** not used in current flow; only Git -> Oryx.
+- **Zip Deploy:** used for agent releases (`@factory-game-azure-deploy`); PublishSettings stay in `.local/` only.
 
 ## Client (Blazor UI)
 

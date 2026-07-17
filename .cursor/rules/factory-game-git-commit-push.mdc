@@ -17,7 +17,7 @@ When a **larger change** is complete (e.g. new feature, behavior change, refacto
    - **Normal case (not a release-only commit):** `<Version>` + space + short description, e.g. `0.1.5 docs: update Azure skill`, `0.1.5 fix: swagger middleware order`. No commits without version prefix.
    - **Release per factory-game-version-and-tags:** when the commit *only* delivers a new app version (bumped `Version` + `releases.md` + tag) the message may be **exactly** `<Version>` with no extra text -- that counts as having the version number in the message.
 4. **Push (mandatory by default):** After every commit that is part of a delivery the agent must **always** run `git push` to `origin` on the current branch. Push is **not** optional just because the user did not mention it -- the repo owner expects changes to reach remote. **Exception only** if the user explicitly asked *not* to push, or push fails (auth/conflict) -- then report status and next steps; do not leave a commit local without saying so.
-5. If the delivery includes a new **app version**: follow **factory-game-version-and-tags** (bump `Version`, `releases.md`, tag `v{Version}`, **push tag**, delivered version in chat).
+5. If the delivery includes a new **app version**: follow **factory-game-version-and-tags** (bump `Version`, `releases.md`, tag `v{Version}`, **push tag**, **Azure Zip Deploy** via `@factory-game-azure-deploy`, delivered version + deploy status in chat).
 
 **Does not count** as a delivery requiring commit+push: typo fix in a comment, one line of formatting, or pure exploration without lasting code change -- then it is often enough to wait or batch.
 

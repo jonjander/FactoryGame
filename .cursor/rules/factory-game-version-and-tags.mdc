@@ -22,8 +22,10 @@ All commits that touch the repo must follow **factory-game-git-commit-push**: th
 3. **Commit (version number mandatory):** the message must **contain** the new `<Version>`. For release delivery it must be **exactly** semver, identical to `<Version>` (e.g. `0.1.1`) -- no extra text, no `v` prefix in the commit line. This is **non-negotiable** together with the rule above.
 4. **Push** commit to `origin`.
 5. **Tag** annotated tag with `v` prefix: `git tag -a v0.1.1 -m "0.1.1"` on the same commit (or immediately after), then `git push origin v0.1.1` (or `git push origin --tags` if several tags go up at once -- avoid accidental extra tags).
-6. **In the chat response** to the user: state explicitly which version was delivered, e.g. *Delivered: **v0.1.1** (Version 0.1.1 in UI).*
+6. **Deploy to Azure (mandatory after version release):** run Zip Deploy via `@factory-game-azure-deploy` / script `.cursor/skills/factory-game-azure-deploy/scripts/Deploy-Azure.ps1` (PublishSettings in `.local/FactoryGame.PublishSettings`, never commit). Do **not** rely on Azure Git/Oryx sync for agent releases.
+7. **In the chat response** to the user: state explicitly which version was delivered **and** that Azure deploy succeeded (or failed), e.g. *Delivered: **v0.1.1** (Version 0.1.1 in UI); Azure Zip Deploy OK.*
 
 ## Consistency
 
 - Git tag `v{Version}` must point at the same code the user sees when the UI shows **Version {Version}**.
+- After a version release, Azure must run that same build (Zip Deploy from the agent), not an older Oryx artifact.

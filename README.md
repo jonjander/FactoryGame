@@ -87,14 +87,16 @@ Integration tests (`FactoryGame.Api.Tests`) use the same SQLite in-memory as the
 
 ## Azure Web App (API)
 
-Deploy by **pushing to GitHub**; Azure **Deployment Center** (External Git + **App Service Build Service** / Oryx) pulls the repo and builds on **Sync** or on the schedule set in the portal.
+**Primary deploy (agent / releases):** local `dotnet publish` + **Zip Deploy** using Azure PublishSettings (gitignored under `.local/`). See skill [`factory-game-azure-deploy`](.cursor/skills/factory-game-azure-deploy/SKILL.md) (`@factory-game-azure-deploy`). After each **Version** bump the agent must deploy this way.
+
+**Optional:** Azure **Deployment Center** (External Git / Oryx) may still be configured in the portal; it is not the agent release path.
 
 **Configuration that must match this codebase (.NET 10, monorepo):**
 
 1. **Stack:** .NET **10** (matches `net10.0` in all `.csproj` files).
-2. **Application setting `PROJECT`:** `src/FactoryGame.Api/FactoryGame.Api.csproj` so Oryx builds the API project.
-3. **`global.json`** in the repo root pins **.NET 10 SDK** for Oryx.
-4. **Branch** in Deployment Center must match the branch you push to (e.g. `master`).
+2. If Oryx is still used: application setting **`PROJECT`** = `src/FactoryGame.Api/FactoryGame.Api.csproj`.
+3. **`global.json`** in the repo root pins **.NET 10 SDK**.
+4. Zip Deploy publishes `FactoryGame.Api` (embeds Blazor WASM).
 
 **Azure Portal -> Configuration -> Application settings** (operations):
 
@@ -102,13 +104,13 @@ Deploy by **pushing to GitHub**; Azure **Deployment Center** (External Git + **A
 - `ASPNETCORE_ENVIRONMENT` = `Production` (important for hosted Blazor WASM: `Development` can cause the client to load dev settings and incorrectly point API calls at `localhost` in the browser.)
 - `Cors__Origins__0` -- client base URL if you restrict CORS.
 
-**Logs:** Oryx build/deploy logs are in **Deployment Center** / **Log stream** when the source is Azure build. For **app logs**, enable **App Service logs -> Application logging (Filesystem)** and optionally `Logging__LogLevel__Default` = `Information`.
+**Logs:** After Zip Deploy, use **Log stream** / Application Insights for app logs. For **app logs**, enable **App Service logs -> Application logging (Filesystem)** and optionally `Logging__LogLevel__Default` = `Information`.
 
 **CI in GitHub:** workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs build + tests on push/PR to `main`/`master` -- it does **not** deploy to Azure.
 
 For **Azure dev URL, smoke, auth against the cloud:** see skill [`factory-game-azure-test`](.cursor/skills/factory-game-azure-test/SKILL.md) (`@factory-game-azure-test`).
 
-Legacy **GitHub secrets** for FTPS/publish profile are no longer used by this repo; you can remove them in repo settings if you want to clean up.
+**Publish profile:** store as `.local/FactoryGame.PublishSettings` (gitignored). Do not commit publish profiles or passwords.
 
 ## Security (MVP)
 
