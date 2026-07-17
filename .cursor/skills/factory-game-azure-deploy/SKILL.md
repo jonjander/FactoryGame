@@ -71,6 +71,8 @@ App settings (Portal) are unchanged by Zip Deploy — DB, `ASPNETCORE_ENVIRONMEN
 
 Optional local inject (gitignored): `.local/azure-sql-connection.txt` or env `FACTORYGAME_SQL_CONNECTION` — written into published `appsettings.Production.json` by `Deploy-Azure.ps1`.
 
+**Never publish `appsettings.Local.json`** (developer localhost SQL). It is gitignored but can still land in publish output if present on disk; `FactoryGame.Api.csproj` and `Deploy-Azure.ps1` strip it. If it reaches Azure it overrides Production and crashes migrate.
+
 ## Release workflow (with version bump)
 
 After git push + tag (see `factory-game-version-and-tags`):
@@ -89,6 +91,7 @@ After git push + tag (see `factory-game-version-and-tags`):
 | Health never Healthy | Portal Log stream / `GET /diagnostics/recent-logs`; check ConnectionStrings |
 | Publish fails | Fix `dotnet publish` locally first |
 | Kudu rsync `Invalid argument (22)` on paths with `\` | Fixed in 0.3.7+ (`New-DeployZip` uses `/`). Clear wwwroot and redeploy. |
+| SQL migrate to `127.0.0.1` / crash after deploy | `appsettings.Local.json` was published — delete from wwwroot and redeploy 0.3.8+ |
 
 ## Related
 

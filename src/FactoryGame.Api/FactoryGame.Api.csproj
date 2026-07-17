@@ -27,9 +27,15 @@
     <ProjectReference Include="..\FactoryGame.Web\FactoryGame.Web.csproj" />
   </ItemGroup>
 
+  <!-- Never publish local SQL secrets / localhost connection to Azure. -->
+  <ItemGroup>
+    <Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+
   <!-- Azure Linux/Oryx picks hostingstart.dll when multiple *.runtimeconfig.json exist. -->
   <Target Name="RemoveWebRuntimeConfigFromPublish" AfterTargets="Publish">
     <Delete Files="$(PublishDir)FactoryGame.Web.runtimeconfig.json" TreatErrorsAsWarnings="true" />
+    <Delete Files="$(PublishDir)appsettings.Local.json" TreatErrorsAsWarnings="true" />
   </Target>
 
 </Project>

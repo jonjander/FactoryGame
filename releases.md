@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.8
+
+- **Azure crash fix:** stop publishing `appsettings.Local.json` (localhost SQL) which overrode empty/Production connection and made migrate fail on App Service.
+- **Deploy:** strip `appsettings.Local.json` from publish output as a safety net.
+
 ## 0.3.7
 
 - **Azure Zip Deploy:** create zip entries with `/` paths (Windows `CreateFromDirectory` used `\`, which broke Linux Kudu rsync with EINVAL).

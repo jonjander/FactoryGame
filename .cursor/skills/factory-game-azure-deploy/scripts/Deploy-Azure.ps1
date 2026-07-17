@@ -257,6 +257,13 @@ if (Test-Path $webRuntimeConfig) {
     Write-Host "Removed FactoryGame.Web.runtimeconfig.json from publish output (Azure startup)."
 }
 
+# Never ship developer Local.json (localhost SQL) — it overrides Production and crashes Azure.
+$localSettings = Join-Path $OutputDir "appsettings.Local.json"
+if (Test-Path $localSettings) {
+    Remove-Item -LiteralPath $localSettings -Force
+    Write-Host "Removed appsettings.Local.json from publish output (must not go to Azure)."
+}
+
 # Optional Azure SQL connection (gitignored). Prefer Portal App Setting long-term.
 $connPath = Join-Path $repoRoot ".local\azure-sql-connection.txt"
 $connFromEnv = $env:FACTORYGAME_SQL_CONNECTION
