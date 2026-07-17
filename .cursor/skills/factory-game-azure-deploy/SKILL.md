@@ -63,6 +63,14 @@ What the script does:
 
 App settings (Portal) are unchanged by Zip Deploy — DB, `ASPNETCORE_ENVIRONMENT`, etc. stay as configured.
 
+**Required Portal config (once per Web App):**
+
+1. **Application setting** `ConnectionStrings__DefaultConnection` = Azure SQL string with `Authentication=Active Directory Default` (preferred over file inject).
+2. **Startup Command** = `dotnet FactoryGame.Api.dll` (prevents Linux/Oryx `hostingstart` fallback).
+3. After changing settings: **Restart**.
+
+Optional local inject (gitignored): `.local/azure-sql-connection.txt` or env `FACTORYGAME_SQL_CONNECTION` — written into published `appsettings.Production.json` by `Deploy-Azure.ps1`.
+
 ## Release workflow (with version bump)
 
 After git push + tag (see `factory-game-version-and-tags`):

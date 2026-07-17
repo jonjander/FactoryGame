@@ -27,4 +27,9 @@
     <ProjectReference Include="..\FactoryGame.Web\FactoryGame.Web.csproj" />
   </ItemGroup>
 
+  <!-- Azure Linux/Oryx picks hostingstart.dll when multiple *.runtimeconfig.json exist. -->
+  <Target Name="RemoveWebRuntimeConfigFromPublish" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)FactoryGame.Web.runtimeconfig.json" TreatErrorsAsWarnings="true" />
+  </Target>
+
 </Project>

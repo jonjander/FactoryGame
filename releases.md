@@ -2,6 +2,12 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.6
+
+- **Azure SQL:** production uses Azure SQL (`rqii` / `fg`) via managed identity (`Authentication=Active Directory Default`); deploy injects connection from `.local/azure-sql-connection.txt` into `appsettings.Production.json`.
+- **Azure startup:** stop publishing `FactoryGame.Web.runtimeconfig.json` so Linux/Oryx starts `FactoryGame.Api` instead of `hostingstart`.
+- **Deploy:** longer health smoke for cold SQL migrate; optional Kudu connection-string post.
+
 ## 0.3.5
 
 - **Factory canvas:** status badges (blocked/waiting/processing) with icons, colors, and short guidance; legend while running.

@@ -151,20 +151,41 @@ function Invoke-HealthSmoke {
     param([string] $AppUrl)
     $health = ($AppUrl.TrimEnd("/") + "/health")
     Write-Host "Smoke: GET $health"
-    $deadline = (Get-Date).AddMinutes(3)
+    # SQL migrate + cold start can exceed 3 minutes on first boot.
+    $deadline = (Get-Date).AddMinutes(8)
     do {
         try {
-            $r = Invoke-WebRequest -Uri $health -UseBasicParsing -TimeoutSec 30
+            $r = Invoke-WebRequest -Uri $health -UseBasicParsing -TimeoutSec 45
             if ($r.StatusCode -eq 200 -and $r.Content -match "Healthy") {
                 Write-Host "Health OK."
                 return
             }
+            Write-Host "  unexpected health body: $($r.Content)"
         } catch {
             Write-Host "  waiting for app... $($_.Exception.Message)"
         }
         Start-Sleep -Seconds 5
     } while ((Get-Date) -lt $deadline)
     throw "Health check failed for $health"
+}
+
+function Set-AzureSqlAppSettingViaKudu {
+    param(
+        [string] $ScmHost,
+        [string] $UserName,
+        [string] $Password,
+        [string] $ConnectionString
+    )
+    if (-not $ConnectionString) { return }
+    $auth = New-BasicAuthHeader -UserName $UserName -Password $Password
+    $uri = "https://$ScmHost/api/settings"
+    $body = @{ ConnectionStrings__DefaultConnection = $ConnectionString } | ConvertTo-Json
+    try {
+        Invoke-RestMethod -Uri $uri -Method Post -Headers @{ Authorization = $auth; "Content-Type" = "application/json" } -Body $body | Out-Null
+        Write-Host "Posted ConnectionStrings__DefaultConnection to Kudu settings (best-effort)."
+    } catch {
+        Write-Host "Kudu settings post skipped: $($_.Exception.Message)"
+    }
 }
 
 # --- main ---
@@ -190,6 +211,33 @@ if (-not $SkipBuild) {
     throw "SkipBuild set but OutputDir missing: $OutputDir"
 }
 
+# Safety net: Oryx/Linux falls back to hostingstart when multiple runtimeconfigs exist.
+$webRuntimeConfig = Join-Path $OutputDir "FactoryGame.Web.runtimeconfig.json"
+if (Test-Path $webRuntimeConfig) {
+    Remove-Item -LiteralPath $webRuntimeConfig -Force
+    Write-Host "Removed FactoryGame.Web.runtimeconfig.json from publish output (Azure startup)."
+}
+
+# Optional Azure SQL connection (gitignored). Prefer Portal App Setting long-term.
+$connPath = Join-Path $repoRoot ".local\azure-sql-connection.txt"
+$connFromEnv = $env:FACTORYGAME_SQL_CONNECTION
+$sqlConn = $null
+if ($connFromEnv -and $connFromEnv.Trim().Length -gt 0) {
+    $sqlConn = $connFromEnv.Trim()
+    Write-Host "Using SQL connection from FACTORYGAME_SQL_CONNECTION."
+} elseif (Test-Path $connPath) {
+    $sqlConn = (Get-Content -LiteralPath $connPath -Raw).Trim()
+    if ($sqlConn) { Write-Host "Using SQL connection from .local/azure-sql-connection.txt." }
+}
+if ($sqlConn) {
+    $prodPath = Join-Path $OutputDir "appsettings.Production.json"
+    $prodObj = [ordered]@{
+        ConnectionStrings = [ordered]@{ DefaultConnection = $sqlConn }
+    }
+    $prodObj | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $prodPath -Encoding utf8
+    Write-Host "Wrote appsettings.Production.json with Azure SQL connection."
+}
+
 $zipPath = Join-Path $repoRoot "_publish_azure.zip"
 try {
     New-DeployZip -SourceDir $OutputDir -ZipPath $zipPath
@@ -198,6 +246,10 @@ try {
     Invoke-ZipDeploy -ScmHost $scmHost -UserName $userName -Password $password -ZipPath $zipPath
 } finally {
     if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue }
+}
+
+if ($sqlConn) {
+    Set-AzureSqlAppSettingViaKudu -ScmHost $scmHost -UserName $userName -Password $password -ConnectionString $sqlConn
 }
 
 if (-not $SkipSmoke) {
