@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.16
+
+- **Hotfix:** EF migration `AddMarketPriceCandleDna` now registers correctly (Designer + `[Migration]` attribute) so Azure SQL gets the `Dna` column on `MarketPriceCandles` — fixes HTTP 500 on Exchange/history after 0.3.15.
+
 ## 0.3.15
 
 - **Exchange:** holdings and trade list show full variant labels (`E03-161903 (Base-Variant)`) like Pool; price chart and history are per DNA variant.
