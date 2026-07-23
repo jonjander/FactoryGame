@@ -30,6 +30,8 @@ public static class MachinePortCatalog
             ["LiquidSeparator"] = [new("in", PortDirection.In), new("out1", PortDirection.Out), new("out2", PortDirection.Out)],
             ["Destilator"] = [new("in", PortDirection.In), new("out1", PortDirection.Out), new("out2", PortDirection.Out)],
             ["Mixer"] = [new("in1", PortDirection.In), new("in2", PortDirection.In), new("out", PortDirection.Out)],
+            ["GasMixer"] = [new("in1", PortDirection.In), new("in2", PortDirection.In), new("out", PortDirection.Out)],
+            ["Burner"] = [new("in", PortDirection.In)],
             ["Heater"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
             ["Cooler"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
             ["Condenser"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],

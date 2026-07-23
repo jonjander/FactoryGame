@@ -10,6 +10,8 @@ public static class WikiPresentation
         "LiquidSeparator" => "Liquid separator",
         "Destilator" => "Distillator",
         "Mixer" => "Mixer",
+        "GasMixer" => "Gas mixer",
+        "Burner" => "Burner",
         "Heater" => "Heater",
         "Cooler" => "Cooler",
         "Condenser" => "Condenser",
@@ -27,7 +29,8 @@ public static class WikiPresentation
     {
         "Boiler" or "Heater" or "Cooler" or "Melter" => "heat",
         "Condenser" or "Crystallizer" => "phase",
-        "Mixer" or "Destilator" or "LiquidSeparator" or "Sorter" => "separation",
+        "Mixer" or "GasMixer" or "Destilator" or "LiquidSeparator" or "Sorter" => "separation",
+        "Burner" => "heat",
         "Tank" or "Junction" or "RateLimiter" or "SeaportConnector" => "logistics",
         _ => "other"
     };
@@ -43,12 +46,13 @@ public static class WikiPresentation
 
     public static string MachineEmoji(string type) => type switch
     {
-        "Boiler" or "Heater" => "🔥",
+        "Boiler" or "Heater" or "Burner" => "🔥",
         "Cooler" => "❄️",
         "Condenser" => "💧",
         "Crystallizer" => "🧊",
         "Melter" => "🫠",
         "Mixer" => "🌀",
+        "GasMixer" => "💨",
         "Destilator" or "LiquidSeparator" => "⚗️",
         "Sorter" => "🔀",
         "Tank" => "🛢️",
@@ -85,8 +89,8 @@ public static class WikiPresentation
         ],
         "Condenser" =>
         [
-            "Requires gas phase — never solid input.",
-            "Symbol may stay the same; phase (gas->liquid) shows in the pool.",
+            "Requires gas phase — never solid or liquid input.",
+            "Chilled coil converts vapour to liquid for pool or downstream machines.",
             "Output material is always liquid."
         ],
         "Crystallizer" =>
@@ -107,10 +111,22 @@ public static class WikiPresentation
             "Gentle mix -> stable, compact blend.",
             "Hard mix -> volatile blend ready for distillation."
         ],
+        "GasMixer" =>
+        [
+            "Both inputs must be gas.",
+            "Blends vapours without waking volatile fractions — output stays gas.",
+            "Good after Destilator out2 or before Condenser on mixed gas."
+        ],
+        "Burner" =>
+        [
+            "Gas only — consumes the stream completely (no output).",
+            "Needs moderate flammability; too inert or too explosive will block.",
+            "Use as a sink for surplus or hazardous vapours you cannot store."
+        ],
         "Destilator" =>
         [
             "Separates into two fractions based on boiling point.",
-            "Requires liquid or gas phase.",
+            "Accepts gas or liquid — gas yields light gas on out2 and heavy liquid on out1.",
             "Set reflux and cut for desired fractions."
         ],
         "LiquidSeparator" =>
@@ -206,7 +222,9 @@ public static class WikiPresentation
         "Crystallizer" => "Supercooled bath locks unruly liquid into solid crystal. Never gas out.",
         "Melter" => "Induction furnace melts spread-out solid into pourable liquid. Compact solid may pass through.",
         "Mixer" => "Blends two streams. Mix intensity and ratio decide whether the blend stays stable or turns volatile.",
-        "Destilator" => "Fractionates material into two outputs based on boiling point and reflux.",
+        "GasMixer" => "Blends two gas streams into one stable vapour — always gas out.",
+        "Burner" => "Controlled flare — burns moderately flammable gas completely with no residue.",
+        "Destilator" => "Fractionates gas or liquid into heavy liquid (out1) and light gas (out2).",
         "LiquidSeparator" => "Splits liquid into two fractions at the chosen cut — faster than full distillation.",
         "Sorter" => "Routes selected base elements to ports 1-3; the rest go to the rest port.",
         "SeaportConnector" => "Bridge between factory and your seaport pool — material in/out per variant.",

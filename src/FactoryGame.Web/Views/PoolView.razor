@@ -10,6 +10,7 @@
                           Element="@_analysisElement"
                           VariantDna="@_analysisDna"
                           VariantLabel="@_analysisLabel"
+                          FactoryFlow="@_analysisFactoryFlow"
                           OnClose="CloseAnalysisAsync" />
 
 @if (string.IsNullOrEmpty(Tokens.BearerToken))
@@ -78,6 +79,19 @@ else if (_overview is not null)
                             <td class="pool-element-cell">
                                 <span class="fg-element-badge" title="@row.DisplayName">@row.Symbol</span>
                                 <span class="pool-element-name">@row.DisplayName</span>
+                                @if (row.FactoryFlow is { } flow)
+                                {
+                                    <span class="pool-factory-flow-badges">
+                                        @if (flow.ConsumedByFactory)
+                                        {
+                                            <span class="pool-factory-flow-icon pool-factory-flow-consume" title="Used by factory">↓</span>
+                                        }
+                                        @if (flow.ProducedByFactory)
+                                        {
+                                            <span class="pool-factory-flow-icon pool-factory-flow-produce" title="Produced by factory">↑</span>
+                                        }
+                                    </span>
+                                }
                             </td>
                             <td>
                                 <span class="fg-phase-badge fg-phase-@row.Phase.ToLowerInvariant()">@row.PhaseLabel</span>
@@ -112,6 +126,7 @@ else if (_overview is not null)
     private ElementContentItem? _analysisElement;
     private long _analysisDna;
     private string? _analysisLabel;
+    private PoolElementFactoryFlowDto? _analysisFactoryFlow;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -124,10 +139,15 @@ else if (_overview is not null)
                 .Select(v => new PoolFlatRow(
                     MaterialLabelUi.Compact(v.Symbol) ?? v.Symbol,
                     v.Symbol,
-                    v)));
+                    v,
+                    g.FactoryFlow)));
     }
 
-    private sealed record PoolFlatRow(string Symbol, string DisplayName, PoolVariantStackDto Variant)
+    private sealed record PoolFlatRow(
+        string Symbol,
+        string DisplayName,
+        PoolVariantStackDto Variant,
+        PoolElementFactoryFlowDto? FactoryFlow)
     {
         public int ElementId => Variant.ElementId;
         public string Phase => Variant.Phase;
@@ -214,6 +234,7 @@ else if (_overview is not null)
         _analysisElement = _elements.FirstOrDefault(e => e.Id == row.ElementId);
         _analysisDna = row.Variant.Dna;
         _analysisLabel = row.DisplayName;
+        _analysisFactoryFlow = row.FactoryFlow;
         _analysisVisible = _analysisElement != null;
     }
 

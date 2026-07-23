@@ -115,6 +115,10 @@ public static class MachineSettingsUi
                 new("mixIntensityPermille", "Mix intensity", MixIntensity),
                 new("ratioPermille", "Ratio in1", MixRatio)
             ]);
+        if (t.Equals("GasMixer", StringComparison.OrdinalIgnoreCase))
+            return WithOperationRate([new("ratioPermille", "Ratio in1", MixRatio)]);
+        if (t.Equals("Burner", StringComparison.OrdinalIgnoreCase))
+            return WithOperationRate([]);
         if (t.Equals("Destilator", StringComparison.OrdinalIgnoreCase))
             return WithOperationRate(
             [

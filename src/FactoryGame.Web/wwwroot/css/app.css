@@ -1987,19 +1987,75 @@ button.danger-outline:hover:not(:disabled) {
 }
 
 .pool-element-cell {
-    white-space: nowrap;
-    max-width: 14rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.35rem;
+    max-width: 16rem;
 }
 
 .pool-element-cell .fg-element-badge {
-    margin-right: 0.35rem;
+    margin-right: 0;
     vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.pool-factory-flow-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.pool-factory-flow-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.pool-factory-flow-consume {
+    color: #f0883e;
+    background: rgba(240, 136, 62, 0.15);
+    border: 1px solid rgba(240, 136, 62, 0.35);
+}
+
+.pool-factory-flow-produce {
+    color: #3fb950;
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid rgba(63, 185, 80, 0.35);
+}
+
+.pool-factory-flow-list {
+    margin: 0 0 1rem;
+    padding-left: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.pool-factory-flow-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.pool-factory-flow-hint {
+    margin: -0.5rem 0 1rem;
+    font-size: 0.78rem;
 }
 
 .pool-element-name {
     vertical-align: middle;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .pool-info-btn {

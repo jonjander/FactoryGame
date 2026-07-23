@@ -2,6 +2,12 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.21
+
+- **Machines:** **Gas Mixer** (two gas inputs → blended gas out) and **Burner** (consumes burnable gas completely — no output).
+- **Sim:** Condenser and Destilator wiki/input compatibility clarified for gas phase; Burner blocks inert or overly explosive gas.
+- **Pool:** factory seaport flow indicators (↓ withdraw / ↑ deposit per element) with detail in the info modal.
+
 ## 0.3.20
 
 - **Account:** total estimated value (cash + pool + machines), performance chart over time, and change % for 1D / 1W / 1M / 1Y / MAX.

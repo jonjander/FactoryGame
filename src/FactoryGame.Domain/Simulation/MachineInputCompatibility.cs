@@ -34,6 +34,8 @@ public static class MachineInputCompatibility
         "Crystallizer",
         "Melter",
         "Mixer",
+        "GasMixer",
+        "Burner",
         "Destilator",
         "LiquidSeparator",
         "Sorter",
@@ -76,6 +78,8 @@ public static class MachineInputCompatibility
         {
             "Melter" => AssessMelter(dna),
             "Crystallizer" => AssessCrystallizer(dna),
+            "Condenser" => AssessCondenser(dna),
+            "Destilator" => AssessDestilator(dna),
             "Sorter" => MachineInputFit.Limited,
             _ => MachineInputFit.Good
         };
@@ -104,6 +108,19 @@ public static class MachineInputCompatibility
         if (t.Equals("Melter", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Solid)
             return "Requires solid phase.";
 
+        if (t.Equals("GasMixer", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Gas)
+            return "Requires gas phase — boil or distil light fractions first.";
+
+        if (t.Equals("Burner", StringComparison.OrdinalIgnoreCase))
+        {
+            if (d.Phase != MaterialPhase.Gas)
+                return "Requires gas phase.";
+            if (d.Flammability < 40)
+                return "Too inert to ignite — needs a more flammable gas.";
+            if (d.Explosivity > 90)
+                return "Too explosive for a controlled flare.";
+        }
+
         if (t.Equals("Heater", StringComparison.OrdinalIgnoreCase) && d.Explosivity > 85)
             return "Explosivity too high for safe heating.";
 
@@ -123,6 +140,52 @@ public static class MachineInputCompatibility
 
         if (machineType.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
             return GetCrystallizerLimitedReason(dna);
+
+        if (machineType.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
+            return GetCondenserLimitedReason(dna);
+
+        if (machineType.Equals("Destilator", StringComparison.OrdinalIgnoreCase))
+            return GetDestilatorLimitedReason(dna);
+
+        return null;
+    }
+
+    private static MachineInputFit AssessCondenser(long dna)
+    {
+        var d = DnaDecoder.Decode(dna);
+        if (d.Phase != MaterialPhase.Gas)
+            return MachineInputFit.Blocked;
+
+        var need = Math.Max(0, d.BoilingPoint - DefaultCutBoil);
+        if (need > DefaultChillPerPass * SlowProcessPasses)
+            return MachineInputFit.Limited;
+
+        return MachineInputFit.Good;
+    }
+
+    private static MachineInputFit AssessDestilator(long dna)
+    {
+        if (DnaDecoder.Decode(dna).Phase == MaterialPhase.Solid)
+            return MachineInputFit.Blocked;
+
+        return MachineInputFit.Good;
+    }
+
+    private static string? GetCondenserLimitedReason(long dna)
+    {
+        var d = DnaDecoder.Decode(dna);
+        var need = Math.Max(0, d.BoilingPoint - DefaultCutBoil);
+        if (need > DefaultChillPerPass * SlowProcessPasses)
+            return "High boiling point — many chill cycles before it becomes liquid.";
+
+        return null;
+    }
+
+    private static string? GetDestilatorLimitedReason(long dna)
+    {
+        var phase = DnaDecoder.Decode(dna).Phase;
+        if (phase == MaterialPhase.Gas)
+            return "Gas in — light fraction stays gas on out2, heavy condenses to liquid on out1.";
 
         return null;
     }

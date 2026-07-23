@@ -11,6 +11,8 @@ public static class MachineWikiCatalog
         Entry("LiquidSeparator", "Splits a liquid stream into heavy and light fractions at your cut setting."),
         Entry("Destilator", "Fractionating column — separates vapours by boiling point with reflux control."),
         Entry("Mixer", "Blends two streams. Gentle mixing keeps a stable blend; vigorous mixing wakes volatile fractions for distillation."),
+        Entry("GasMixer", "Blends two gas streams into one stable vapour — output stays gas, no volatile wake."),
+        Entry("Burner", "Controlled flare for moderately flammable gas — material is consumed completely."),
         Entry("Heater", "Direct heat coils for stepwise warming when you need a nudge, not a full boil."),
         Entry("Cooler", "Heat exchanger that pulls energy from the stream. Heavy toxins can foul the coils."),
         Entry("Condenser", "Chilled coil that condenses gas to liquid — never sends vapour downstream."),

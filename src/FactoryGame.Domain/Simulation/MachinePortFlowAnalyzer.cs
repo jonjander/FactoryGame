@@ -150,7 +150,9 @@ public static class MachinePortFlowAnalyzer
                     {
                         var activeInputDna = inPkt?.Dna ?? inputDna;
                         var activeInputId = inPkt?.ElementId ?? inputId;
-                        var predicted = machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase)
+                        var predicted = machine.Type.Equals("GasMixer", StringComparison.OrdinalIgnoreCase)
+                            ? TryPredictGasMixerOutput(machine, connections, machineById)
+                            : machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase)
                             ? TryPredictMixerOutput(machine, connections, machineById)
                             ?? MaterialFlowTrace.PredictOutput(
                                 machine, port.Name, activeInputId, inputSymbol, activeInputDna)
@@ -179,9 +181,12 @@ public static class MachinePortFlowAnalyzer
                         }
                     }
                 }
-                else if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
+                else if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase)
+                         || machine.Type.Equals("GasMixer", StringComparison.OrdinalIgnoreCase))
                 {
-                    var predicted = TryPredictMixerOutput(machine, connections, machineById);
+                    var predicted = machine.Type.Equals("GasMixer", StringComparison.OrdinalIgnoreCase)
+                        ? TryPredictGasMixerOutput(machine, connections, machineById)
+                        : TryPredictMixerOutput(machine, connections, machineById);
                     if (predicted != null)
                     {
                         outputId = predicted.OutputId;
@@ -294,6 +299,35 @@ public static class MachinePortFlowAnalyzer
             outputPhase,
             note,
             dnaA != dnaB || outDna != dnaA || outDna != dnaB);
+    }
+
+    private static PredictedOutput? TryPredictGasMixerOutput(
+        MachineInfo machine,
+        IReadOnlyList<ConnectionInfo> connections,
+        IReadOnlyDictionary<string, MachineInfo> machineById)
+    {
+        var dnaA = ResolveUpstreamSourceDna(machine, "in1", connections, machineById);
+        var dnaB = ResolveUpstreamSourceDna(machine, "in2", connections, machineById);
+        var idA = ResolveUpstreamElementId(machine, "in1", connections, machineById);
+        var idB = ResolveUpstreamElementId(machine, "in2", connections, machineById);
+        if (dnaA == null || dnaB == null || idA == null || idB == null)
+            return null;
+
+        var settings = machine.Settings?.GetRawText();
+        var ratio = MachineSettingsJson.ReadInt(settings, 500, 100, 900, "ratioPermille", "ratio");
+        var outDna = DnaTransforms.MixGas(dnaA.Value, dnaB.Value, ratio);
+        var dominantId = ratio >= 500 ? idA.Value : idB.Value;
+        var inSym = MaterialFlowTrace.SymbolForPacket(idA.Value, dnaA.Value);
+        var in2Sym = MaterialFlowTrace.SymbolForPacket(idB.Value, dnaB.Value);
+        var outSym = MaterialFlowTrace.SymbolForPacket(dominantId, outDna);
+        return new PredictedOutput(
+            dominantId,
+            outSym,
+            outDna,
+            "Gas",
+            "Gas",
+            $"blended gas {inSym}+{in2Sym}",
+            outDna != dnaA || outDna != dnaB);
     }
 
     private static int? ResolveUpstreamElementId(

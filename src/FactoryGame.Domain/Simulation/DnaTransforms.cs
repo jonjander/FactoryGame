@@ -79,6 +79,36 @@ public static class DnaTransforms
         return (dna, tier);
     }
 
+    /// <summary>Stable gas blend — averages bands and keeps gas phase (no volatile wake).</summary>
+    public static long MixGas(long dnaA, long dnaB, int ratioPermilleA)
+    {
+        ratioPermilleA = Math.Clamp(ratioPermilleA, 100, 900);
+        var ua = (ulong)dnaA;
+        var ub = (ulong)dnaB;
+        var weightA = ratioPermilleA / 1000.0;
+
+        var u = (ulong)unchecked(dnaA ^ (dnaB << 2) ^ (dnaB >> 7) ^ (dnaA >> 13));
+
+        var boil = (int)(((ua >> DnaLayout.BoilingShift) & DnaLayout.BoilingMask) * weightA
+            + ((ub >> DnaLayout.BoilingShift) & DnaLayout.BoilingMask) * (1 - weightA));
+        var frz = (int)(((ua >> DnaLayout.FreezeShift) & DnaLayout.FreezeMask) * weightA
+            + ((ub >> DnaLayout.FreezeShift) & DnaLayout.FreezeMask) * (1 - weightA));
+        var exp = (int)(((ua >> DnaLayout.ExplosivityShift) & DnaLayout.ExplosivityMask) * weightA
+            + ((ub >> DnaLayout.ExplosivityShift) & DnaLayout.ExplosivityMask) * (1 - weightA));
+        var fla = (int)(((ua >> DnaLayout.FlammabilityShift) & DnaLayout.FlammabilityMask) * weightA
+            + ((ub >> DnaLayout.FlammabilityShift) & DnaLayout.FlammabilityMask) * (1 - weightA));
+        var tox = (int)(((ua >> DnaLayout.ToxicityShift) & DnaLayout.ToxicityMask) * weightA
+            + ((ub >> DnaLayout.ToxicityShift) & DnaLayout.ToxicityMask) * (1 - weightA));
+
+        u = SetBand(u, DnaLayout.BoilingShift, DnaLayout.BoilingMask, boil);
+        u = SetBand(u, DnaLayout.FreezeShift, DnaLayout.FreezeMask, frz);
+        u = SetBand(u, DnaLayout.ExplosivityShift, DnaLayout.ExplosivityMask, exp);
+        u = SetBand(u, DnaLayout.FlammabilityShift, DnaLayout.FlammabilityMask, fla);
+        u = SetBand(u, DnaLayout.ToxicityShift, DnaLayout.ToxicityMask, tox);
+        u = (u & ~3UL) | 2UL;
+        return (long)u;
+    }
+
     /// <summary>Solid to liquid via boil band (not the same as Heater/Cooler on boil alone).</summary>
     public static (long Dna, bool Melted) Melt(long dna, int cutBoil, int heatDelta = 20)
     {

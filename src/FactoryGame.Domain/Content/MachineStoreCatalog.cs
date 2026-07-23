@@ -7,6 +7,8 @@ public static class MachineStoreCatalog
     [
         new("Boiler", "Liquid boiler", 4000m),
         new("Mixer", "Mixer", 2500m),
+        new("GasMixer", "Gas mixer", 2700m),
+        new("Burner", "Burner", 1600m),
         new("Heater", "Heater", 1800m),
         new("Cooler", "Cooler", 1800m),
         new("Condenser", "Condenser", 2200m),

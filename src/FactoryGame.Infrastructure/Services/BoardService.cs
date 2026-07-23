@@ -580,6 +580,90 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .Where(s => s.PlayerId == playerId)
             .ToDictionaryAsync(s => new PoolStackKey(s.ElementId, s.Dna), s => (decimal)s.Quantity, ct);
 
+    public async Task<IReadOnlyDictionary<int, PoolElementFactoryFlow>> GetPlayerSeaportElementFlowsAsync(
+        Guid playerId,
+        CancellationToken ct = default)
+    {
+        var boards = await db.Boards.AsNoTracking()
+            .Where(b => b.PlayerId == playerId)
+            .ToListAsync(ct);
+        if (boards.Count == 0)
+            return new Dictionary<int, PoolElementFactoryFlow>();
+
+        var poolQty = await LoadPoolQuantitiesAsync(playerId, ct);
+        var poolVariants = await LoadPoolVariantQuantitiesAsync(playerId, ct);
+        var boardIds = boards.Select(b => b.Id).ToList();
+        var revisions = await db.BoardRevisions.AsNoTracking()
+            .Where(r => boardIds.Contains(r.BoardId))
+            .ToListAsync(ct);
+        var revisionByBoard = revisions
+            .GroupBy(r => r.BoardId)
+            .ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Version));
+
+        var runningIds = boards
+            .Where(b => b.Mode == BoardMode.Running)
+            .Select(b => b.Id)
+            .ToHashSet();
+        var latestKeyframes = runningIds.Count == 0
+            ? new Dictionary<Guid, BoardKeyframeEntity>()
+            : await db.BoardKeyframes.AsNoTracking()
+                .Where(k => runningIds.Contains(k.BoardId))
+                .GroupBy(k => k.BoardId)
+                .Select(g => g.OrderByDescending(k => k.Tick).First())
+                .ToDictionaryAsync(k => k.BoardId, ct);
+
+        var snapshots = new List<PlayerBoardSeaportFlowSnapshot>(boards.Count);
+        foreach (var board in boards)
+        {
+            BoardPlanDto plan = new(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+            if (board.RevisionVersion > 0
+                && revisionByBoard.TryGetValue(board.Id, out var versions)
+                && versions.TryGetValue(board.RevisionVersion, out var revision))
+            {
+                plan = JsonSerializer.Deserialize<BoardPlanDto>(revision.PlanJson, Json)
+                       ?? plan;
+            }
+
+            if (plan.Machines.Count == 0)
+                continue;
+
+            BoardLineState? runtime = null;
+            SeaportTickDelta? delta = null;
+            if (board.Mode == BoardMode.Running
+                && latestKeyframes.TryGetValue(board.Id, out var kf))
+            {
+                runtime = BoardLineStateSerializer.Deserialize(kf.LineStateJson);
+                delta = BoardLineStateSerializer.DeserializeDelta(kf.SeaportDeltaJson);
+            }
+
+            var machines = plan.Machines.Select(m => new MachineInfo(m.Id, m.Type, m.Settings)).ToList();
+            var connections = plan.Connections
+                .Select(c => new ConnectionInfo(c.FromId, c.FromPort, c.ToId, c.ToPort))
+                .ToList();
+
+            var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+                machines,
+                connections,
+                board.Mode == BoardMode.Running,
+                _economy.SimulationTickIntervalSeconds,
+                runtime,
+                delta,
+                poolQty,
+                null,
+                poolVariants));
+
+            snapshots.Add(new PlayerBoardSeaportFlowSnapshot(
+                board.Mode == BoardMode.Running,
+                _economy.SimulationTickIntervalSeconds,
+                delta,
+                report.IntoFactory,
+                report.OutOfFactory,
+                report.SeaportPorts));
+        }
+
+        return PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
+    }
+
     private BoardSummaryDto ToSummary(BoardEntity b) =>
         BuildSummary(
             b,

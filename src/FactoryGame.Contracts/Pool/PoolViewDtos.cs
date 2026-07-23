@@ -15,7 +15,15 @@ public sealed record PoolElementGroupDto(
     string Symbol,
     string DisplayName,
     long TotalQuantity,
-    IReadOnlyList<PoolVariantStackDto> Variants);
+    IReadOnlyList<PoolVariantStackDto> Variants,
+    PoolElementFactoryFlowDto? FactoryFlow = null);
+
+public sealed record PoolElementFactoryFlowDto(
+    bool ConsumedByFactory,
+    bool ProducedByFactory,
+    double? ConsumeUnitsPerSecond,
+    double? ProduceUnitsPerSecond,
+    bool FlowIsEstimate);
 
 public sealed record PoolVariantStackDto(
     int ElementId,

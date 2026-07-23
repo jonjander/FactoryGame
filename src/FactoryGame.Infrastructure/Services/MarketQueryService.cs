@@ -4,13 +4,14 @@ using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Dna;
 using FactoryGame.Domain.Market;
 using FactoryGame.Domain.Names;
+using FactoryGame.Domain.Simulation;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace FactoryGame.Infrastructure.Services;
 
-public sealed class MarketQueryService(AppDbContext db)
+public sealed class MarketQueryService(AppDbContext db, BoardService boardService)
 {
     public async Task<IReadOnlyList<MarketElementSummary>> GetSummaryForPlayerAsync(
         Guid playerId,
@@ -68,6 +69,7 @@ public sealed class MarketQueryService(AppDbContext db)
 
         var ranks = await GetGlobalPriceRanksAsync(ct);
         var catalogSize = ElementCatalog.All.Count;
+        var factoryFlows = await boardService.GetPlayerSeaportElementFlowsAsync(playerId, ct);
         var stackViews = new List<PoolStackViewDto>();
         var groups = new List<PoolElementGroupDto>();
         decimal totalValue = 0;
@@ -123,7 +125,8 @@ public sealed class MarketQueryService(AppDbContext db)
                 element.Symbol,
                 ElementNameGenerator.Generate(element.Dna, locale),
                 groupQty,
-                variants));
+                variants,
+                MapFactoryFlow(factoryFlows, element.Id)));
         }
 
         return new PoolOverviewDto(
@@ -132,6 +135,23 @@ public sealed class MarketQueryService(AppDbContext db)
             totalValue,
             stackViews,
             groups);
+    }
+
+    private static PoolElementFactoryFlowDto? MapFactoryFlow(
+        IReadOnlyDictionary<int, PoolElementFactoryFlow> flows,
+        int elementId)
+    {
+        if (!flows.TryGetValue(elementId, out var flow))
+            return null;
+        if (!flow.ConsumedByFactory && !flow.ProducedByFactory)
+            return null;
+
+        return new PoolElementFactoryFlowDto(
+            flow.ConsumedByFactory,
+            flow.ProducedByFactory,
+            flow.ConsumeUnitsPerSecond,
+            flow.ProduceUnitsPerSecond,
+            flow.FlowIsEstimate);
     }
 
     public async Task<IReadOnlyDictionary<int, int>> GetGlobalPriceRanksAsync(CancellationToken ct = default)

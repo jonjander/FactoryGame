@@ -465,7 +465,8 @@ public static class BoardInfoAnalyzer
             var rate = (double)qty / tickSec;
             intoFactory.Add(new SeaportFlowLine(
                 "pool", "SeaportPool", "out", null, null, rate,
-                $"Pool → factory: element {elementId}, {qty:0.##}/tick"));
+                $"Pool → factory: element {elementId}, {qty:0.##}/tick",
+                elementId));
         }
         foreach (var (elementId, qty) in delta.DepositedToPool)
         {
@@ -473,7 +474,8 @@ public static class BoardInfoAnalyzer
             var rate = (double)qty / tickSec;
             outOfFactory.Add(new SeaportFlowLine(
                 "pool", "SeaportPool", "in", null, null, rate,
-                $"Factory → pool: element {elementId}, {qty:0.##}/tick"));
+                $"Factory → pool: element {elementId}, {qty:0.##}/tick",
+                elementId));
         }
     }
 
@@ -547,7 +549,8 @@ public sealed record SeaportFlowLine(
     string? LinkedMachineId,
     string? LinkedPort,
     double UnitsPerSecond,
-    string Description);
+    string Description,
+    int? ElementId = null);
 
 public sealed record BoardIssue(string Severity, string Code, string Message, string? MachineId)
 {

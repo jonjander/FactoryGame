@@ -55,7 +55,21 @@ public static class MachineBlockedGuidance
 
         if (reason.Contains("explosivity", StringComparison.OrdinalIgnoreCase))
         {
+            if (t.Equals("Burner", StringComparison.OrdinalIgnoreCase))
+                return "Choose a less explosive gas or route to Burner only when flammability is in range.";
             return "Choose a less explosive element, cool down with Cooler, or disconnect Heater from this stream.";
+        }
+
+        if (reason.Contains("inert", StringComparison.OrdinalIgnoreCase)
+            && t.Equals("Burner", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Heat or blend with a more flammable gas before the Burner, or use another sink.";
+        }
+
+        if (reason.Contains("gas phase", StringComparison.OrdinalIgnoreCase)
+            && t.Equals("GasMixer", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Gas mixer accepts vapour only — use Boiler, Destilator (light out), or Heater upstream.";
         }
 
         if (reason.Contains("toxicity", StringComparison.OrdinalIgnoreCase))
