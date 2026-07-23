@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.18
+
+- **Exchange:** variant badge only in holdings, trade list and ticker header — full name on hover (`title`), no duplicate `E03-161903` text beside badge.
+
 ## 0.3.17
 
 - **Exchange:** fix Razor bug that showed literal `?? item.Symbol` next to variant badges in holdings and sell insights.

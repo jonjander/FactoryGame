@@ -61,8 +61,7 @@
             {
                 <li>
                     <strong>@insight.CompanyName</strong> buys
-                    <span class="fg-element-badge">@insight.Symbol</span>
-                    @insight.DisplayName
+                    <span class="fg-element-badge" title="@insight.DisplayName">@insight.Symbol</span>
                     @@ <strong>@insight.LimitPrice.ToString("0.##")</strong>
                     (volume @insight.OpenQuantity)
                     <button type="button" class="secondary" @onclick="() => ApplySellInsightAsync(insight)">Sell now</button>
@@ -95,7 +94,7 @@ else if (_summary.Count > 0)
                 @foreach (var item in _summary.OrderBy(s => s.DisplayName).ThenBy(s => s.Phase, StringComparer.Ordinal))
                 {
                     <tr class="@(IsSelected(item) ? "selected" : "")" @onclick="() => SelectVariantAsync(item)">
-                        <td><span class="fg-element-badge">@item.Symbol</span> @item.DisplayName</td>
+                        <td><span class="fg-element-badge" title="@item.DisplayName">@item.Symbol</span></td>
                         <td><span class="fg-phase-badge fg-phase-@item.Phase.ToLowerInvariant()">@item.PhaseLabel</span></td>
                         <td><strong>@item.PoolQuantity</strong></td>
                         <td>@item.LastPrice.ToString("0.##")</td>
@@ -114,7 +113,7 @@ else if (_summary.Count > 0)
                 {
                     <li class="@(IsSelected(item) ? "selected" : "")">
                         <button type="button" class="exchange-element-btn" @onclick="() => SelectVariantAsync(item)">
-                            <span class="exchange-element-name">@item.DisplayName</span>
+                            <span class="fg-element-badge exchange-element-name" title="@item.DisplayName">@item.Symbol</span>
                             <span class="exchange-element-meta">
                                 <span>@item.LastPrice.ToString("0.##")</span>
                                 @if (item.ChangePercent24h is { } ch)
@@ -136,7 +135,7 @@ else if (_summary.Count > 0)
             {
                 <div class="exchange-ticker">
                     <div>
-                        <h3>@_selected.DisplayName</h3>
+                        <h3><span class="fg-element-badge" title="@_selected.DisplayName">@_selected.Symbol</span></h3>
                         <p class="exchange-owned"><span class="fg-phase-badge fg-phase-@_selected.Phase.ToLowerInvariant()">@_selected.PhaseLabel</span> · <strong>@_selected.PoolQuantity</strong> in pool</p>
                     </div>
                     <span class="exchange-last">@_selected.LastPrice.ToString("0.##")</span>
