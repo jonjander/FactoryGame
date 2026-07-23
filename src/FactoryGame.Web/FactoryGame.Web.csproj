@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FactoryGame.Contracts\FactoryGame.Contracts.csproj" />
+    <ProjectReference Include="..\FactoryGame.Domain\FactoryGame.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

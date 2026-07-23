@@ -30,14 +30,6 @@ public static class SeaportPortFlowAnalyzer
                 AddConnectorPort(results, m, "in", "in", connTo, machineById, connections, runtime, lastDelta, isRunning);
                 AddConnectorPort(results, m, "out", "out", connFrom, machineById, connections, runtime, lastDelta, isRunning);
             }
-            else if (m.Type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase))
-            {
-                AddConnectorPort(results, m, "in", "in", connTo, machineById, connections, runtime, lastDelta, isRunning);
-            }
-            else if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
-            {
-                AddConnectorPort(results, m, "out", "out", connFrom, machineById, connections, runtime, lastDelta, isRunning);
-            }
         }
 
         return results;
@@ -210,16 +202,6 @@ public static class SeaportPortFlowAnalyzer
                 return (null, null);
             var outDna = SeaportConnectorProcessor.ResolveOutMaterialDna(settings, id);
             return (id, MaterialLabelFormatter.Format(id, outDna));
-        }
-
-        if (machine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
-            && portName.Equals("out", StringComparison.OrdinalIgnoreCase))
-        {
-            var id = SeaportConnectorProcessor.ParseOutElementId(settings);
-            if (id <= 0)
-                return (null, null);
-            var poolOutDna = SeaportConnectorProcessor.ResolveOutMaterialDna(settings, id);
-            return (id, MaterialLabelFormatter.Format(id, poolOutDna));
         }
 
         if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase)

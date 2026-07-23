@@ -54,13 +54,13 @@
 
     private static string GetSummary(string type) => type switch
     {
-        "Boiler" => "Raises temperature in the material DNA -- liquids get warmer and can be prepared for separation.",
-        "Heater" => "Increases energy/temperature band deterministically. Avoid highly explosive materials.",
-        "Cooler" => "Lowers energy/temperature. Toxic materials can block cooling.",
-        "Condenser" => "Converts gas to liquid by lowering the boiling-point band. Output symbol may stay the same (e.g. E04) -- check phase and pool variant.",
-        "Crystallizer" => "Freezes unstable liquid into solid form via freeze-point band.",
-        "Melter" => "Melts solid material to liquid via boiling band.",
-        "Mixer" => "Mixes two inputs. Low intensity = compact DNA; high intensity = unstable/volatile DNA for distillation.",
+        "Boiler" => "Pressurized liquid boiler — heats batches until they are ready for separation.",
+        "Heater" => "Direct heat coils for stepwise warming. Avoid highly explosive materials.",
+        "Cooler" => "Heat exchanger that pulls energy from the stream. Toxic materials can block cooling.",
+        "Condenser" => "Chilled coil converts gas to liquid. Output symbol may stay the same (e.g. E04) — check phase and pool variant.",
+        "Crystallizer" => "Supercooled bath locks unruly liquid into solid crystal.",
+        "Melter" => "Induction furnace melts solid feed into pourable liquid.",
+        "Mixer" => "Blends two inputs. Gentle mix keeps a stable blend; hard mix makes a volatile blend for distillation.",
         "Destilator" => "Separates liquid/gas into two fractions based on boiling point and reflux settings.",
         "LiquidSeparator" => "Splits liquid into two outputs at the chosen cut.",
         "Sorter" => "Routes configured base elements to ports 1-3; everything else goes to the rest port.",
@@ -72,10 +72,10 @@
     {
         "Boiler" => ["Requires liquid phase.", "Wire seaport out -> boiler in for a starter loop.", "Adjust heat for the process you want."],
         "Condenser" => ["Requires gas phase.", "Symbol may stay the same -- phase (gas->liquid) shows in factory info.", "Condensed liquid becomes its own pool variant at seaport in."],
-        "Destilator" => ["Requires liquid or gas phase -- not solid.", "Use Mixer on high intensity for volatile DNA.", "Set boil cut and reflux for desired fractions."],
-        "Mixer" => ["Two inputs (in1, in2).", "Balanced ratio gives predictable mixing.", "High intensity -> better distillation downstream."],
-        "Sorter" => ["Pick unique base elements on ports 1-3.", "Check that downstream machines tolerate the element DNA.", "Rest port catches everything unmatched."],
-        "SeaportConnector" => ["Pick pool variant (phase) -- e.g. E04 gas vs E04 liquid.", "Default is no outflow until you pick a variant.", "Wire in to pool to store production per DNA."],
+        "Destilator" => ["Requires liquid or gas phase — not solid.", "Use Mixer on hard mix for a volatile blend.", "Set boil cut and reflux for desired fractions."],
+        "Mixer" => ["Two inputs (in1, in2).", "Balanced ratio gives predictable blending.", "Hard mix -> better distillation downstream."],
+        "Sorter" => ["Pick unique base elements on ports 1-3.", "Check that downstream machines tolerate the incoming material.", "Rest port catches everything unmatched."],
+        "SeaportConnector" => ["Pick pool variant (phase) — e.g. E04 gas vs E04 liquid.", "Default is no outflow until you pick a variant.", "Wire in to pool to store production per variant."],
         "LiquidSeparator" => ["Liquids only.", "Cut controls where the split goes between out1 and out2."],
         _ => ["Place from machine inventory with a unique id.", "Save the plan after wiring and settings.", "Start the factory when seaport and loop are wired."]
     };
@@ -89,7 +89,7 @@
             "Mixer" => ("#3d2a5c", "#bc8cff"),
             "Destilator" or "LiquidSeparator" => ("#2a4a22", "#79c27a"),
             "Sorter" => ("#4a4222", "#d29922"),
-            "SeaportConnector" or "SeaportIn" or "SeaportOut" => ("#1a3d3d", "#39d353"),
+            "SeaportConnector" => ("#1a3d3d", "#39d353"),
             _ => ("#21262d", "#8b949e")
         };
 

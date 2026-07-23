@@ -10,7 +10,7 @@ public static class ElementPropertyNarrator
         var phase = DescribePhase(d.Phase);
         var risks = DescribeRisks(d.Explosivity, d.Flammability, d.Toxicity);
         var thermal = DescribeThermal(d.BoilingPoint, d.FreezePoint);
-        var family = $"It belongs to family {d.FamilyId} in the catalog — the same DNA always yields the same properties in simulation.";
+        var family = $"It belongs to family {d.FamilyId} in the catalog.";
 
         return $"{element.Name} ({element.Symbol}) is a base element in {phase}. {risks} {thermal} {family}";
     }

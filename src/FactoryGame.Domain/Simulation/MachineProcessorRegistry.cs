@@ -18,9 +18,7 @@ public static class MachineProcessorRegistry
             new Processors.TankProcessor(),
             new Processors.JunctionProcessor(),
             new Processors.RateLimiterProcessor(),
-            new Processors.SeaportConnectorProcessor(),
-            new Processors.SeaportInProcessor(),
-            new Processors.SeaportOutProcessor()
+            new Processors.SeaportConnectorProcessor()
         }.ToDictionary(p => p.MachineType, StringComparer.OrdinalIgnoreCase);
 
     public static IMachineProcessor Resolve(string machineType) =>

@@ -43,8 +43,7 @@ internal static class MaterialFlowTrace
 
         var settings = machine.Settings?.GetRawText();
 
-        if ((machine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-             || machine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+        if (machine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
             && portName.Equals("out", StringComparison.OrdinalIgnoreCase))
         {
             var id = SeaportConnectorProcessor.ParseOutElementId(settings);
@@ -109,7 +108,7 @@ internal static class MaterialFlowTrace
             var coolDelta = MachineSettingsJson.ReadInt(machine.Settings?.GetRawText(), 8, 4, 32,
                 "coolDelta", "cool", "power");
             outputDna = DnaTransforms.Cool(sourceDna, coolDelta);
-            note = DnaBandDiagnostics.FormatCoolerStep(sourceDna, outputDna, coolDelta);
+            note = DnaBandDiagnostics.FormatCoolerStep(sourceDna, outputDna);
         }
         else if (machine.Type.Equals("Condenser", StringComparison.OrdinalIgnoreCase))
         {

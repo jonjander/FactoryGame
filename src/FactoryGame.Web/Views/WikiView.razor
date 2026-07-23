@@ -13,7 +13,7 @@
         <div class="wiki-hero-top">
             <div>
                 <h2 class="wiki-title">Game wiki</h2>
-                <p class="muted wiki-subtitle">100% generated from the same rule data as the server -- machines, DNA, and base elements in real time.</p>
+                <p class="muted wiki-subtitle">Look up machines, base elements, and material DNA before you wire your factory.</p>
             </div>
             <button type="button" class="secondary wiki-refresh" @onclick="LoadAsync" disabled="@_busy">
                 @(_busy ? "Loading..." : "Refresh")
@@ -30,8 +30,6 @@
                 <span>@_wiki.Machines.Count machines</span>
                 <span aria-hidden="true">·</span>
                 <span>@_wiki.Elements.Count base elements</span>
-                <span aria-hidden="true">·</span>
-                <span>names v@_wiki.NameGeneratorVersion</span>
             </div>
             <p class="wiki-daily-tip">@WikiPresentation.DailyTip(_wiki.Machines)</p>
         }
@@ -74,7 +72,7 @@
     {
         <section class="panel wiki-dna-explainer">
             <h3>DNA -- the game's chemical fingerprint</h3>
-            <p>Each base element has 64-bit DNA encoding phase, explosivity, boil/freeze point, and family. Machines read and write bands -- deterministically, no magic exceptions per element.</p>
+            <p>Each material carries a DNA fingerprint — phase, volatility, boiling and freezing temperament, and chemical family. Machines reshape that fingerprint as material flows through the factory.</p>
             <div class="wiki-dna-legend">
                 <span class="wiki-legend-chip wiki-dna-bar-phase">Phase</span>
                 <span class="wiki-legend-chip wiki-dna-bar-explosive">Explosive</span>
@@ -93,7 +91,7 @@
     else if (_wiki is not null)
     {
         <div class="wiki-layout @GetWikiLayoutClass()">
-            <aside class="wiki-sidebar panel">
+            <aside class="wiki-sidebar panel @GetWikiSidebarClass()">
                 @if (_activeTab == "overview")
                 {
                     <h3 class="wiki-sidebar-title">Quick links</h3>
@@ -126,20 +124,22 @@
                 }
                 else if (_activeTab == "machines")
                 {
-                    <h3 class="wiki-sidebar-title">Filter</h3>
-                    <div class="wiki-filter-chips">
-                        <button type="button" class="wiki-chip @(_machineCategory == "" ? "wiki-chip-active" : "")" @onclick='() => _machineCategory = ""'>All</button>
-                        @foreach (var cat in MachineCategories)
-                        {
-                            <button type="button"
-                                    class="wiki-chip @(_machineCategory == cat ? "wiki-chip-active" : "")"
-                                    @onclick="() => _machineCategory = cat">
-                                @WikiPresentation.MachineCategoryLabel(cat)
-                            </button>
-                        }
+                    <div class="wiki-sidebar-head">
+                        <h3 class="wiki-sidebar-title">Filter</h3>
+                        <div class="wiki-filter-chips">
+                            <button type="button" class="wiki-chip @(_machineCategory == "" ? "wiki-chip-active" : "")" @onclick='() => _machineCategory = ""'>All</button>
+                            @foreach (var cat in MachineCategories)
+                            {
+                                <button type="button"
+                                        class="wiki-chip @(_machineCategory == cat ? "wiki-chip-active" : "")"
+                                        @onclick="() => _machineCategory = cat">
+                                    @WikiPresentation.MachineCategoryLabel(cat)
+                                </button>
+                            }
+                        </div>
+                        <p class="muted wiki-sidebar-hint">@FilteredMachines.Count() matches</p>
                     </div>
-                    <p class="muted wiki-sidebar-hint">@FilteredMachines.Count() matches</p>
-                    <ul class="wiki-sidebar-list">
+                    <ul class="wiki-sidebar-list wiki-sidebar-scroll">
                         @foreach (var m in FilteredMachines)
                         {
                             <li class="@(_selectedMachine?.Type == m.Type ? "selected" : "")">
@@ -153,15 +153,17 @@
                 }
                 else
                 {
-                    <h3 class="wiki-sidebar-title">Base elements</h3>
-                    <div class="wiki-filter-chips">
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = ""'>All phases</button>
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Gas" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Gas"'>Gas</button>
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Liquid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Liquid"'>Liquid</button>
-                        <button type="button" class="wiki-chip @(_elementPhaseFilter == "Solid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Solid"'>Solid</button>
+                    <div class="wiki-sidebar-head">
+                        <h3 class="wiki-sidebar-title">Base elements</h3>
+                        <div class="wiki-filter-chips">
+                            <button type="button" class="wiki-chip @(_elementPhaseFilter == "" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = ""'>All phases</button>
+                            <button type="button" class="wiki-chip @(_elementPhaseFilter == "Gas" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Gas"'>Gas</button>
+                            <button type="button" class="wiki-chip @(_elementPhaseFilter == "Liquid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Liquid"'>Liquid</button>
+                            <button type="button" class="wiki-chip @(_elementPhaseFilter == "Solid" ? "wiki-chip-active" : "")" @onclick='() => _elementPhaseFilter = "Solid"'>Solid</button>
+                        </div>
+                        <p class="muted wiki-sidebar-hint">@FilteredElements.Count() matches</p>
                     </div>
-                    <p class="muted wiki-sidebar-hint">@FilteredElements.Count() matches</p>
-                    <ul class="wiki-sidebar-list wiki-sidebar-list-elements">
+                    <ul class="wiki-sidebar-list wiki-sidebar-list-elements wiki-sidebar-scroll">
                         @foreach (var item in FilteredElements.Take(120))
                         {
                             var el = GetElementDetail(item.Id);
@@ -279,7 +281,7 @@
                         </ul>
 
                         <div class="wiki-detail-actions">
-                            <a class="button-link" href="/boards">Build in factory -></a>
+                            <a class="button-link" href="/boards">Build in factory</a>
                             <button type="button" class="secondary" @onclick="ClearMachineSelection">Close</button>
                         </div>
                     </article>
@@ -329,9 +331,11 @@
                             <dt>Family</dt><dd>@element.Decoded.FamilyId</dd>
                         </dl>
 
+                        <WikiElementInputMachines Element="element" OnSelectMachine="SelectMachineByType" />
+
                         <div class="wiki-detail-actions">
-                            <a class="button-link" href="@ExchangeHrefFor(element)">Trade on exchange -></a>
-                            <a class="button-link secondary-link" href="/pool">View pool -></a>
+                            <a class="button-link" href="@ExchangeHrefFor(element)">Trade on exchange</a>
+                            <a class="button-link secondary-link" href="/pool">View pool</a>
                             <button type="button" class="secondary" @onclick="ClearElementSelection">Close</button>
                         </div>
                     </article>
@@ -361,7 +365,7 @@
                 </div>
                 <p class="wiki-detail-summary">@WikiPresentation.ExtendedSummary(sheetMachine.Type, sheetMachine.Summary)</p>
                 <div class="wiki-detail-actions">
-                    <a class="button-link" href="/boards">Build in factory -></a>
+                    <a class="button-link" href="/boards">Build in factory</a>
                     <button type="button" class="secondary" @onclick="ClearMachineSelection">Close</button>
                 </div>
             </div>
@@ -382,8 +386,9 @@
                 </div>
                 <p class="wiki-detail-narrative">@ElementPropertyNarrator.Describe(sheetElement)</p>
                 <WikiDnaChart Element="sheetElement" />
+                <WikiElementInputMachines Element="sheetElement" OnSelectMachine="SelectMachineByType" />
                 <div class="wiki-detail-actions">
-                    <a class="button-link" href="@ExchangeHrefFor(sheetElement)">Trade on exchange -></a>
+                    <a class="button-link" href="@ExchangeHrefFor(sheetElement)">Trade on exchange</a>
                     <button type="button" class="secondary" @onclick="ClearElementSelection">Close</button>
                 </div>
             </div>
@@ -419,8 +424,18 @@
     private bool ShowMobileDetailSheet =>
         !Viewport.UseGameShell && (_selectedMachine != null || _selectedElementId != null);
 
-    private string GetWikiLayoutClass() =>
-        ShowMobileDetailSheet ? "wiki-layout-detail-open" : "";
+    private string GetWikiLayoutClass()
+    {
+        var parts = new List<string>();
+        if (ShowMobileDetailSheet)
+            parts.Add("wiki-layout-detail-open");
+        if (_activeTab == "machines" && _selectedMachine == null)
+            parts.Add("wiki-layout-machines-browse");
+        return string.Join(' ', parts);
+    }
+
+    private string GetWikiSidebarClass() =>
+        _activeTab is "machines" or "elements" ? "wiki-sidebar-picker" : "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -592,6 +607,14 @@
         _activeTab = "machines";
         if (updateUrl)
             UpdateUrl(machine: machine.Type);
+    }
+
+    private void SelectMachineByType(string machineType)
+    {
+        var machine = _wiki?.Machines.FirstOrDefault(m =>
+            m.Type.Equals(machineType, StringComparison.OrdinalIgnoreCase));
+        if (machine != null)
+            SelectMachine(machine);
     }
 
     private void SelectElement(int elementId, bool updateUrl = true)

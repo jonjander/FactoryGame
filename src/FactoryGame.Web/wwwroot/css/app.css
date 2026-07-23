@@ -1562,9 +1562,15 @@ input:disabled {
 
 .exchange-order-fields {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.5rem 0.75rem;
     align-items: end;
+}
+
+@media (max-width: 480px) {
+    .exchange-order-fields {
+        grid-template-columns: 1fr;
+    }
 }
 
 .exchange-order-fields label {
@@ -1637,12 +1643,15 @@ input:disabled {
 }
 
 .exchange-order-submit {
+    grid-column: 1 / -1;
     display: flex;
-    align-items: flex-end;
+    margin-top: 0.25rem;
 }
 
 .exchange-order-submit button[type="submit"] {
-    min-width: 10rem;
+    width: 100%;
+    max-width: 16rem;
+    min-width: 0;
 }
 
 .exchange-trades h4 {
@@ -2093,6 +2102,21 @@ button.danger-outline:hover:not(:disabled) {
     background: linear-gradient(180deg, #58a6ff, #1f6feb);
 }
 
+.pool-dna-chart .wiki-dna-bar-phase,
+.wiki-dna-chart .wiki-dna-bar-phase { background: linear-gradient(180deg, #bc8cff, #8957e5); }
+.pool-dna-chart .wiki-dna-bar-explosive,
+.wiki-dna-chart .wiki-dna-bar-explosive { background: linear-gradient(180deg, #f85149, #da3633); }
+.pool-dna-chart .wiki-dna-bar-fire,
+.wiki-dna-chart .wiki-dna-bar-fire { background: linear-gradient(180deg, #f0883e, #bd561d); }
+.pool-dna-chart .wiki-dna-bar-toxic,
+.wiki-dna-chart .wiki-dna-bar-toxic { background: linear-gradient(180deg, #3fb950, #238636); }
+.pool-dna-chart .wiki-dna-bar-boil,
+.wiki-dna-chart .wiki-dna-bar-boil { background: linear-gradient(180deg, #58a6ff, #1f6feb); }
+.pool-dna-chart .wiki-dna-bar-freeze,
+.wiki-dna-chart .wiki-dna-bar-freeze { background: linear-gradient(180deg, #79c0ff, #388bfd); }
+.pool-dna-chart .wiki-dna-bar-family,
+.wiki-dna-chart .wiki-dna-bar-family { background: linear-gradient(180deg, #8b949e, #484f58); }
+
 .pool-dna-label {
     font-size: 0.65rem;
     color: #8b949e;
@@ -2270,19 +2294,68 @@ button.danger-outline:hover:not(:disabled) {
     .wiki-layout {
         grid-template-columns: 1fr;
     }
+
+    .wiki-sidebar {
+        position: static;
+        max-height: none;
+        box-shadow: none;
+        overflow: visible;
+    }
+
+    .wiki-sidebar-picker {
+        overflow: visible;
+    }
+
+    .wiki-sidebar-picker .wiki-sidebar-scroll {
+        max-height: min(42vh, 360px);
+        flex: none;
+    }
+
+    /* Machines browse duplicates the sidebar list — hide card grid on narrow viewports. */
+    .wiki-layout-machines-browse .wiki-main > .wiki-machine-grid {
+        display: none;
+    }
 }
 
 .wiki-sidebar {
     margin-bottom: 0;
     position: sticky;
     top: 0.75rem;
+    z-index: 5;
+    background: #161b22;
     max-height: calc(100vh - 5rem);
     overflow: auto;
+    box-shadow: 0 10px 28px rgba(1, 4, 9, 0.35);
+}
+
+.wiki-sidebar-picker {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.wiki-sidebar-head {
+    flex-shrink: 0;
+    padding-bottom: 0.15rem;
+    border-bottom: 1px solid #21262d;
+    margin-bottom: 0.35rem;
+    background: #161b22;
+}
+
+.wiki-sidebar-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .wiki-sidebar-title {
     margin: 0 0 0.65rem;
     font-size: 0.95rem;
+}
+
+.wiki-sidebar-head .wiki-sidebar-title {
+    margin-bottom: 0.5rem;
 }
 
 .wiki-sidebar-subtitle {
@@ -2519,8 +2592,71 @@ button.danger-outline:hover:not(:disabled) {
 }
 
 .wiki-section-label {
-    margin: 0 0 0.5rem;
-    font-size: 0.9rem;
+    margin: 1rem 0 0.45rem;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8b949e;
+}
+
+.wiki-input-machine-list {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.wiki-input-machine-btn {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    color: inherit;
+    cursor: pointer;
+}
+
+.wiki-input-machine-btn:hover {
+    border-color: #58a6ff;
+    background: #1c2d41;
+}
+
+.wiki-input-machine-note {
+    margin: 0.2rem 0 0 1.85rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.wiki-input-section-hint {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 0.78rem;
+}
+
+.wiki-input-blocked {
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+}
+
+.wiki-input-blocked summary {
+    cursor: pointer;
+    margin-bottom: 0.35rem;
+}
+
+.wiki-input-machine-list-blocked li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #21262d;
+}
+
+.wiki-input-machine-list-blocked .wiki-input-machine-name {
     color: #8b949e;
 }
 
@@ -2819,14 +2955,6 @@ button.danger-outline:hover:not(:disabled) {
     align-items: flex-start;
 }
 
-.wiki-dna-chart .wiki-dna-bar-phase { background: linear-gradient(180deg, #bc8cff, #8957e5); }
-.wiki-dna-chart .wiki-dna-bar-explosive { background: linear-gradient(180deg, #f85149, #da3633); }
-.wiki-dna-chart .wiki-dna-bar-fire { background: linear-gradient(180deg, #f0883e, #bd561d); }
-.wiki-dna-chart .wiki-dna-bar-toxic { background: linear-gradient(180deg, #3fb950, #238636); }
-.wiki-dna-chart .wiki-dna-bar-boil { background: linear-gradient(180deg, #58a6ff, #1f6feb); }
-.wiki-dna-chart .wiki-dna-bar-freeze { background: linear-gradient(180deg, #79c0ff, #388bfd); }
-.wiki-dna-chart .wiki-dna-bar-family { background: linear-gradient(180deg, #8b949e, #484f58); }
-
 .wiki-legend-chip.wiki-dna-bar-phase { background: #8957e5; }
 .wiki-legend-chip.wiki-dna-bar-explosive { background: #da3633; }
 .wiki-legend-chip.wiki-dna-bar-fire { background: #bd561d; }
@@ -2840,6 +2968,130 @@ button.danger-outline:hover:not(:disabled) {
     align-items: flex-end;
     gap: 0.75rem 1rem;
     margin: 0.75rem 0 1rem;
+}
+
+.account-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.account-summary {
+    margin: 0.25rem 0 0.75rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    background: #0d1117;
+}
+
+.account-total {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.account-total-label {
+    font-size: 0.85rem;
+}
+
+.account-total-value {
+    font-size: 1.75rem;
+    line-height: 1.2;
+}
+
+.account-breakdown {
+    margin: 0.35rem 0 0.75rem;
+    font-size: 0.85rem;
+}
+
+.account-periods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.account-period-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    min-width: 3.5rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    background: #161b22;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.account-period-btn:hover {
+    border-color: #58a6ff;
+}
+
+.account-period-active {
+    border-color: #58a6ff;
+    background: #1c2d41;
+}
+
+.account-period-label {
+    font-weight: 600;
+    color: #c9d1d9;
+}
+
+.account-period-up {
+    color: #3fb950;
+}
+
+.account-period-down {
+    color: #f85149;
+}
+
+.account-period-flat {
+    color: #8b949e;
+}
+
+.account-chart-wrap {
+    min-height: 160px;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    background: #010409;
+    overflow: hidden;
+}
+
+.account-chart {
+    display: block;
+    width: 100%;
+    height: 160px;
+}
+
+.account-chart-line {
+    fill: none;
+    stroke-width: 2;
+}
+
+.account-chart-up {
+    stroke: #3fb950;
+}
+
+.account-chart-down {
+    stroke: #f85149;
+}
+
+.account-chart-empty {
+    margin: 0;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.tx-positive {
+    color: #3fb950;
+}
+
+.tx-negative {
+    color: #f85149;
 }
 
 .tx-filter-field {

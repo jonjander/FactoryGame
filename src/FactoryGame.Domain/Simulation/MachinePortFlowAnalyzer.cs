@@ -246,8 +246,7 @@ public static class MachinePortFlowAnalyzer
             return null;
 
         var settings = sourceMachine.Settings?.GetRawText();
-        if (sourceMachine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-            || sourceMachine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+        if (sourceMachine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
         {
             var elementId = SeaportConnectorProcessor.ParseOutElementId(settings);
             if (elementId <= 0)
@@ -309,8 +308,7 @@ public static class MachinePortFlowAnalyzer
             return null;
 
         var settings = sourceMachine.Settings?.GetRawText();
-        if (sourceMachine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-            || sourceMachine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+        if (sourceMachine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
         {
             var elementId = SeaportConnectorProcessor.ParseOutElementId(settings);
             return elementId > 0 ? elementId : null;
@@ -355,8 +353,7 @@ public static class MachinePortFlowAnalyzer
 
     private static bool IsPoolOutMachine(string type, string portName) =>
         portName.Equals("out", StringComparison.OrdinalIgnoreCase)
-        && (type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-            || type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase));
+        && type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase);
 
     private static string BuildSummary(
         string? inputSymbol,

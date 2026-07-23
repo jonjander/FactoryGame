@@ -33,6 +33,6 @@ internal static class DnaBandDiagnostics
         return $"heating — boiling point {boil}, cut {cutBoil}: after one pass ~{afterOnePass} (need ≥{cutBoil}, short by {need})";
     }
 
-    public static string FormatCoolerStep(long dnaBefore, long dnaAfter, int coolDelta) =>
-        $"cooled in Cooler (boil band {ReadBoilBand(dnaBefore)}→{ReadBoilBand(dnaAfter)}, Δ−{coolDelta})";
+    public static string FormatCoolerStep(long dnaBefore, long dnaAfter) =>
+        $"cooled in Cooler (boiling point {ReadBoilBand(dnaBefore)}→{ReadBoilBand(dnaAfter)})";
 }

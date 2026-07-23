@@ -46,8 +46,6 @@ public static class BoardInfoAnalyzer
 
             foreach (var p in ports)
             {
-                if (IsImplicitSeaportPort(m.Type, p))
-                    continue;
                 if (!connectedPorts.Contains(p.Name))
                 {
                     issues.Add(BoardIssue.Warning(
@@ -57,7 +55,7 @@ public static class BoardInfoAnalyzer
                 }
             }
 
-            if (connectedPorts.Count == 0 && !IsSeaportOnlyType(m.Type))
+            if (connectedPorts.Count == 0)
             {
                 issues.Add(BoardIssue.Warning(
                     "machine_isolated",
@@ -192,7 +190,6 @@ public static class BoardInfoAnalyzer
             return 0;
 
         return machines
-            .Where(m => !IsSeaportOnlyType(m.Type))
             .Select(m => MachineEffectiveUnitRate(m, tickSec))
             .DefaultIfEmpty(0)
             .Min();
@@ -206,22 +203,7 @@ public static class BoardInfoAnalyzer
             connections.Select(c => new SimulationConnection(c.FromId, c.FromPort, c.ToId, c.ToPort)).ToList());
 
     private static bool IsSeaportType(string type) =>
-        type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-        || type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
-        || type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSeaportOnlyType(string type) =>
-        type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
-        || type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsImplicitSeaportPort(string machineType, MachinePort port)
-    {
-        if (machineType.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase) && port.Direction == PortDirection.In)
-            return true;
-        if (machineType.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase) && port.Direction == PortDirection.Out)
-            return true;
-        return false;
-    }
+        type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase);
 
     private static void CollectSeaportFlows(
         MachineInfo m,
@@ -233,8 +215,7 @@ public static class BoardInfoAnalyzer
         List<BoardIssue> issues)
     {
         var unitRate = MachineEffectiveUnitRate(m, tickSec);
-        if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
-            || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
+        if (m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
         {
             if (connFrom.TryGetValue((m.Id, "out"), out var c))
             {
@@ -249,34 +230,19 @@ public static class BoardInfoAnalyzer
                     $"Seaport «{m.Id}» is not feeding into the factory (output «out» not connected).",
                     m.Id));
             }
-        }
 
-        if (m.Type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase)
-            || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
-        {
-            if (connTo.TryGetValue((m.Id, "in"), out var c))
+            if (connTo.TryGetValue((m.Id, "in"), out var cIn))
             {
                 outOfFactory.Add(new SeaportFlowLine(
-                    m.Id, m.Type, "in", c.FromId, c.FromPort, unitRate,
-                    $"Factory → pool via {c.FromId}.{c.FromPort} → {m.Id}.in"));
-            }
-            else if (m.Type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase))
-            {
-                issues.Add(BoardIssue.Warning(
-                    "seaport_out_idle",
-                    $"Seaport «{m.Id}» is not receiving from the factory (input «in» not connected).",
-                    m.Id));
+                    m.Id, m.Type, "in", cIn.FromId, cIn.FromPort, unitRate,
+                    $"Factory → pool via {cIn.FromId}.{cIn.FromPort} → {m.Id}.in"));
             }
         }
     }
 
-    private static bool SeaportExpectsWithdraw(MachineInfo m)
-    {
-        if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
-            return true;
-        return m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-               && SeaportConnectorProcessor.ParseOutElementId(m.Settings?.GetRawText()) > 0;
-    }
+    private static bool SeaportExpectsWithdraw(MachineInfo m) =>
+        m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+        && SeaportConnectorProcessor.ParseOutElementId(m.Settings?.GetRawText()) > 0;
 
     private static void CollectMelterSlowMeltIssues(
         IReadOnlyList<MachinePortFlowDetail> flows,
@@ -403,8 +369,7 @@ public static class BoardInfoAnalyzer
     {
         foreach (var m in machines)
         {
-            if (!m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-                && !m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+            if (!m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             if (!connFrom.ContainsKey((m.Id, "out")))

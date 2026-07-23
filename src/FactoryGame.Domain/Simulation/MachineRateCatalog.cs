@@ -19,8 +19,6 @@ public static class MachineRateCatalog
             ["LiquidSeparator"] = Profile(650, In("in", 1000), Out("out1", 390, "out2", 260), opRate: true, timeDna: false),
             ["Sorter"] = Profile(900, In("in", 1000), Out("out1", 1000, "out2", 1000, "out3", 1000, "out4", 1000)),
             ["SeaportConnector"] = Profile(1000, In("in", 1000), Out("out", 1000)),
-            ["SeaportIn"] = Profile(1000, Out("out", 1000)),
-            ["SeaportOut"] = Profile(1000, In("in", 1000)),
             ["Tank"] = Profile(1000, In("in", 1000), Out("out", 1000)),
             ["Junction"] = Profile(1000, In("in", 1000), Out("out1", 1000, "out2", 1000)),
             ["RateLimiter"] = Profile(1000, In("in", 1000), Out("out", 1000), rateCap: true)

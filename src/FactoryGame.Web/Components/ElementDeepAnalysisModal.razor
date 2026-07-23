@@ -20,18 +20,7 @@
             <p class="pool-analysis-narrative">@ElementPropertyNarrator.Describe(Element)</p>
 
             <h4 class="pool-analysis-section-title">DNA breakdown</h4>
-            <div class="pool-dna-chart" aria-label="DNA bands">
-                @foreach (var band in GetDnaBands(Element))
-                {
-                    <div class="pool-dna-band">
-                        <div class="pool-dna-bar-wrap">
-                            <div class="pool-dna-bar" style="height: @(band.Percent)%"></div>
-                        </div>
-                        <span class="pool-dna-label">@band.Label</span>
-                        <span class="pool-dna-value muted">@band.ValueText</span>
-                    </div>
-                }
-            </div>
+            <WikiDnaChart Element="Element" />
             <p class="muted pool-dna-hex">DNA: @FormatDnaHex(EffectiveDna)</p>
 
             <h4 class="pool-analysis-section-title">Properties</h4>
@@ -85,34 +74,4 @@
     private static string FormatDnaHex(long dna) => $"0x{dna.ToString("X16", CultureInfo.InvariantCulture)}";
 
     private Task CloseAsync() => OnClose.InvokeAsync();
-
-    private static IReadOnlyList<DnaBand> GetDnaBands(ElementContentItem element)
-    {
-        var d = element.Decoded;
-        return
-        [
-            Band("Phase", PhasePercent(d.Phase), d.Phase),
-            Band("Explosive", d.Explosivity, $"{d.Explosivity}%"),
-            Band("Fire", d.Flammability, $"{d.Flammability}%"),
-            Band("Toxic", d.Toxicity, $"{d.Toxicity}%"),
-            Band("Boil", NormalizeBucket(d.BoilingPoint), d.BoilingPoint.ToString()),
-            Band("Freeze", NormalizeBucket(d.FreezePoint), d.FreezePoint.ToString()),
-            Band("Family", NormalizeBucket(d.FamilyId, 262143), d.FamilyId.ToString())
-        ];
-    }
-
-    private static int PhasePercent(string phase) => phase switch
-    {
-        "Liquid" => 55,
-        "Gas" => 90,
-        _ => 25
-    };
-
-    private static int NormalizeBucket(int value, int max = 4095) =>
-        max <= 0 ? 0 : Math.Clamp((int)Math.Round(value * 100.0 / max), 4, 100);
-
-    private static DnaBand Band(string label, int percent, string valueText) =>
-        new(label, Math.Clamp(percent, 4, 100), valueText);
-
-    private sealed record DnaBand(string Label, int Percent, string ValueText);
 }

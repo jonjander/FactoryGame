@@ -135,6 +135,30 @@ public static class PlayerEndpoints
             .WithName("GetMyPoolView")
             .WithOpenApi();
 
+        group.MapGet("/me/economy/overview", async Task<IResult> (
+                HttpContext http,
+                PlayerPoolBootstrapService poolBootstrap,
+                PlayerEconomyService economy,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+
+                await poolBootstrap.EnsureStarterPoolAsync(playerId, ct);
+
+                var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
+                if (string.IsNullOrEmpty(locale))
+                    locale = "en";
+
+                var overview = await economy.GetOverviewAsync(playerId, locale, ct);
+                if (overview == null)
+                    return Results.NotFound();
+
+                return Results.Ok(overview);
+            })
+            .WithName("GetMyEconomyOverview")
+            .WithOpenApi();
+
         group.MapGet("/me/transactions", async Task<IResult> (
                 HttpContext http,
                 AppDbContext db,

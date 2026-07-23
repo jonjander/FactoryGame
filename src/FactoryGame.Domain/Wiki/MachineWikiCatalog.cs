@@ -7,22 +7,20 @@ public static class MachineWikiCatalog
 {
     public static IReadOnlyList<MachineWikiEntry> All { get; } =
     [
-        Entry("Boiler", "Raises temperature-related DNA bands using bitwise mask (v1)."),
-        Entry("LiquidSeparator", "Splits liquid fraction into two outputs by cut-point rules."),
-        Entry("Destilator", "Separation by boiling-point buckets vs DNA."),
-        Entry("Mixer", "Mixes two inputs; low intensity = poor/compact DNA, high intensity + processed inputs = volatile DNA for distillation."),
-        Entry("Heater", "Increases energy/temperature bits deterministically."),
-        Entry("Cooler", "Decreases energy/temperature bits deterministically."),
-        Entry("Condenser", "Condenses gas to liquid by lowering boil band (never outputs gas)."),
-        Entry("Crystallizer", "Crystallizes spread/unstable liquid to solid via freeze band (never outputs gas)."),
-        Entry("Melter", "Melts spread solid to liquid via boil band (compact solids pass through)."),
+        Entry("Boiler", "Pressurized liquid boiler — heats batches until they are ready for separation and refining."),
+        Entry("LiquidSeparator", "Splits a liquid stream into heavy and light fractions at your cut setting."),
+        Entry("Destilator", "Fractionating column — separates vapours by boiling point with reflux control."),
+        Entry("Mixer", "Blends two streams. Gentle mixing keeps a stable blend; vigorous mixing wakes volatile fractions for distillation."),
+        Entry("Heater", "Direct heat coils for stepwise warming when you need a nudge, not a full boil."),
+        Entry("Cooler", "Heat exchanger that pulls energy from the stream. Heavy toxins can foul the coils."),
+        Entry("Condenser", "Chilled coil that condenses gas to liquid — never sends vapour downstream."),
+        Entry("Crystallizer", "Supercools unruly liquid until it locks into solid crystal — never outputs gas."),
+        Entry("Melter", "Induction furnace for stubborn solids; spread-out feed melts to pourable liquid, compact ingots may pass through."),
         Entry("Sorter", "Routes configured elements to ports 1–3; all other to port 4 (rest)."),
         Entry("Tank", "Buffer storage with configurable capacity (small/medium/large)."),
         Entry("Junction", "Splits one input across two outputs with fair alternation or capacity-weighted routing."),
         Entry("RateLimiter", "Caps flow to a configured maximum rate."),
-        Entry("SeaportConnector", "Connects factory to seaport pool (in from pipes, out to pipes)."),
-        Entry("SeaportIn", "Legacy: pool → factory (out only)."),
-        Entry("SeaportOut", "Legacy: factory → pool (in only).")
+        Entry("SeaportConnector", "Connects factory to seaport pool (in from pipes, out to pipes).")
     ];
 
     /// <summary>Canonical port names from <see cref="MachinePortCatalog"/> as <c>in[,in2]:out[,out2]</c>.</summary>

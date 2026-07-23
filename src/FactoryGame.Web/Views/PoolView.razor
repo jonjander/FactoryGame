@@ -6,10 +6,10 @@
 
 <PageTitle>Pool</PageTitle>
 
-<ElementDeepAnalysisModal Visible="_analysisVisible"
-                          Element="_analysisElement"
-                          VariantDna="_analysisDna"
-                          VariantLabel="_analysisLabel"
+<ElementDeepAnalysisModal Visible="@_analysisVisible"
+                          Element="@_analysisElement"
+                          VariantDna="@_analysisDna"
+                          VariantLabel="@_analysisLabel"
                           OnClose="CloseAnalysisAsync" />
 
 @if (string.IsNullOrEmpty(Tokens.BearerToken))

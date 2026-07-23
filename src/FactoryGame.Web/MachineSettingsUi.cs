@@ -136,8 +136,7 @@ public static class MachineSettingsUi
                 new("port2", "Port 2", []),
                 new("port3", "Port 3", [])
             ];
-        if (t.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-            || t.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+        if (t.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
             return [new("outElementId", "Out element (pool withdraw only)", [])];
 
         return Array.Empty<MachineSettingField>();

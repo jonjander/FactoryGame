@@ -1,0 +1,85 @@
+@using FactoryGame.Domain.Simulation
+@using FactoryGame.Web.Models
+@using FactoryGame.Web.Services
+
+@if (_suitabilities.Count > 0)
+{
+    <h4 class="wiki-section-label">Suitable as input</h4>
+
+    @if (_good.Count > 0)
+    {
+        <ul class="wiki-input-machine-list">
+            @foreach (var row in _good)
+            {
+                <li>
+                    <button type="button" class="wiki-input-machine-btn" @onclick="() => SelectMachine(row.MachineType)">
+                        <span class="wiki-sidebar-emoji">@WikiPresentation.MachineEmoji(row.MachineType)</span>
+                        <span>@WikiPresentation.MachineDisplayName(row.MachineType)</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (_limited.Count > 0)
+    {
+        <p class="wiki-input-section-hint muted">Works with limits</p>
+        <ul class="wiki-input-machine-list wiki-input-machine-list-limited">
+            @foreach (var row in _limited)
+            {
+                <li>
+                    <button type="button" class="wiki-input-machine-btn" @onclick="() => SelectMachine(row.MachineType)">
+                        <span class="wiki-sidebar-emoji">@WikiPresentation.MachineEmoji(row.MachineType)</span>
+                        <span>@WikiPresentation.MachineDisplayName(row.MachineType)</span>
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(row.Note))
+                    {
+                        <p class="muted wiki-input-machine-note">@row.Note</p>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    @if (_blocked.Count > 0)
+    {
+        <details class="wiki-input-blocked">
+            <summary class="muted">@_blocked.Count machine(s) not suitable</summary>
+            <ul class="wiki-input-machine-list wiki-input-machine-list-blocked">
+                @foreach (var row in _blocked)
+                {
+                    <li>
+                        <span class="wiki-input-machine-name">@WikiPresentation.MachineDisplayName(row.MachineType)</span>
+                        @if (!string.IsNullOrWhiteSpace(row.Note))
+                        {
+                            <span class="muted wiki-input-machine-note">@row.Note</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ElementContentItem Element { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<string> OnSelectMachine { get; set; }
+
+    private IReadOnlyList<MachineInputSuitability> _suitabilities = [];
+    private IReadOnlyList<MachineInputSuitability> _good = [];
+    private IReadOnlyList<MachineInputSuitability> _limited = [];
+    private IReadOnlyList<MachineInputSuitability> _blocked = [];
+
+    protected override void OnParametersSet()
+    {
+        _suitabilities = MachineInputCompatibility.AssessElementInput(Element.Dna, Element.Id);
+        _good = _suitabilities.Where(s => s.Fit == MachineInputFit.Good).ToList();
+        _limited = _suitabilities.Where(s => s.Fit == MachineInputFit.Limited).ToList();
+        _blocked = _suitabilities.Where(s => s.Fit == MachineInputFit.Blocked).ToList();
+    }
+
+    private Task SelectMachine(string machineType) => OnSelectMachine.InvokeAsync(machineType);
+}

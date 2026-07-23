@@ -2,6 +2,14 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.20
+
+- **Account:** total estimated value (cash + pool + machines), performance chart over time, and change % for 1D / 1W / 1M / 1Y / MAX.
+- **Exchange:** order form layout fix (quantity vs submit).
+- **Wiki:** element detail lists machines suitable as input (phase, spread, safety — not just liquid/solid); sticky sidebar layout; cleaner machine lore; action buttons without trailing arrows.
+- **Pool:** info modal header shows variant name; DNA breakdown chart with per-band colors (shared with wiki).
+- **Sim:** legacy SeaportIn/SeaportOut removed — SeaportConnector only; player-facing block messages without DNA jargon.
+
 ## 0.3.19
 
 - **Pool info modal:** fix DNA hex display (`0x…` instead of literal Razor text); pass pool variant DNA; **Show in Exchange** opens `/exchange?elementId=&dna=&side=sell`.

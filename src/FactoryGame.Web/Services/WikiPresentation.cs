@@ -20,8 +20,6 @@ public static class WikiPresentation
         "Junction" => "Junction",
         "RateLimiter" => "Rate limiter",
         "SeaportConnector" => "Seaport connector",
-        "SeaportIn" => "Seaport in (legacy)",
-        "SeaportOut" => "Seaport out (legacy)",
         _ => type
     };
 
@@ -30,7 +28,7 @@ public static class WikiPresentation
         "Boiler" or "Heater" or "Cooler" or "Melter" => "heat",
         "Condenser" or "Crystallizer" => "phase",
         "Mixer" or "Destilator" or "LiquidSeparator" or "Sorter" => "separation",
-        "Tank" or "Junction" or "RateLimiter" or "SeaportConnector" or "SeaportIn" or "SeaportOut" => "logistics",
+        "Tank" or "Junction" or "RateLimiter" or "SeaportConnector" => "logistics",
         _ => "other"
     };
 
@@ -56,7 +54,7 @@ public static class WikiPresentation
         "Tank" => "🛢️",
         "Junction" => "⑂",
         "RateLimiter" => "🚦",
-        "SeaportConnector" or "SeaportIn" or "SeaportOut" => "🚢",
+        "SeaportConnector" => "🚢",
         _ => "⚙️"
     };
 
@@ -70,18 +68,18 @@ public static class WikiPresentation
         "Boiler" =>
         [
             "Requires liquid phase — gas will not pass through.",
-            "Raises temperature band in DNA deterministically.",
+            "Circulates steam through the coil until the batch is hot enough for separation.",
             "Connect seaport out -> boiler in for a simple starter loop."
         ],
         "Heater" =>
         [
-            "Increases energy/temperature band step by step.",
+            "Adds heat in steady steps through direct coils.",
             "Be careful with highly explosive materials.",
             "Good before separation that requires heat."
         ],
         "Cooler" =>
         [
-            "Lowers energy/temperature band.",
+            "Pulls heat out of the stream through a heat exchanger.",
             "Toxic materials can block cooling.",
             "Use before condensation or crystallization."
         ],
@@ -99,15 +97,15 @@ public static class WikiPresentation
         ],
         "Melter" =>
         [
-            "Melts spread-out solid to liquid via boiling band.",
+            "Spread-out solid needs sustained furnace heat before it pours.",
             "Compact solids may pass through unchanged.",
             "Good intermediate step before liquid processes."
         ],
         "Mixer" =>
         [
-            "Two inputs — ratio and intensity control DNA.",
-            "Low intensity -> compact, stable DNA.",
-            "High intensity -> volatile DNA for distillation."
+            "Two inputs — ratio and mixing intensity shape how stable the blend is.",
+            "Gentle mix -> stable, compact blend.",
+            "Hard mix -> volatile blend ready for distillation."
         ],
         "Destilator" =>
         [
@@ -125,12 +123,12 @@ public static class WikiPresentation
         [
             "Configure base elements on ports 1-3.",
             "Everything unmatched goes to the rest port.",
-            "Check that downstream tolerates the element DNA."
+            "Check that downstream tolerates the incoming material."
         ],
         "SeaportConnector" =>
         [
             "Out from pool -> in to factory.",
-            "In to pool stores production per DNA variant.",
+            "In to pool stores production per material variant.",
             "Pick the right phase (gas vs liquid) in settings."
         ],
         _ => ["Place from machine inventory.", "Save the plan after wiring.", "Start the factory when the loop is ready."]
@@ -192,7 +190,7 @@ public static class WikiPresentation
     public static string DailyTip(IReadOnlyList<WikiMachineItem> machines)
     {
         if (machines.Count == 0)
-            return "The wiki is generated live from the same rule data as the server — no manual pages.";
+            return "Search for a machine, element symbol, or phase to get started.";
 
         var day = DateTime.UtcNow.DayOfYear;
         var machine = machines[day % machines.Count];
@@ -201,17 +199,17 @@ public static class WikiPresentation
 
     private static string GetExtendedSummary(string type) => type switch
     {
-        "Boiler" => "Raises temperature in the material DNA with a bitwise mask — liquids get warmer and can be prepared for separation.",
-        "Heater" => "Deterministic heating of energy/temperature band. Simpler than the boiler but same phase rules.",
-        "Cooler" => "Deterministic cooling. Lowers temperature band — some toxic materials can block the process.",
-        "Condenser" => "Converts gas to liquid by lowering the boiling-point band. Output is always liquid.",
-        "Crystallizer" => "Unstable liquid crystallizes to solid form via freeze-point band. Never gas out.",
-        "Melter" => "Spread-out solid melts to liquid via boiling band. Compact solid may pass through.",
-        "Mixer" => "Mixes two streams. Intensity and ratio control whether DNA becomes compact or volatile.",
+        "Boiler" => "Pressurized liquid boiler — circulates heat until liquids are warm enough for separation and refining.",
+        "Heater" => "Direct heat coils for steady warming. Simpler than the boiler but same phase rules.",
+        "Cooler" => "Heat exchanger that strips energy from the stream. Some toxic materials can foul the coils.",
+        "Condenser" => "Chilled coil converts gas to liquid. Output is always liquid.",
+        "Crystallizer" => "Supercooled bath locks unruly liquid into solid crystal. Never gas out.",
+        "Melter" => "Induction furnace melts spread-out solid into pourable liquid. Compact solid may pass through.",
+        "Mixer" => "Blends two streams. Mix intensity and ratio decide whether the blend stays stable or turns volatile.",
         "Destilator" => "Fractionates material into two outputs based on boiling point and reflux.",
-        "LiquidSeparator" => "Splits liquid into two outputs at the chosen cut — faster than full distillation.",
+        "LiquidSeparator" => "Splits liquid into two fractions at the chosen cut — faster than full distillation.",
         "Sorter" => "Routes selected base elements to ports 1-3; the rest go to the rest port.",
-        "SeaportConnector" => "Bridge between factory and your seaport pool — material in/out per DNA variant.",
+        "SeaportConnector" => "Bridge between factory and your seaport pool — material in/out per variant.",
         _ => ""
     };
 }

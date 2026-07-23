@@ -1098,8 +1098,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
 
     public IReadOnlyList<MachineDto> GetSeaportOutMachines() =>
         GetPlanMachines().Where(m =>
-            m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-            || m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)).ToList();
+            m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)).ToList();
 
     public MachineDto? GetSettingsMachine()
     {

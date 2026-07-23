@@ -1,6 +1,7 @@
 using FactoryGame.Contracts.Boards;
 using FactoryGame.Contracts.Machines;
 using FactoryGame.Contracts.Pool;
+using FactoryGame.Domain.Simulation;
 using FactoryGame.Web.Models;
 
 namespace FactoryGame.Web;
@@ -36,7 +37,7 @@ public static class MachineSettingsWarnings
 
         foreach (var downstream in GetDownstreamMachines(machine, fieldJsonKey, planMachines, connections, machineMeta))
         {
-            var reason = GetIncompatibilityReason(downstream.Type, element.Decoded);
+            var reason = MachineInputCompatibility.GetPlayerBlockReason(downstream.Type, element.Dna);
             if (reason == null)
                 continue;
 
@@ -84,40 +85,7 @@ public static class MachineSettingsWarnings
     }
 
     private static bool IsSeaportOutMachine(string machineType) =>
-        machineType.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-        || machineType.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase);
-
-    private static string? GetIncompatibilityReason(string machineType, ElementDecodedProperties d)
-    {
-        var t = machineType.Trim();
-        var phase = d.Phase;
-
-        if (t.Equals("Boiler", StringComparison.OrdinalIgnoreCase) && phase != "Liquid")
-            return "Boiler requires liquid phase — melt solid material with Melter or pick another element.";
-
-        if (t.Equals("LiquidSeparator", StringComparison.OrdinalIgnoreCase) && phase != "Liquid")
-            return "Liquid separator requires liquid phase.";
-
-        if (t.Equals("Destilator", StringComparison.OrdinalIgnoreCase) && phase == "Solid")
-            return "Distillator blocked by solid phase — use Melter or pick a liquid/gas element.";
-
-        if (t.Equals("Condenser", StringComparison.OrdinalIgnoreCase) && phase != "Gas")
-            return "Condenser requires gas phase — heat liquid with Boiler/Heater.";
-
-        if (t.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase) && phase != "Liquid")
-            return "Crystallizer requires liquid phase.";
-
-        if (t.Equals("Melter", StringComparison.OrdinalIgnoreCase) && phase != "Solid")
-            return "Melter requires solid phase.";
-
-        if (t.Equals("Heater", StringComparison.OrdinalIgnoreCase) && d.Explosivity > 85)
-            return "Heater blocked — explosivity is too high. Pick a less explosive element.";
-
-        if (t.Equals("Cooler", StringComparison.OrdinalIgnoreCase) && d.Toxicity > 90)
-            return "Cooler blocked — toxicity is too high.";
-
-        return null;
-    }
+        machineType.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase);
 
     private static IEnumerable<MachineDto> GetDownstreamMachines(
         MachineDto source,
@@ -170,7 +138,6 @@ public static class MachineSettingsWarnings
     {
         if (fieldJsonKey == "outElementId")
             return machine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
-                   || machine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
                 ? ["out"]
                 : [];
 

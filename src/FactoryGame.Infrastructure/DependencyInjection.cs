@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ExchangeService>();
         services.AddScoped<MarketLiquidityService>();
         services.AddScoped<MarketQueryService>();
+        services.AddScoped<PlayerEconomyService>();
         services.AddHostedService<MarketLiquidityHostedService>();
         services.AddScoped<BoardService>();
         services.AddScoped<BoardSimulationRunner>();

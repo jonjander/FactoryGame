@@ -15,11 +15,56 @@
 }
 else
 {
-    <div class="panel">
+    <div class="panel account-page">
         <div class="pool-toolbar">
             <h2>Account</h2>
             <button type="button" class="secondary pool-refresh-btn" @onclick="LoadAsync" disabled="@_busy">Refresh</button>
         </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="error">@_error</p>
+        }
+        else if (_overview is not null)
+        {
+            <section class="account-summary">
+                <div class="account-total">
+                    <span class="muted account-total-label">Total estimated value</span>
+                    <strong class="account-total-value">@_overview.TotalValue.ToString("0.##")</strong>
+                </div>
+                <p class="muted account-breakdown">
+                    Cash @_overview.Cash.ToString("0.##")
+                    · Pool @_overview.PoolValue.ToString("0.##")
+                    · Machines @_overview.MachineValue.ToString("0.##")
+                </p>
+
+                <div class="account-periods" role="tablist" aria-label="Performance period">
+                    @foreach (var period in PeriodOptions)
+                    {
+                        var pct = GetPeriodPercent(period.Key);
+                        <button type="button"
+                                class="account-period-btn @(_selectedPeriod == period.Key ? "account-period-active" : "")"
+                                @onclick="() => SelectPeriod(period.Key)">
+                            <span class="account-period-label">@period.Label</span>
+                            <span class="@PeriodClass(pct)">@FormatPercent(pct)</span>
+                        </button>
+                    }
+                </div>
+
+                <div class="account-chart-wrap">
+                    @if (FilteredHistory.Count >= 2)
+                    {
+                        <svg class="account-chart" viewBox="0 0 @ChartWidth @ChartHeight" preserveAspectRatio="none">
+                            <polyline class="account-chart-line @ChartTrendClass" points="@ChartPoints" />
+                        </svg>
+                    }
+                    else
+                    {
+                        <p class="muted account-chart-empty">More activity is needed before a trend chart appears.</p>
+                    }
+                </div>
+            </section>
+        }
 
         <div class="tx-filters">
             <label class="tx-filter-field">
@@ -34,10 +79,6 @@ else
             <button type="button" class="secondary" @onclick="ClearFiltersAsync" disabled="@_busy">Clear filters</button>
         </div>
 
-        @if (!string.IsNullOrEmpty(_error))
-        {
-            <p class="error">@_error</p>
-        }
         @if (_busy)
         {
             <p class="muted">Loading...</p>
@@ -87,20 +128,133 @@ else
 
 @code {
     private const int PageSize = 25;
+    private const int ChartWidth = 640;
+    private const int ChartHeight = 160;
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+
+    private enum EconomyPeriod { Day, Week, Month, Year, Max }
+
+    private static readonly (EconomyPeriod Key, string Label)[] PeriodOptions =
+    [
+        (EconomyPeriod.Day, "1D"),
+        (EconomyPeriod.Week, "1W"),
+        (EconomyPeriod.Month, "1M"),
+        (EconomyPeriod.Year, "1Y"),
+        (EconomyPeriod.Max, "MAX")
+    ];
 
     private bool _busy;
     private string? _error;
     private PlayerTransactionsPageDto? _page;
+    private PlayerEconomyOverviewDto? _overview;
     private int _pageNumber = 1;
     private DateTime? _dateFrom;
     private DateTime? _dateTo;
+    private EconomyPeriod _selectedPeriod = EconomyPeriod.Max;
 
     private int TotalPages =>
         _page == null || _page.TotalCount == 0
             ? 1
             : (int)Math.Ceiling(_page.TotalCount / (double)PageSize);
 
+    private IReadOnlyList<PlayerEconomyHistoryPointDto> FilteredHistory
+    {
+        get
+        {
+            if (_overview?.History is not { Count: > 0 } history)
+                return Array.Empty<PlayerEconomyHistoryPointDto>();
+
+            if (_selectedPeriod == EconomyPeriod.Max)
+                return history;
+
+            var cutoff = _selectedPeriod switch
+            {
+                EconomyPeriod.Day => DateTimeOffset.UtcNow - TimeSpan.FromDays(1),
+                EconomyPeriod.Week => DateTimeOffset.UtcNow - TimeSpan.FromDays(7),
+                EconomyPeriod.Month => DateTimeOffset.UtcNow - TimeSpan.FromDays(30),
+                EconomyPeriod.Year => DateTimeOffset.UtcNow - TimeSpan.FromDays(365),
+                _ => DateTimeOffset.MinValue
+            };
+
+            var filtered = history.Where(p => p.At >= cutoff).ToList();
+            if (filtered.Count >= 2)
+                return filtered;
+
+            var baseline = history.LastOrDefault(p => p.At <= cutoff);
+            if (baseline is null)
+                return history;
+
+            return [baseline, history[^1]];
+        }
+    }
+
+    private string ChartPoints
+    {
+        get
+        {
+            var history = FilteredHistory;
+            if (history.Count < 2)
+                return "";
+
+            var min = history.Min(p => p.TotalValue);
+            var max = history.Max(p => p.TotalValue);
+            var range = max - min;
+            if (range == 0)
+                range = 1;
+
+            var step = (double)(ChartWidth - 4) / (history.Count - 1);
+            var parts = new List<string>();
+            for (var i = 0; i < history.Count; i++)
+            {
+                var x = 2 + i * step;
+                var y = ChartHeight - 2 - (double)((history[i].TotalValue - min) / range) * (ChartHeight - 4);
+                parts.Add($"{x.ToString(Invariant)},{y.ToString(Invariant)}");
+            }
+
+            return string.Join(" ", parts);
+        }
+    }
+
+    private string ChartTrendClass
+    {
+        get
+        {
+            var history = FilteredHistory;
+            if (history.Count < 2)
+                return "";
+
+            return history[^1].TotalValue >= history[0].TotalValue
+                ? "account-chart-up"
+                : "account-chart-down";
+        }
+    }
+
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private void SelectPeriod(EconomyPeriod period) => _selectedPeriod = period;
+
+    private decimal? GetPeriodPercent(EconomyPeriod period) =>
+        _overview?.PeriodChanges switch
+        {
+            null => null,
+            var c => period switch
+            {
+                EconomyPeriod.Day => c.DayPercent,
+                EconomyPeriod.Week => c.WeekPercent,
+                EconomyPeriod.Month => c.MonthPercent,
+                EconomyPeriod.Year => c.YearPercent,
+                EconomyPeriod.Max => c.MaxPercent,
+                _ => null
+            }
+        };
+
+    private static string FormatPercent(decimal? pct) =>
+        pct is { } value ? $"{(value >= 0 ? "+" : "")}{value.ToString("0.##")}%" : "—";
+
+    private static string PeriodClass(decimal? pct) =>
+        pct is > 0 ? "account-period-up"
+        : pct is < 0 ? "account-period-down"
+        : "account-period-flat";
 
     private async Task ApplyFiltersAsync()
     {
@@ -131,17 +285,29 @@ else
         _error = null;
         try
         {
-            var url = BuildUrl();
-            var res = await Http.GetAsync(url);
-            if (!res.IsSuccessStatusCode)
+            var overviewTask = Http.GetAsync("/v1/me/economy/overview");
+            var txTask = Http.GetAsync(BuildUrl());
+            await Task.WhenAll(overviewTask, txTask);
+
+            var overviewRes = await overviewTask;
+            if (!overviewRes.IsSuccessStatusCode)
             {
-                _error = res.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "Could not load transactions (are you logged in?)"
-                    : "Could not load transactions.";
+                _error = overviewRes.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    ? "Could not load account (are you logged in?)"
+                    : "Could not load account overview.";
                 return;
             }
 
-            _page = await res.Content.ReadFromJsonAsync<PlayerTransactionsPageDto>();
+            _overview = await overviewRes.Content.ReadFromJsonAsync<PlayerEconomyOverviewDto>();
+
+            var txRes = await txTask;
+            if (!txRes.IsSuccessStatusCode)
+            {
+                _error = "Could not load transactions.";
+                return;
+            }
+
+            _page = await txRes.Content.ReadFromJsonAsync<PlayerTransactionsPageDto>();
         }
         catch (Exception ex)
         {
