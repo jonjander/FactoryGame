@@ -44,4 +44,13 @@ public sealed class MarketLiquidityOptions
 
     /// <summary>Cap work per background tick across all pooled elements.</summary>
     public int MaxElementsPerBackgroundRefresh { get; set; } = 25;
+
+    /// <summary>Skew prices from global pool holdings every refresh (rare up, common down).</summary>
+    public bool CommonnessDriftEnabled { get; set; } = true;
+
+    /// <summary>Max fractional skew at extremes (0.03 = ±1.5% vs neutral element).</summary>
+    public decimal CommonnessDriftMaxFraction { get; set; } = 0.03m;
+
+    /// <summary>Extra ± jitter per element per refresh bucket so prices feel alive.</summary>
+    public decimal AliveDriftMaxFraction { get; set; } = 0.002m;
 }

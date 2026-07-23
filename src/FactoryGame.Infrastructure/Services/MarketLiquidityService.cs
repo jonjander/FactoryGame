@@ -17,6 +17,12 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         if (!_opts.Enabled)
             return;
 
+        if (_opts.CommonnessDriftEnabled)
+        {
+            await ApplyPeriodicAliveMarketDriftAsync(ct);
+            return;
+        }
+
         var elementIds = await GetElementsNeedingRefreshAsync(
             await GetPooledElementIdsAsync(ct),
             Math.Max(1, _opts.MaxElementsPerBackgroundRefresh),
@@ -48,11 +54,44 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             await EnsureLiquidityForElementAsync(stack.ElementId, ct, dna: stack.Dna);
     }
 
+    public async Task ApplyPeriodicAliveMarketDriftAsync(CancellationToken ct = default)
+    {
+        if (!_opts.Enabled || !_opts.CommonnessDriftEnabled)
+            return;
+
+        await EnsureSystemPlayerAsync(ct);
+
+        var quantities = await LoadGlobalPoolQuantitiesAsync(ct);
+        var scores = MarketCommonnessPriceNudge.ComputeCommonnessScores(
+            ElementCatalog.All.Select(e => e.Id),
+            quantities);
+        var driftBucket = GetDriftBucket();
+
+        foreach (var element in ElementCatalog.All)
+        {
+            var jitter = ComputeAliveJitter(element.Id, driftBucket);
+            var multiplier = MarketCommonnessPriceNudge.ComputeMultiplier(
+                scores[element.Id],
+                _opts.CommonnessDriftMaxFraction,
+                jitter);
+
+            await EnsureLiquidityForElementAsync(element.Id, ct, force: false, dna: element.Dna);
+            await ApplyCandleDriftAsync(element.Id, multiplier, ct);
+            await EnsureLiquidityForElementAsync(
+                element.Id,
+                ct,
+                force: true,
+                dna: element.Dna,
+                priceNudgeMultiplier: multiplier);
+        }
+    }
+
     public async Task EnsureLiquidityForElementAsync(
         int elementId,
         CancellationToken ct = default,
         bool force = false,
-        long? dna = null)
+        long? dna = null,
+        decimal? priceNudgeMultiplier = null)
     {
         if (!_opts.Enabled)
             return;
@@ -70,6 +109,8 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         await SeedHistoryIfNeededAsync(elementId, tradeDna, ct);
 
         var referenceMid = ElementReferencePrice.Compute(tradeDna);
+        if (priceNudgeMultiplier is > 0)
+            referenceMid = MarketCommonnessPriceNudge.ApplyToPrice(referenceMid, priceNudgeMultiplier.Value);
         var playerOrders = await db.MarketOrders
             .Where(o => o.ElementId == elementId && o.Dna == tradeDna && o.Status == OrderStatus.Open && !o.IsSynthetic && o.QuantityRemaining > 0)
             .ToListAsync(ct);
@@ -362,6 +403,55 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
 
         var newestSynthetic = syntheticCreatedAt.Max();
         return newestSynthetic < cooldownCutoff;
+    }
+
+    private async Task<Dictionary<int, long>> LoadGlobalPoolQuantitiesAsync(CancellationToken ct)
+    {
+        var rows = await db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId != _opts.SystemPlayerId && s.Quantity > 0)
+            .GroupBy(s => s.ElementId)
+            .Select(g => new { ElementId = g.Key, Total = g.Sum(s => s.Quantity) })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => r.ElementId, r => r.Total);
+    }
+
+    private async Task ApplyCandleDriftAsync(int elementId, decimal multiplier, CancellationToken ct)
+    {
+        var candles = await db.MarketPriceCandles
+            .Where(c => c.ElementId == elementId)
+            .ToListAsync(ct);
+        var latest = candles.OrderByDescending(c => c.BucketStart).FirstOrDefault();
+        if (latest == null)
+            return;
+
+        var newClose = MarketCommonnessPriceNudge.ApplyToPrice(latest.Close, multiplier);
+        if (newClose == latest.Close)
+            return;
+
+        latest.Close = newClose;
+        latest.High = Math.Max(latest.High, newClose);
+        latest.Low = Math.Min(latest.Low, newClose);
+        latest.Volume += Math.Max(1, _opts.MinLotSize / 4);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private long GetDriftBucket()
+    {
+        var intervalMinutes = Math.Max(1, _opts.RefreshIntervalMinutes);
+        var bucketTicks = TimeSpan.FromMinutes(intervalMinutes).Ticks;
+        return DateTimeOffset.UtcNow.UtcTicks / bucketTicks;
+    }
+
+    private decimal ComputeAliveJitter(int elementId, long driftBucket)
+    {
+        if (_opts.AliveDriftMaxFraction <= 0)
+            return 0m;
+
+        var hash = HashCode.Combine(elementId, driftBucket, _opts.SeedVersion, "alive-drift");
+        var rng = new Random(hash);
+        var unit = (decimal)rng.NextDouble() * 2m - 1m;
+        return unit * _opts.AliveDriftMaxFraction;
     }
 
     private Random CreateRng(int elementId, string salt)

@@ -74,6 +74,39 @@ public sealed class MarketLiquidityTests : IClassFixture<ApiWebApplicationFixtur
         Assert.NotEmpty(syntheticAsks);
     }
 
+    [Fact]
+    public async Task Periodic_drift_nudges_latest_candle_and_rebuilds_synthetics()
+    {
+        await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
+
+        const int elementId = 2;
+        await liquidity.EnsureLiquidityForElementAsync(elementId, force: true);
+
+        var before = (await db.MarketPriceCandles.AsNoTracking()
+            .Where(c => c.ElementId == elementId)
+            .ToListAsync())
+            .OrderByDescending(c => c.BucketStart)
+            .Select(c => c.Close)
+            .First();
+
+        await liquidity.ApplyPeriodicAliveMarketDriftAsync();
+
+        var after = (await db.MarketPriceCandles.AsNoTracking()
+            .Where(c => c.ElementId == elementId)
+            .ToListAsync())
+            .OrderByDescending(c => c.BucketStart)
+            .Select(c => c.Close)
+            .First();
+
+        Assert.NotEqual(before, after);
+
+        var syntheticCount = await db.MarketOrders.CountAsync(o =>
+            o.ElementId == elementId && o.IsSynthetic && o.Status == OrderStatus.Open);
+        Assert.True(syntheticCount > 0);
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string deviceKey)
     {
         var client = _fixture.Factory.CreateClient();
