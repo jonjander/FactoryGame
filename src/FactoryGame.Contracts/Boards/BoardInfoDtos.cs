@@ -11,6 +11,7 @@ public sealed record BoardInfoDto(
     SeaportFlowsDto Seaport,
     IReadOnlyList<SeaportPortFlowDto> SeaportPorts,
     IReadOnlyList<MachinePortFlowDto> MachinePortFlows,
+    IReadOnlyList<MachineRuntimeProgressDto> MachineProgress,
     ThroughputDto Throughput,
     ValueEstimateDto Value,
     IReadOnlyList<BoardIssueDto> Issues,
@@ -64,6 +65,17 @@ public sealed record MachinePortFlowDto(
     bool DnaChanged,
     bool IsEstimate,
     bool IsPoolSource);
+
+public sealed record MachineRuntimeProgressDto(
+    string MachineId,
+    string MachineType,
+    double? OverallProgress,
+    double? StepProgress,
+    string? ProcessKind,
+    bool IsActive,
+    IReadOnlyList<MachineInputNeedDto> InputNeeds);
+
+public sealed record MachineInputNeedDto(string Port, bool Ready);
 
 public sealed record ThroughputDto(
     double TotalUnitsPerSecond,

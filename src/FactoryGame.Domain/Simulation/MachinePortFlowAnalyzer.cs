@@ -33,6 +33,10 @@ public static class MachinePortFlowAnalyzer
                 var isPoolSource = IsPoolOutMachine(machine.Type, port.Name);
 
                 var outPkt = MaterialFlowTrace.TryReadPacket(runtime, machine.Id, port.Name, isOutput: true);
+                ProcessingSlotState? processingSlot = null;
+                if (isRunning && runtime?.Machines.TryGetValue(machine.Id, out var runtimeMachine) == true)
+                    processingSlot = runtimeMachine.ProcessingSlot;
+                var slotPkt = processingSlot?.Packet;
                 int? inputId = null;
                 string? inputSymbol = null;
                 int? outputId = outPkt?.ElementId;
@@ -58,7 +62,11 @@ public static class MachinePortFlowAnalyzer
                         outputPhase = MaterialPhaseLabels.PhaseKey(phase);
                     }
                     transformNote = "from pool";
-                    processStatus = outputId > 0 ? MaterialProcessStatus.WaitingMaterial : MaterialProcessStatus.Idle;
+                    processStatus = outPkt != null
+                        ? MaterialProcessStatus.Processing
+                        : outputId > 0
+                            ? MaterialProcessStatus.WaitingMaterial
+                            : MaterialProcessStatus.Idle;
                 }
                 else if (link != null)
                 {
@@ -79,6 +87,15 @@ public static class MachinePortFlowAnalyzer
                             inputId = source.ElementId;
                             inputSymbol = source.ElementSymbol;
                         }
+                    }
+
+                    if (inPkt == null && slotPkt != null)
+                    {
+                        inPkt = slotPkt;
+                        inputDna = slotPkt.Dna;
+                        inputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(slotPkt.Dna));
+                        inputId = slotPkt.ElementId;
+                        inputSymbol = MaterialFlowTrace.SymbolFor(slotPkt.ElementId);
                     }
 
                     if (inPkt != null)
@@ -125,28 +142,39 @@ public static class MachinePortFlowAnalyzer
                                 : MaterialProcessStatus.Processing;
                         }
                     }
-                    else if (inputId != null)
+                    else if (inputId != null || inPkt != null)
                     {
+                        var activeInputDna = inPkt?.Dna ?? inputDna;
+                        var activeInputId = inPkt?.ElementId ?? inputId;
                         var predicted = MaterialFlowTrace.PredictOutput(
-                            machine, port.Name, inputId, inputSymbol, inputDna);
-                        outputId = predicted.OutputId ?? inputId;
+                            machine, port.Name, activeInputId, inputSymbol, activeInputDna);
+                        outputId = predicted.OutputId ?? activeInputId;
                         outputSymbol = predicted.OutputSymbol ?? inputSymbol;
-                        outputDna = predicted.OutputDna ?? inputDna;
+                        outputDna = predicted.OutputDna ?? activeInputDna;
                         transformNote = predicted.TransformNote;
                         inputPhase = predicted.InputPhase ?? inputPhase;
                         outputPhase = predicted.OutputPhase;
                         dnaChanged = predicted.DnaChanged;
-                        processStatus = isRunning
-                            ? MaterialProcessStatus.WaitingMaterial
-                            : outputPhase != inputPhase || dnaChanged
-                                ? MaterialProcessStatus.Transformed
-                                : MaterialProcessStatus.Idle;
+
+                        if (isRunning && slotPkt != null && outPkt == null)
+                        {
+                            processStatus = MaterialProcessStatus.Processing;
+                            transformNote = BuildProcessingSlotNote(processingSlot, predicted.TransformNote);
+                        }
+                        else
+                        {
+                            processStatus = isRunning
+                                ? MaterialProcessStatus.WaitingMaterial
+                                : outputPhase != inputPhase || dnaChanged
+                                    ? MaterialProcessStatus.Transformed
+                                    : MaterialProcessStatus.Idle;
+                        }
                     }
                 }
 
                 if (isRunning && runtime != null
-                    && runtime.Machines.TryGetValue(machine.Id, out var runtimeMachine)
-                    && !string.IsNullOrEmpty(runtimeMachine.BlockedReason))
+                    && runtime.Machines.TryGetValue(machine.Id, out var blockedMachine)
+                    && !string.IsNullOrEmpty(blockedMachine.BlockedReason))
                     processStatus = MaterialProcessStatus.Blocked;
 
                 var summary = BuildSummary(
@@ -203,6 +231,23 @@ public static class MachinePortFlowAnalyzer
         }
 
         return null;
+    }
+
+    private static string? BuildProcessingSlotNote(ProcessingSlotState? slot, string? predictedNote)
+    {
+        if (slot?.Packet == null)
+            return predictedNote;
+
+        var progress = slot.TotalTicks > 0
+            ? $"step {Math.Min(slot.ElapsedTicks, slot.TotalTicks)}/{slot.TotalTicks}"
+            : null;
+        var kind = string.IsNullOrEmpty(slot.ProcessKind) ? "processing" : slot.ProcessKind;
+
+        if (!string.IsNullOrEmpty(predictedNote) && progress != null)
+            return $"{kind} ({progress}) — {predictedNote}";
+        if (progress != null)
+            return $"{kind} ({progress})";
+        return predictedNote;
     }
 
     private static string? BuildRuntimeTransformNote(MachineInfo machine, MaterialPacket inPkt, MaterialPacket outPkt)

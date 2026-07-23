@@ -209,6 +209,81 @@ public sealed class BoardInfoAnalyzerTests
         return dna;
     }
 
+    [Fact]
+    public void Analyze_melter_with_processing_slot_shows_processing_not_waiting()
+    {
+        const long e05Dna = 289644378304612875L;
+        var plan = new SimulationPlan(
+            [
+                new SimulationMachine("seaIn", "SeaportConnector",
+                    $$"""{"outElementId":5,"outMaterialDna":"{{e05Dna}}"}"""),
+                new SimulationMachine("m1", "Melter", """{"cutBoiling":2048,"heatDelta":32}"""),
+                new SimulationMachine("seaOut", "SeaportConnector", """{"outElementId":0}""")
+            ],
+            [
+                new SimulationConnection("seaIn", "out", "m1", "in"),
+                new SimulationConnection("m1", "out", "seaOut", "in")
+            ]);
+        var state = BoardTickEngine.CreateInitialState(plan);
+        state.Machines["m1"].ProcessingSlot = new ProcessingSlotState
+        {
+            Packet = new MaterialPacket { ElementId = 5, Dna = e05Dna, Quantity = 1 },
+            ElapsedTicks = 2,
+            TotalTicks = 8,
+            ProcessKind = "melt"
+        };
+
+        var tick = new BoardTickResult { State = state, SeaportDelta = new SeaportTickDelta(), Tick = 1, SummaryNote = "" };
+        var machines = plan.Machines.Select(m =>
+        {
+            System.Text.Json.JsonElement? settings = null;
+            if (!string.IsNullOrEmpty(m.SettingsJson))
+                settings = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(m.SettingsJson);
+            return new MachineInfo(m.Id, m.Type, settings);
+        }).ToArray();
+
+        var flows = MachinePortFlowAnalyzer.Analyze(
+            machines,
+            plan.Connections.Select(c => new ConnectionInfo(c.FromId, c.FromPort, c.ToId, c.ToPort)).ToArray(),
+            isRunning: true,
+            runtime: tick.State);
+
+        var melterOut = Assert.Single(flows, f => f.MachineId == "m1" && f.Port == "out");
+        Assert.Equal(MaterialProcessStatus.Processing, melterOut.ProcessStatus);
+        Assert.Contains("melt", melterOut.TransformNote ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Analyze_warns_when_seaport_dna_variant_missing_from_pool()
+    {
+        var settings = System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            outElementId = 5,
+            outMaterialDna = "289644378304612875"
+        });
+        var machines = new[]
+        {
+            new MachineInfo("sea1", "SeaportConnector", settings),
+            new MachineInfo("m1", "Melter", null)
+        };
+        var connections = new[] { new ConnectionInfo("sea1", "out", "m1", "in") };
+        var poolVariants = new Dictionary<PoolStackKey, decimal>
+        {
+            [new PoolStackKey(5, 999L)] = 23m
+        };
+        var poolQty = new Dictionary<int, decimal> { [5] = 23m };
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines,
+            connections,
+            IsRunning: false,
+            TickIntervalSeconds: 1,
+            PoolQuantities: poolQty,
+            PoolVariantQuantities: poolVariants));
+
+        Assert.Contains(report.Issues, i => i.Code == "pool_variant_empty" && i.MachineId == "sea1");
+    }
+
     private static int? ElementCatalogElementIdForDna(long dna)
     {
         foreach (var e in FactoryGame.Domain.Content.ElementCatalog.All)

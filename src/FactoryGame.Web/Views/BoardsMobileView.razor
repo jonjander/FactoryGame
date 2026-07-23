@@ -31,7 +31,7 @@
 
 <div class="panel">
     <h2>Boards</h2>
-    <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">List</button>
+    <button type="button" class="secondary" @onclick='() => Session.LoadBoardsAsync()' disabled="@Session.Busy">List</button>
     <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">New board</button>
     @if (!string.IsNullOrEmpty(Session.Error))
     {
@@ -181,6 +181,7 @@
                                LatestKeyframe="Session.LatestKeyframe"
                                SeaportPortFlows="@(Session.BoardInfo?.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())"
                                MachinePortFlows="@(Session.BoardInfo?.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())"
+                               MachineProgress="@(Session.BoardInfo?.MachineProgress ?? Array.Empty<MachineRuntimeProgressDto>())"
                                BoardIssues="@Session.GetVisibleBoardIssues()"
                                SelectedMachineId="@Session.SettingsMachineId"
                                SelectedMachineIdChanged="Session.OnCanvasMachineSelectedAsync"

@@ -1080,6 +1080,118 @@ pre.fg-snapshot {
     animation: fg-pulse 1.6s ease-in-out infinite;
 }
 
+.fg-machine-progress-host {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 2px;
+    box-sizing: border-box;
+    padding: 0 1px;
+}
+
+.fg-machine-input-needs {
+    display: flex;
+    gap: 2px;
+    height: 5px;
+}
+
+.fg-input-need-segment {
+    flex: 1 1 0;
+    border-radius: 2px;
+    min-width: 0;
+}
+
+.fg-input-need-ready {
+    background: #3fb950;
+    box-shadow: 0 0 4px rgba(63, 185, 80, 0.55);
+}
+
+.fg-input-need-pending {
+    background: rgba(139, 148, 158, 0.45);
+    animation: fg-input-need-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes fg-input-need-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.95; }
+}
+
+.fg-machine-progress-track {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    border-radius: 0 0 5px 5px;
+    background: rgba(13, 17, 23, 0.85);
+    overflow: hidden;
+    border-top: 1px solid rgba(48, 54, 61, 0.9);
+}
+
+.fg-machine-progress-overall,
+.fg-machine-progress-step,
+.fg-machine-progress-fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    min-width: 0;
+    border-radius: 0 0 4px 4px;
+    transition: width 0.35s ease-out;
+}
+
+.fg-machine-progress-overall {
+    opacity: 0.55;
+    background: linear-gradient(90deg, #238636, #3fb950);
+}
+
+.fg-machine-progress-step {
+    height: 55%;
+    background: linear-gradient(90deg, #58a6ff, #79c0ff);
+    box-shadow: 0 0 6px rgba(121, 192, 255, 0.65);
+}
+
+.fg-machine-progress-fill {
+    background: linear-gradient(90deg, #238636, #3fb950);
+}
+
+.fg-machine-progress-active {
+    animation: fg-progress-shimmer 1.1s linear infinite;
+    background-size: 200% 100%;
+}
+
+.fg-machine-progress-overall.fg-machine-progress-active {
+    background: linear-gradient(90deg, #238636, #3fb950, #56d364, #3fb950, #238636);
+}
+
+.fg-machine-progress-fill.fg-machine-progress-active {
+    background: linear-gradient(90deg, #238636, #3fb950, #56d364, #3fb950, #238636);
+}
+
+.fg-machine-progress-step.fg-machine-progress-active {
+    background: linear-gradient(90deg, #388bfd, #79c0ff, #a5d6ff, #79c0ff, #388bfd);
+}
+
+.fg-machine-progress-waiting {
+    background: linear-gradient(90deg, #484f58, #8b949e, #484f58);
+    animation: fg-progress-wait 1.6s ease-in-out infinite;
+}
+
+@keyframes fg-progress-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+@keyframes fg-progress-wait {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.85; }
+}
+
+.fg-machine-progressing .fg-machine-body {
+    stroke: #58a6ff;
+    stroke-width: 1.5;
+}
+
 @keyframes fg-pulse {
     0%, 100% { opacity: 0.2; }
     50% { opacity: 0.55; }
@@ -3056,6 +3168,11 @@ button.danger-outline:hover:not(:disabled) {
 
 .fg-place-machine-actions {
     align-items: flex-end;
+}
+
+.fg-place-machine-hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
 }
 
 @media (max-width: 860px) {

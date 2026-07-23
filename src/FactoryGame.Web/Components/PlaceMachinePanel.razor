@@ -3,6 +3,7 @@
 @inject ViewportLayoutService Viewport
 @inject GameWindowService Windows
 @inject GameShellNavigation ShellNav
+@implements IDisposable
 
 <div class="fg-place-machine-panel">
     <h4>Place from inventory</h4>
@@ -17,7 +18,8 @@
         {
             <a class="secondary secondary-link" href="#fg-machine-store">Go to machine store</a>
         }
-    }    else
+    }
+    else
     {
         <div class="fg-place-machine-grid">
             @foreach (var row in Session.Inventory)
@@ -27,7 +29,7 @@
                 <button type="button"
                         class="fg-place-machine-card @(selected ? "fg-place-machine-card-selected" : "")"
                         disabled="@Session.Busy"
-                        @onclick="() => SelectStock(row)">
+                        @onclick="() => Session.SelectPlaceStock(row)">
                     <WikiMachineIcon Type="@row.MachineType" Ports="@FormatPorts(meta)" />
                     <span class="fg-place-machine-type">@row.MachineType</span>
                     <span class="muted fg-place-machine-id">@DisplayIds.ShortGuid(row.Id)</span>
@@ -37,27 +39,37 @@
         <div class="fg-row fg-place-machine-actions">
             <div>
                 <label>New machine id on board</label>
-                <input @bind="Session.PlaceMachineId" placeholder="e.g. boiler1" />
+                <input @bind="Session.PlaceMachineId"
+                       @bind:after="Session.OnPlaceMachineIdChanged"
+                       placeholder="e.g. boiler1" />
             </div>
-            <button type="button" @onclick="Session.PlaceFromStockAsync" disabled="@Session.Busy || string.IsNullOrEmpty(Session.PlaceStockId)">
+            <button type="button"
+                    @onclick="Session.PlaceFromStockAsync"
+                    disabled="@(!Session.CanPlaceFromStock)"
+                    title="@Session.PlaceFromStockBlockedReason">
                 Place
             </button>
         </div>
+        @if (!string.IsNullOrEmpty(Session.PlaceFromStockBlockedReason))
+        {
+            <p class="muted fg-place-machine-hint">@Session.PlaceFromStockBlockedReason</p>
+        }
     }
 </div>
 
 @code {
-    private void SelectStock(PlayerMachineStockDto row)
-    {
-        Session.PlaceStockId = row.Id.ToString();
-        Session.OnPlaceStockChanged();
-    }
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
 
     private void OpenStore()
     {
         ShellNav.EnsureRegistered();
         Windows.Toggle("store");
     }
+
     private static string? FormatPorts(MachineStoreItemDto? meta)
     {
         if (meta?.Ports is not { Count: > 0 } ports)

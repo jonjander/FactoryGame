@@ -4,7 +4,7 @@
 <div class="fg-window-panel">
     <h3>Boards</h3>
     <div class="fg-toolbar">
-        <button type="button" class="secondary" @onclick="Session.LoadBoardsAsync" disabled="@Session.Busy">List</button>
+        <button type="button" class="secondary" @onclick='() => Session.LoadBoardsAsync()' disabled="@Session.Busy">List</button>
         <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">New board</button>
     </div>
     @if (!string.IsNullOrEmpty(Session.Error))

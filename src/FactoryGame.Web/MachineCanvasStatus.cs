@@ -33,7 +33,7 @@ public static class MachineCanvasStatus
 
             var active = flows.FirstOrDefault(f =>
                 f.ProcessStatus is "Processing" or "Transformed"
-                && (!string.IsNullOrEmpty(f.OutputElementSymbol) || !string.IsNullOrEmpty(f.Summary)));
+                && (!string.IsNullOrEmpty(f.OutputElementSymbol) || !string.IsNullOrEmpty(f.Summary) || !string.IsNullOrEmpty(f.TransformNote)));
             if (active != null)
                 return Active(active);
 
@@ -93,6 +93,9 @@ public static class MachineCanvasStatus
 
         if (!string.IsNullOrEmpty(flow.TransformNote))
             return flow.TransformNote;
+
+        if (flow.ProcessStatus.Equals("Processing", StringComparison.OrdinalIgnoreCase))
+            return "Processing";
 
         if (!string.IsNullOrEmpty(flow.Summary))
             return TrimSummary(flow.Summary);

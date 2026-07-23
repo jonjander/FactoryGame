@@ -89,7 +89,7 @@ public static class BoardInfoAnalyzer
             }
         }
 
-        CollectPoolStockIssues(machines, connFrom, request.PoolQuantities, issues);
+        CollectPoolStockIssues(machines, connFrom, request.PoolQuantities, request.PoolVariantQuantities, issues);
         CollectRuntimeIssues(request, issues);
 
         double intoUps;
@@ -398,6 +398,7 @@ public static class BoardInfoAnalyzer
         IReadOnlyList<MachineInfo> machines,
         IReadOnlyDictionary<(string FromId, string FromPort), ConnectionInfo> connFrom,
         IReadOnlyDictionary<int, decimal>? poolQuantities,
+        IReadOnlyDictionary<PoolStackKey, decimal>? poolVariantQuantities,
         List<BoardIssue> issues)
     {
         foreach (var m in machines)
@@ -423,17 +424,35 @@ public static class BoardInfoAnalyzer
                 continue;
             }
 
+            var materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(m.Settings?.GetRawText(), elementId);
+            if (materialDna != 0 && poolVariantQuantities != null)
+            {
+                var key = new PoolStackKey(elementId, materialDna);
+                if (!poolVariantQuantities.TryGetValue(key, out var variantQty) || variantQty <= 0)
+                {
+                    var symbol = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId).Symbol;
+                    var label = string.IsNullOrEmpty(symbol) ? $"element {elementId}" : symbol;
+                    var hasOtherVariant = poolVariantQuantities.Any(kv =>
+                        kv.Key.ElementId == elementId && kv.Value > 0);
+                    var message = hasOtherVariant
+                        ? $"Seaport «{m.Id}» is set to a {label} DNA variant with quantity 0 — re-pick the variant in settings (you have other {label} stacks in pool)."
+                        : $"Seaport «{m.Id}» feeds {label} but the pool has none of the configured DNA variant.";
+                    issues.Add(BoardIssue.Warning("pool_variant_empty", message, m.Id));
+                    continue;
+                }
+            }
+
             if (poolQuantities == null)
                 continue;
 
             if (poolQuantities.GetValueOrDefault(elementId) > 0)
                 continue;
 
-            var symbol = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId).Symbol;
-            var label = string.IsNullOrEmpty(symbol) ? $"element {elementId}" : symbol;
+            var emptySymbol = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId).Symbol;
+            var emptyLabel = string.IsNullOrEmpty(emptySymbol) ? $"element {elementId}" : emptySymbol;
             issues.Add(BoardIssue.Warning(
                 "pool_empty",
-                $"Seaport «{m.Id}» feeds {label} but the pool is empty.",
+                $"Seaport «{m.Id}» feeds {emptyLabel} but the pool is empty.",
                 m.Id));
         }
     }
@@ -534,7 +553,10 @@ public sealed record BoardInfoAnalyzeRequest(
     BoardLineState? RuntimeState = null,
     SeaportTickDelta? LastSeaportDelta = null,
     IReadOnlyDictionary<int, decimal>? PoolQuantities = null,
-    IReadOnlyDictionary<int, decimal>? ElementPrices = null);
+    IReadOnlyDictionary<int, decimal>? ElementPrices = null,
+    IReadOnlyDictionary<PoolStackKey, decimal>? PoolVariantQuantities = null);
+
+public readonly record struct PoolStackKey(int ElementId, long Dna);
 
 public sealed record MachineInfo(string Id, string Type, JsonElement? Settings);
 

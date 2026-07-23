@@ -48,6 +48,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             return Array.Empty<BoardSummaryDto>();
 
         var poolQty = await LoadPoolQuantitiesAsync(playerId, ct);
+        var poolVariants = await LoadPoolVariantQuantitiesAsync(playerId, ct);
         var boardIds = boards.Select(b => b.Id).ToList();
         var revisions = await db.BoardRevisions.AsNoTracking()
             .Where(r => boardIds.Contains(r.BoardId))
@@ -89,7 +90,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
                     delta = BoardLineStateSerializer.DeserializeDelta(kf.SeaportDeltaJson);
                 }
 
-                return BuildSummary(board, plan, poolQty, runtime, delta);
+                return BuildSummary(board, plan, poolQty, poolVariants, runtime, delta);
             })
             .ToList();
     }
@@ -364,6 +365,10 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .GroupBy(s => s.ElementId)
             .ToDictionary(g => g.Key, g => g.Sum(s => (decimal)s.Quantity));
 
+        var poolVariants = db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId == board.PlayerId)
+            .ToDictionary(s => new PoolStackKey(s.ElementId, s.Dna), s => (decimal)s.Quantity);
+
         var prices = db.MarketPriceCandles.AsNoTracking()
             .GroupBy(c => c.ElementId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.BucketStart).First().Close);
@@ -376,7 +381,10 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             runtime,
             delta,
             poolQty,
-            prices));
+            prices,
+            poolVariants));
+
+        var machineProgress = MachineRuntimeProgressAnalyzer.Analyze(machines, runtime);
 
         var simPlan = SimulationPlanMapper.ToSimulationPlan(plan);
         return new BoardInfoDto(
@@ -389,6 +397,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
                 report.OutOfFactory.Select(MapFlow).ToList()),
             report.SeaportPorts.Select(MapPortFlow).ToList(),
             report.MachinePortFlows.Select(MapMachinePortFlow).ToList(),
+            machineProgress.Select(MapMachineProgress).ToList(),
             new ThroughputDto(report.TotalUnitsPerSecond, report.ThroughputIsEstimate, report.ThroughputNote),
             new ValueEstimateDto(report.EstimatedValuePerSecond, report.ValueIsEstimate, report.ValueNote),
             report.Issues.Select(i => new BoardIssueDto(i.Severity, i.Code, i.Message, i.MachineId)).ToList(),
@@ -409,6 +418,10 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             p.InputElementId, p.InputElementSymbol, p.OutputElementId, p.OutputElementSymbol,
             p.InputPhase, p.OutputPhase, p.InputDna, p.OutputDna,
             p.TransformNote, p.Summary, p.ProcessStatus, p.DnaChanged, p.IsEstimate, p.IsPoolSource);
+
+    private static MachineRuntimeProgressDto MapMachineProgress(MachineRuntimeProgressDetail p) =>
+        new(p.MachineId, p.MachineType, p.OverallProgress, p.StepProgress, p.ProcessKind, p.IsActive,
+            p.InputNeeds.Select(n => new MachineInputNeedDto(n.Port, n.Ready)).ToList());
 
     public async Task<BoardSnapshotDto?> GetSnapshotAsync(Guid playerId, Guid boardId, long? afterTick, CancellationToken ct)
     {
@@ -484,6 +497,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         BoardEntity board,
         BoardPlanDto plan,
         IReadOnlyDictionary<int, decimal> poolQty,
+        IReadOnlyDictionary<PoolStackKey, decimal> poolVariants,
         BoardLineState? runtime = null,
         SeaportTickDelta? delta = null)
     {
@@ -499,7 +513,9 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             _economy.SimulationTickIntervalSeconds,
             runtime,
             delta,
-            poolQty));
+            poolQty,
+            null,
+            poolVariants));
 
         var errorCount = report.Issues.Count(i => i.Severity == "error");
         var warningCount = report.Issues.Count(i => i.Severity == "warning");
@@ -548,9 +564,15 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         return string.Join(" · ", parts);
     }
 
+    private async Task<Dictionary<PoolStackKey, decimal>> LoadPoolVariantQuantitiesAsync(Guid playerId, CancellationToken ct) =>
+        await db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId == playerId)
+            .ToDictionaryAsync(s => new PoolStackKey(s.ElementId, s.Dna), s => (decimal)s.Quantity, ct);
+
     private BoardSummaryDto ToSummary(BoardEntity b) =>
         BuildSummary(
             b,
             new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>()),
-            new Dictionary<int, decimal>());
+            new Dictionary<int, decimal>(),
+            new Dictionary<PoolStackKey, decimal>());
 }

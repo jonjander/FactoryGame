@@ -181,7 +181,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             return;
 
         _pollCts = new CancellationTokenSource();
-        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(2));
         _ = PollRunningBoardAsync(boardId, _pollCts.Token);
     }
 
@@ -196,7 +196,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                 await LoadBoardInfoAsync();
                 await LoadLatestKeyframeAsync(boardId);
                 await LoadPoolOwnershipAsync();
-                await LoadBoardsAsync();
+                await LoadBoardsAsync(blockUi: false);
                 NotifyChanged();
             }
         }
@@ -568,6 +568,36 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         {
             Inventory = new List<PlayerMachineStockDto>();
         }
+
+        EnsurePlaceStockSelection();
+        NotifyChanged();
+    }
+
+    public void SelectPlaceStock(PlayerMachineStockDto row)
+    {
+        PlaceStockId = row.Id.ToString();
+        OnPlaceStockChanged();
+        NotifyChanged();
+    }
+
+    private void EnsurePlaceStockSelection()
+    {
+        if (Inventory.Count == 0)
+        {
+            PlaceStockId = "";
+            PlaceMachineId = "";
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(PlaceStockId)
+            && Inventory.Any(r => r.Id.ToString() == PlaceStockId))
+        {
+            OnPlaceStockChanged();
+            return;
+        }
+
+        PlaceStockId = Inventory[0].Id.ToString();
+        OnPlaceStockChanged();
     }
 
     public async Task PurchaseAsync(string machineType)
@@ -596,6 +626,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         finally
         {
             Busy = false;
+            NotifyChanged();
         }
     }
 
@@ -654,9 +685,37 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         }
     }
 
-    public async Task LoadBoardsAsync()
+    public bool CanPlaceFromStock =>
+        !Busy
+        && Selected != null
+        && !IsSelectedBoardRunning()
+        && !string.IsNullOrEmpty(PlaceStockId)
+        && Inventory.Any(r => r.Id.ToString() == PlaceStockId);
+
+    public string? PlaceFromStockBlockedReason
     {
-        Busy = true;
+        get
+        {
+            if (Busy)
+                return "Please wait…";
+            if (Selected is null)
+                return "Select a board first.";
+            if (IsSelectedBoardRunning())
+                return "Stop the factory before placing machines.";
+            if (Inventory.Count == 0)
+                return null;
+            if (string.IsNullOrEmpty(PlaceStockId))
+                return "Select a machine from inventory above.";
+            if (!Inventory.Any(r => r.Id.ToString() == PlaceStockId))
+                return "Selected inventory item is no longer available.";
+            return null;
+        }
+    }
+
+    public async Task LoadBoardsAsync(bool blockUi = true)
+    {
+        if (blockUi)
+            Busy = true;
         Error = null;
         try
         {
@@ -670,7 +729,8 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         }
         finally
         {
-            Busy = false;
+            if (blockUi)
+                Busy = false;
         }
     }
 
@@ -992,6 +1052,8 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         var row = Inventory.FirstOrDefault(r => r.Id == stockId);
         PlaceMachineId = row == null ? "" : SuggestNextMachineId(row.MachineType);
     }
+
+    public void OnPlaceMachineIdChanged() => NotifyChanged();
 
     /// <summary>Next free id: lowercase type + number, e.g. mixer1, mixer2.</summary>
     public string SuggestNextMachineId(string machineType)

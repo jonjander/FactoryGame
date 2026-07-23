@@ -2,6 +2,12 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.11
+
+- **UI:** machine progress bars on factory canvas (overall + step, input readiness segments, live shimmer); poll every 2s while running.
+- **UI:** place-from-inventory — auto-select stock, clear blocked hints, polling no longer locks Place button; disable when factory is running.
+- **Sim/info:** melter processing slot in port flow; pool variant empty warning; runtime progress in board info API.
+
 ## 0.3.10
 
 - **UI:** version badge moved to bottom-left with safe-area insets so it is not clipped on iPhone rounded corners (PWA).

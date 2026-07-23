@@ -100,8 +100,9 @@
             var condenserActive = IsCondenserTransforming(m.Id);
             var machineTitle = GetMachineTooltip(m);
             var machineStatus = GetMachineStatus(m.Id, m.Type);
+            _machineProgressById.TryGetValue(m.Id, out var machineProgress);
 
-            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "") @(machineStatus?.Kind == "warning" ? "fg-machine-warning" : "") @(condenserActive ? "fg-machine-condenser-active" : "")"
+            <g class="fg-machine @(ReadOnly ? "fg-machine-readonly" : "") @(IsSelected(m.Id) ? "fg-machine-selected" : "") @(running ? "fg-machine-running" : "") @(blocked ? "fg-machine-blocked" : "") @(machineStatus?.Kind == "warning" ? "fg-machine-warning" : "") @(condenserActive ? "fg-machine-condenser-active" : "") @(machineProgress?.IsActive == true ? "fg-machine-progressing" : "")"
                transform="translate(@Fmt(mx), @Fmt(my))">
                 <title>@machineTitle</title>
                 <rect class="fg-machine-body" width="@w" height="@h" rx="6" pointer-events="none" />
@@ -136,6 +137,46 @@
                 <foreignObject x="4" y="26" width="@(w - 8)" height="16" pointer-events="none">
                     <div xmlns="http://www.w3.org/1999/xhtml" class="fg-machine-type-html">@m.Type</div>
                 </foreignObject>
+                @if (machineProgress is not null)
+                {
+                    var overallPct = Math.Clamp(machineProgress.OverallProgress ?? 0, 0, 1);
+                    var stepPct = machineProgress.StepProgress is double sp ? Math.Clamp(sp, 0, 1) : (double?)null;
+                    var showDual = stepPct is double step && Math.Abs(step - overallPct) > 0.04;
+                    var progressTitle = GetMachineProgressTitle(machineProgress);
+                    var inputNeedCount = machineProgress.InputNeeds.Count;
+                    var progressHeight = inputNeedCount > 1 ? 11.0 : 4.0;
+                    var progressY = h - progressHeight;
+                    <foreignObject x="0" y="@Fmt(progressY)" width="@w" height="@Fmt(progressHeight)" pointer-events="none">
+                        <div xmlns="http://www.w3.org/1999/xhtml"
+                             class="fg-machine-progress-host"
+                             title="@progressTitle">
+                            @if (inputNeedCount > 1)
+                            {
+                                <div class="fg-machine-input-needs" aria-hidden="true">
+                                    @foreach (var need in machineProgress.InputNeeds)
+                                    {
+                                        <span class="fg-input-need-segment @(need.Ready ? "fg-input-need-ready" : "fg-input-need-pending")"
+                                              title="@need.Port"></span>
+                                    }
+                                </div>
+                            }
+                            <div class="fg-machine-progress-track">
+                                @if (showDual)
+                                {
+                                    <div class="fg-machine-progress-overall @(machineProgress.IsActive ? "fg-machine-progress-active" : "fg-machine-progress-waiting")"
+                                         style="width:@(FmtPercent(overallPct))"></div>
+                                    <div class="fg-machine-progress-step fg-machine-progress-active"
+                                         style="width:@(FmtPercent(stepPct!.Value))"></div>
+                                }
+                                else
+                                {
+                                    <div class="@GetSingleProgressClass(machineProgress)"
+                                         style="width:@(FmtPercent(overallPct))"></div>
+                                }
+                            </div>
+                        </div>
+                    </foreignObject>
+                }
                 @if (machineStatus is not null)
                 {
                     <foreignObject x="0" y="@Fmt(h + 2)" width="@w" height="36" pointer-events="none">
@@ -262,6 +303,9 @@
     public IReadOnlyList<MachinePortFlowDto> MachinePortFlows { get; set; } = Array.Empty<MachinePortFlowDto>();
 
     [Parameter]
+    public IReadOnlyList<MachineRuntimeProgressDto> MachineProgress { get; set; } = Array.Empty<MachineRuntimeProgressDto>();
+
+    [Parameter]
     public IReadOnlyList<BoardIssueDto> BoardIssues { get; set; } = Array.Empty<BoardIssueDto>();
 
     [Parameter]
@@ -289,6 +333,7 @@
     private Dictionary<int, ElementContentItem> _elementById = new();
     private Dictionary<string, SeaportPortFlowDto> _seaportPortByKey = new(StringComparer.Ordinal);
     private Dictionary<string, MachinePortFlowDto> _machinePortByKey = new(StringComparer.Ordinal);
+    private Dictionary<string, MachineRuntimeProgressDto> _machineProgressById = new(StringComparer.Ordinal);
     private Dictionary<string, string> _blockedByMachineId = new(StringComparer.Ordinal);
     private Dictionary<string, string> _warningByMachineId = new(StringComparer.Ordinal);
     private HashSet<string> _machinesWithFlow = new(StringComparer.Ordinal);
@@ -484,6 +529,9 @@
         _machinePortByKey = MachinePortFlows.ToDictionary(
             p => PortFlowKey(p.MachineId, p.Port),
             StringComparer.Ordinal);
+        _machineProgressById = MachineProgress.ToDictionary(
+            p => p.MachineId,
+            StringComparer.Ordinal);
         _blockedByMachineId = BoardIssues
             .Where(i => i.Severity == "error" && i.MachineId != null)
             .GroupBy(i => i.MachineId!, StringComparer.Ordinal)
@@ -522,6 +570,9 @@
             if (!sea.IsEstimate && !string.IsNullOrEmpty(sea.ElementSymbol))
                 set.Add(sea.MachineId);
         }
+
+        foreach (var progress in MachineProgress.Where(p => p.IsActive))
+            set.Add(progress.MachineId);
 
         return set;
     }
@@ -953,6 +1004,33 @@
 
     private bool IsMachineRunning(string machineId) =>
         IsFactoryRunning && !IsMachineBlocked(machineId) && _machinesWithFlow.Contains(machineId);
+
+    private static string FmtPercent(double value) =>
+        value.ToString("0.##%", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string GetSingleProgressClass(MachineRuntimeProgressDto progress) =>
+        progress.IsActive ? "fg-machine-progress-fill fg-machine-progress-active" : "fg-machine-progress-fill fg-machine-progress-waiting";
+
+    private static string GetMachineProgressTitle(MachineRuntimeProgressDto progress)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(progress.ProcessKind))
+            parts.Add(progress.ProcessKind.Replace('_', ' '));
+
+        if (progress.OverallProgress is double overall)
+            parts.Add($"overall {overall:P0}");
+
+        if (progress.StepProgress is double step)
+            parts.Add($"step {step:P0}");
+
+        if (progress.InputNeeds.Count > 1)
+        {
+            var ready = progress.InputNeeds.Count(n => n.Ready);
+            parts.Add($"inputs {ready}/{progress.InputNeeds.Count}");
+        }
+
+        return parts.Count == 0 ? "Progress" : string.Join(" · ", parts);
+    }
 
     private string PortClass(string machineId, string portName, bool isOutput)
     {
