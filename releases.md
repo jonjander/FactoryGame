@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.17
+
+- **Exchange:** fix Razor bug that showed literal `?? item.Symbol` next to variant badges in holdings and sell insights.
+
 ## 0.3.16
 
 - **Hotfix:** EF migration `AddMarketPriceCandleDna` now registers correctly (Designer + `[Migration]` attribute) so Azure SQL gets the `Dna` column on `MarketPriceCandles` — fixes HTTP 500 on Exchange/history after 0.3.15.

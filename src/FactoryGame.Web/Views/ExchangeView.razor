@@ -61,7 +61,7 @@
             {
                 <li>
                     <strong>@insight.CompanyName</strong> buys
-                    <span class="fg-element-badge">@MaterialLabelUi.Compact(insight.Symbol) ?? insight.Symbol</span>
+                    <span class="fg-element-badge">@insight.Symbol</span>
                     @insight.DisplayName
                     @@ <strong>@insight.LimitPrice.ToString("0.##")</strong>
                     (volume @insight.OpenQuantity)
@@ -95,7 +95,7 @@ else if (_summary.Count > 0)
                 @foreach (var item in _summary.OrderBy(s => s.DisplayName).ThenBy(s => s.Phase, StringComparer.Ordinal))
                 {
                     <tr class="@(IsSelected(item) ? "selected" : "")" @onclick="() => SelectVariantAsync(item)">
-                        <td><span class="fg-element-badge">@MaterialLabelUi.Compact(item.Symbol) ?? item.Symbol</span> @item.DisplayName</td>
+                        <td><span class="fg-element-badge">@item.Symbol</span> @item.DisplayName</td>
                         <td><span class="fg-phase-badge fg-phase-@item.Phase.ToLowerInvariant()">@item.PhaseLabel</span></td>
                         <td><strong>@item.PoolQuantity</strong></td>
                         <td>@item.LastPrice.ToString("0.##")</td>
