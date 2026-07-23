@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.10
+
+- **UI:** version badge moved to bottom-left with safe-area insets so it is not clipped on iPhone rounded corners (PWA).
+
 ## 0.3.9
 
 - **Sim:** melter incremental heating; seaport clears block each tick; withdraw rollback when output full; depleted pool stacks kept as discovered markers.

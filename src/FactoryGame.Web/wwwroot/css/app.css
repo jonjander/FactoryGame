@@ -207,8 +207,8 @@ body {
 
 .app-version-footer {
     position: fixed;
-    right: 0;
-    bottom: 0;
+    left: max(0.65rem, env(safe-area-inset-left, 0px));
+    bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
     z-index: 120;
     display: flex;
     align-items: center;
@@ -217,8 +217,8 @@ body {
     font-size: 0.7rem;
     line-height: 1.25;
     border-top: 1px solid #30363d;
-    border-left: 1px solid #30363d;
-    border-top-left-radius: 6px;
+    border-right: 1px solid #30363d;
+    border-top-right-radius: 6px;
     background: rgba(13, 17, 23, 0.94);
     pointer-events: none;
 }
