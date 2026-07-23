@@ -74,7 +74,7 @@ else if (_overview is not null)
                     {
                         <tr>
                             <td class="pool-element-cell">
-                                <span class="fg-element-badge">@row.Symbol</span>
+                                <span class="fg-element-badge" title="@row.DisplayName">@row.Symbol</span>
                                 <span class="pool-element-name">@row.DisplayName</span>
                             </td>
                             <td>
@@ -95,7 +95,7 @@ else if (_overview is not null)
         @if (GetGroups().Any(g => g.Variants.Count > 1))
         {
             <p class="muted pool-variant-hint">
-                The same base element can have multiple rows (different DNA/phase). Processed material — e.g. crystallized solid E03 — appears as its own variant, not in the starter liquid row.
+                Same base element can appear on multiple rows — each row is a unique DNA variant (code + generated name). Phase is shown in the Variant column.
             </p>
         }
     </div>
@@ -117,7 +117,10 @@ else if (_overview is not null)
             .OrderBy(g => g.DisplayName)
             .SelectMany(g => g.Variants
                 .OrderBy(v => v.Phase, StringComparer.Ordinal)
-                .Select(v => new PoolFlatRow(g.Symbol, g.DisplayName, v)));
+                .Select(v => new PoolFlatRow(
+                    MaterialLabelUi.Compact(v.Symbol) ?? v.Symbol,
+                    v.Symbol,
+                    v)));
     }
 
     private sealed record PoolFlatRow(string Symbol, string DisplayName, PoolVariantStackDto Variant)

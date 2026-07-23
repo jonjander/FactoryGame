@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.14
+
+- **Pool:** each variant row shows full material label (`E02-123456 (BaseName-VariantName)`) instead of duplicate base symbol `E02`.
+
 ## 0.3.13
 
 - **Market:** every 15 minutes prices drift slightly — rare materials (low global pool supply) nudge up, common ones nudge down; small jitter keeps the exchange feeling alive at low player activity.

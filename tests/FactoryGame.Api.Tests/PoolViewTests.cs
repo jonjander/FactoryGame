@@ -24,6 +24,7 @@ public sealed class PoolViewTests : IClassFixture<ApiWebApplicationFixture>
         Assert.Equal(5, overview.Stacks.Count);
         Assert.Equal(5, overview.Groups.Count);
         Assert.All(overview.Stacks, row => Assert.NotEqual(0, row.Dna));
+        Assert.All(overview.Stacks, row => Assert.Matches(@"^E\d{2}-\d{6} \(", row.Symbol));
         Assert.All(overview.Groups, group => Assert.NotEmpty(group.Variants));
 
         decimal sum = 0;
