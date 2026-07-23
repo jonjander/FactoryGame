@@ -3,6 +3,8 @@
 @using FactoryGame.Web.Services
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ViewportLayoutService Viewport
+@implements IDisposable
 
 <PageTitle>Wiki</PageTitle>
 
@@ -90,7 +92,7 @@
     }
     else if (_wiki is not null)
     {
-        <div class="wiki-layout">
+        <div class="wiki-layout @GetWikiLayoutClass()">
             <aside class="wiki-sidebar panel">
                 @if (_activeTab == "overview")
                 {
@@ -342,6 +344,50 @@
                 }
             </main>
         </div>
+
+        @if (ShowMobileDetailSheet && _selectedMachine is { } sheetMachine)
+        {
+            <div class="wiki-mobile-sheet-backdrop" @onclick="ClearMachineSelection"></div>
+            <div class="wiki-mobile-sheet panel wiki-detail wiki-machine-detail">
+                <div class="wiki-detail-header">
+                    <WikiMachineIcon Type="@sheetMachine.Type" Ports="@sheetMachine.Ports" />
+                    <div>
+                        <h3>@WikiPresentation.MachineDisplayName(sheetMachine.Type)</h3>
+                        <p class="muted wiki-detail-meta">
+                            <span class="wiki-type-mono">@sheetMachine.Type</span>
+                            · ports @sheetMachine.Ports
+                        </p>
+                    </div>
+                </div>
+                <p class="wiki-detail-summary">@WikiPresentation.ExtendedSummary(sheetMachine.Type, sheetMachine.Summary)</p>
+                <div class="wiki-detail-actions">
+                    <a class="button-link" href="/boards">Build in factory -></a>
+                    <button type="button" class="secondary" @onclick="ClearMachineSelection">Close</button>
+                </div>
+            </div>
+        }
+        else if (ShowMobileDetailSheet && _selectedElementId is int sheetEid && GetElementDetail(sheetEid) is { } sheetElement)
+        {
+            <div class="wiki-mobile-sheet-backdrop" @onclick="ClearElementSelection"></div>
+            <div class="wiki-mobile-sheet panel wiki-detail wiki-element-detail">
+                <div class="wiki-detail-header wiki-element-detail-header">
+                    <WikiElementOrb Element="sheetElement" />
+                    <div>
+                        <h3>@sheetElement.Name</h3>
+                        <p class="muted wiki-detail-meta">
+                            <span class="fg-element-badge">@sheetElement.Symbol</span>
+                            Element @sheetElement.Id
+                        </p>
+                    </div>
+                </div>
+                <p class="wiki-detail-narrative">@ElementPropertyNarrator.Describe(sheetElement)</p>
+                <WikiDnaChart Element="sheetElement" />
+                <div class="wiki-detail-actions">
+                    <a class="button-link" href="@ExchangeHrefFor(sheetElement)">Trade on exchange -></a>
+                    <button type="button" class="secondary" @onclick="ClearElementSelection">Close</button>
+                </div>
+            </div>
+        }
     }
 </div>
 
@@ -370,11 +416,22 @@
     private bool _showDnaExplainer;
     private List<PhaseStat> _phaseStats = [];
 
+    private bool ShowMobileDetailSheet =>
+        !Viewport.UseGameShell && (_selectedMachine != null || _selectedElementId != null);
+
+    private string GetWikiLayoutClass() =>
+        ShowMobileDetailSheet ? "wiki-layout-detail-open" : "";
+
     protected override async Task OnInitializedAsync()
     {
+        Viewport.Changed += OnViewportChanged;
         ApplyQueryRoute();
         await LoadAsync();
     }
+
+    private void OnViewportChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Viewport.Changed -= OnViewportChanged;
 
     private async Task LoadAsync()
     {

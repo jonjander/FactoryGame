@@ -57,6 +57,47 @@ public sealed class MachineInventoryFlowTests : IClassFixture<ApiWebApplicationF
     }
 
     [Fact]
+    public async Task Return_to_stock_after_place_restores_inventory()
+    {
+        var client = _fixture.Factory.CreateClient();
+        var auth = await client.PostAsJsonAsync("/v1/auth/guest", new GuestAuthRequest("integration-return-stock"));
+        auth.EnsureSuccessStatusCode();
+        var body = await auth.Content.ReadFromJsonAsync<GuestAuthResponse>();
+        Assert.NotNull(body);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
+
+        var purchase = await client.PostAsJsonAsync("/v1/me/machine-inventory/purchase", new PurchaseMachineRequest("Boiler"));
+        purchase.EnsureSuccessStatusCode();
+
+        var inv = await client.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory");
+        Assert.NotNull(inv);
+        Assert.Single(inv);
+        var stockId = inv[0].Id;
+
+        var boardRes = await client.PostAsJsonAsync("/v1/boards", new CreateBoardRequest("Return test"));
+        boardRes.EnsureSuccessStatusCode();
+        var board = await boardRes.Content.ReadFromJsonAsync<BoardSummaryDto>();
+        Assert.NotNull(board);
+
+        var place = await client.PostAsJsonAsync($"/v1/boards/{board.Id}/place-from-stock",
+            new PlaceMachineFromStockRequest(stockId, "boiler1"));
+        place.EnsureSuccessStatusCode();
+
+        var returnRes = await client.PostAsJsonAsync($"/v1/boards/{board.Id}/return-to-stock",
+            new ReturnMachineToStockRequest("boiler1"));
+        returnRes.EnsureSuccessStatusCode();
+
+        var invAfter = await client.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory");
+        Assert.NotNull(invAfter);
+        Assert.Single(invAfter);
+        Assert.Equal("Boiler", invAfter[0].MachineType);
+
+        var plan = await client.GetFromJsonAsync<BoardPlanDto>($"/v1/boards/{board.Id}/plan");
+        Assert.NotNull(plan);
+        Assert.Empty(plan.Machines);
+    }
+
+    [Fact]
     public void BoardPlanDto_roundtrips_connections()
     {
         var options = new JsonSerializerOptions

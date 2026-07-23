@@ -73,7 +73,7 @@
     </ul>
 </div>
 
-<div class="panel fg-store">
+<div class="panel fg-store" id="fg-machine-store">
     <h2>Machine store & inventory</h2>
     <p class="muted">Buy machines into your inventory. Place them on a saved board with any machine id (letters, digits, <code>_</code>, <code>-</code>). Seaport: buy <strong>Seaport connector</strong> and place like any other machine.</p>
     @if (Session.StoreItems.Count == 0 && Session.Connectors.Count == 0)
@@ -221,24 +221,7 @@
         }
 
         <div class="panel fg-sub">
-            <h4>Place from inventory</h4>
-            <div class="fg-row">
-                <div>
-                    <label>Inventory item</label>
-                    <select class="fg-select" @bind="Session.PlaceStockId" @bind:after="Session.OnPlaceStockChanged">
-                        <option value="">— Select —</option>
-                        @foreach (var row in Session.Inventory)
-                        {
-                            <option value="@row.Id">@row.MachineType (@DisplayIds.ShortGuid(row.Id))</option>
-                        }
-                    </select>
-                </div>
-                <div>
-                    <label>New machine id on board</label>
-                    <input @bind="Session.PlaceMachineId" placeholder="e.g. boiler1" />
-                </div>
-                <button type="button" @onclick="Session.PlaceFromStockAsync" disabled="@Session.Busy">Place</button>
-            </div>
+            <PlaceMachinePanel />
         </div>
 
         <div class="panel fg-sub">

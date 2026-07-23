@@ -80,6 +80,14 @@ public sealed class BoardTickEngineTests
         return dna;
     }
 
+    private static long BuildLowBoilSpreadSolidDna()
+    {
+        var dna = BuildSpreadSolidDna();
+        dna &= ~(DnaLayout.BoilingMask << DnaLayout.BoilingShift);
+        dna |= 1046L << DnaLayout.BoilingShift;
+        return dna;
+    }
+
     private static long BuildGasDna(int boilingPoint = 2048)
     {
         const long phaseGas = 2;
@@ -341,6 +349,105 @@ public sealed class BoardTickEngineTests
         Assert.NotNull(outp);
         Assert.Equal(compactSolid, outp.Dna);
         Assert.Equal(MaterialPhase.Solid, DnaDecoder.Decode(outp.Dna).Phase);
+    }
+
+    [Fact]
+    public void Advance_Melter_keeps_warming_solid_in_slot_until_melted()
+    {
+        var spreadSolid = BuildLowBoilSpreadSolidDna();
+        var plan = new SimulationPlan(
+            [new SimulationMachine("m1", "Melter", """{"cutBoiling":2048,"heatDelta":20}""")],
+            []);
+        var state = BoardTickEngine.CreateInitialState(plan);
+        state.Machines["m1"].GetOrCreateInput("in").TryEnqueue(new MaterialPacket
+        {
+            ElementId = 2,
+            Dna = spreadSolid,
+            Quantity = 1
+        });
+
+        var r1 = TickHelper.Run(plan, state, 12);
+
+        Assert.Null(r1.State.Machines["m1"].OutputPorts["out"].Peek());
+        var slot = r1.State.Machines["m1"].ProcessingSlot;
+        Assert.NotNull(slot?.Packet);
+        Assert.Equal(MaterialPhase.Solid, DnaDecoder.Decode(slot.Packet.Dna).Phase);
+        Assert.True(DnaDecoder.Decode(slot.Packet.Dna).BoilingPoint >
+                    DnaDecoder.Decode(spreadSolid).BoilingPoint);
+    }
+
+    [Fact]
+    public void Advance_Melter_loop_deposits_liquid_to_pool()
+    {
+        var spreadSolid = BuildLowBoilSpreadSolidDna();
+        var pool = new DepositRecordingPool(2, spreadSolid, 200);
+        var plan = new SimulationPlan(
+            [
+                new SimulationMachine("seaOut", "SeaportConnector", """{"outElementId":0}"""),
+                new SimulationMachine("seaIn", "SeaportConnector",
+                    $$"""{"outElementId":2,"outMaterialDna":"{{spreadSolid}}"}"""),
+                new SimulationMachine("m1", "Melter", """{"cutBoiling":2048,"heatDelta":32}""")
+            ],
+            [
+                new SimulationConnection("seaIn", "out", "m1", "in"),
+                new SimulationConnection("m1", "out", "seaOut", "in")
+            ]);
+
+        var state = BoardTickEngine.CreateInitialState(plan);
+        _ = TickHelper.Run(plan, state, 800, pool);
+
+        var liquidDeposits = pool.Deposits
+            .Where(d => d.ElementId == 2 && DnaDecoder.Decode(d.Dna).Phase == MaterialPhase.Liquid)
+            .ToList();
+        Assert.NotEmpty(liquidDeposits);
+        Assert.All(liquidDeposits, d => Assert.True(d.Quantity > 0));
+    }
+
+    [Fact]
+    public void Advance_SeaportConnector_withdraw_rolls_back_when_out_full()
+    {
+        var e02 = ElementCatalog.All[1];
+        var pool = new DepositRecordingPool(e02.Id, e02.Dna, 10);
+        var plan = new SimulationPlan(
+            [
+                new SimulationMachine("sea1", "SeaportConnector",
+                    $$"""{"outElementId":{{e02.Id}},"outMaterialDna":"{{e02.Dna}}"}""")
+            ],
+            []);
+        var state = BoardTickEngine.CreateInitialState(plan);
+        state.Machines["sea1"].GetOrCreateOutput("out").TryEnqueue(new MaterialPacket
+        {
+            ElementId = e02.Id,
+            Dna = e02.Dna,
+            Quantity = 1
+        });
+
+        _ = BoardTickEngine.Advance(plan, state, 1, 1m, pool);
+
+        Assert.Equal(10, pool.StackQuantity(e02.Id, e02.Dna));
+    }
+
+    [Fact]
+    public void Advance_SeaportConnector_recovers_deposit_after_prior_block()
+    {
+        var e02 = ElementCatalog.All[1];
+        var pool = new DepositRecordingPool(e02.Id, e02.Dna, 100);
+        var plan = new SimulationPlan(
+            [new SimulationMachine("seaOut", "SeaportConnector", """{"outElementId":0}""")],
+            []);
+        var state = BoardTickEngine.CreateInitialState(plan);
+        state.Machines["seaOut"].BlockedReason = "Seaport pool volume full.";
+        state.Machines["seaOut"].GetOrCreateInput("in").TryEnqueue(new MaterialPacket
+        {
+            ElementId = e02.Id,
+            Dna = BuildSpreadLiquidDna(),
+            Quantity = 1
+        });
+
+        var result = BoardTickEngine.Advance(plan, state, 1, 1m, pool);
+
+        Assert.Null(result.State.Machines["seaOut"].BlockedReason);
+        Assert.NotEmpty(pool.Deposits);
     }
 
     [Fact]
@@ -653,5 +760,8 @@ public sealed class BoardTickEngineTests
             _stacks[key] = have + qty;
             return true;
         }
+
+        public long StackQuantity(int elementId, long dna) =>
+            _stacks.GetValueOrDefault((elementId, dna));
     }
 }

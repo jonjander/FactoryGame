@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FactoryGame.Domain.Dna;
 using FactoryGame.Domain.Simulation;
 
 namespace FactoryGame.Domain.Tests;
@@ -154,6 +155,58 @@ public sealed class BoardInfoAnalyzerTests
         Assert.True(report.TotalUnitsPerSecond > 0);
         Assert.True(report.IntoFactory.Count > 0);
         Assert.True(report.OutOfFactory.Count > 0);
+    }
+
+    [Fact]
+    public void Analyze_deposit_only_seaport_does_not_warn_seaport_in_idle()
+    {
+        var settings = JsonSerializer.SerializeToElement(new { outElementId = 0 });
+        var machines = new[]
+        {
+            new MachineInfo("seaOut", "SeaportConnector", settings),
+            new MachineInfo("melter1", "Melter", null)
+        };
+        var connections = new[] { new ConnectionInfo("melter1", "out", "seaOut", "in") };
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines, connections, IsRunning: false, TickIntervalSeconds: 1));
+
+        Assert.DoesNotContain(report.Issues, i => i.Code == "seaport_in_idle");
+        Assert.DoesNotContain(report.Issues, i => i.Code == "seaport_out_idle" && i.MachineId == "seaOut");
+    }
+
+    [Fact]
+    public void Analyze_warns_when_melter_needs_many_heat_steps()
+    {
+        var spreadSolid = BuildLowBoilSpreadSolidDna();
+        var seaSettings = JsonSerializer.SerializeToElement(new { outElementId = 2, outMaterialDna = spreadSolid.ToString() });
+        var melterSettings = JsonSerializer.SerializeToElement(new { cutBoiling = 2048, heatDelta = 32 });
+        var machines = new[]
+        {
+            new MachineInfo("seaIn", "SeaportConnector", seaSettings),
+            new MachineInfo("melter1", "Melter", melterSettings),
+            new MachineInfo("seaOut", "SeaportConnector", JsonSerializer.SerializeToElement(new { outElementId = 0 }))
+        };
+        var connections = new[]
+        {
+            new ConnectionInfo("seaIn", "out", "melter1", "in"),
+            new ConnectionInfo("melter1", "out", "seaOut", "in")
+        };
+
+        var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
+            machines, connections, IsRunning: false, TickIntervalSeconds: 1));
+
+        Assert.Contains(report.Issues, i => i.Code == "melter_slow_melt" && i.MachineId == "melter1");
+    }
+
+    private static long BuildLowBoilSpreadSolidDna()
+    {
+        const long phaseSolid = 1;
+        var dna = phaseSolid << DnaLayout.PhaseShift;
+        dna |= 101L << DnaLayout.FlammabilityShift;
+        dna |= 100L << DnaLayout.ToxicityShift;
+        dna |= 1046L << DnaLayout.BoilingShift;
+        return dna;
     }
 
     private static int? ElementCatalogElementIdForDna(long dna)

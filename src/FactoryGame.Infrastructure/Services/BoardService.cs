@@ -178,6 +178,52 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task ReturnMachineToStockAsync(Guid playerId, Guid boardId, string machineId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(machineId))
+            throw new InvalidOperationException("Machine id is required.");
+
+        var board = await db.Boards.FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct)
+            ?? throw new InvalidOperationException("Board not found.");
+        if (board.Mode != BoardMode.Edit)
+            throw new InvalidOperationException("Plan can only be changed in Edit mode.");
+
+        var plan = await GetLatestPlanAsync(playerId, boardId, ct)
+                   ?? new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+        var machine = plan.Machines.FirstOrDefault(m => m.Id.Equals(machineId, StringComparison.Ordinal))
+            ?? throw new InvalidOperationException("Machine not found on plan.");
+
+        if (!MachinePortCatalog.IsKnownMachineType(machine.Type))
+            throw new InvalidOperationException("Unknown machine type on plan.");
+
+        var machines = plan.Machines.Where(m => !m.Id.Equals(machineId, StringComparison.Ordinal)).ToList();
+        var connections = plan.Connections
+            .Where(c => c.FromId != machineId && c.ToId != machineId)
+            .ToList();
+        var newPlan = PlanMachineLayout.NormalizeLayout(new BoardPlanDto(machines, connections));
+        ValidateSorterRules(newPlan);
+
+        db.PlayerMachineStocks.Add(new PlayerMachineStockEntity
+        {
+            Id = Guid.NewGuid(),
+            PlayerId = playerId,
+            MachineType = machine.Type,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        var json = JsonSerializer.Serialize(newPlan, Json);
+        board.RevisionVersion++;
+        db.BoardRevisions.Add(new BoardRevisionEntity
+        {
+            Id = Guid.NewGuid(),
+            BoardId = board.Id,
+            Version = board.RevisionVersion,
+            PlanJson = json,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task SavePlanAsync(Guid playerId, Guid boardId, BoardPlanDto plan, CancellationToken ct)
     {
         var board = await db.Boards.FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct)

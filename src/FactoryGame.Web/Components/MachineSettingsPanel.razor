@@ -116,8 +116,14 @@
     private string SettingInputId(MachineSettingField field) =>
         $"ms-{_machine?.Id}-{field.JsonKey}";
 
-    private bool UsesPoolVariantPicker(MachineSettingField field) =>
-        field.JsonKey == "outElementId" && PoolVariants.Count > 0;
+    private bool UsesPoolVariantPicker(MachineSettingField field)
+    {
+        if (field.JsonKey != "outElementId")
+            return false;
+        if (PoolVariants.Count > 0)
+            return true;
+        return _machine != null && PlanMachineSettings.GetOutElementId(_machine) > 0;
+    }
 
     private static string VariantKey(int elementId, long dna) => $"{elementId}:{dna}";
 
@@ -138,8 +144,18 @@
         return VariantKey(elementId, dna);
     }
 
-    private IReadOnlyList<PoolVariantOption> GetPoolVariantOptions() =>
-        MachineSettingsUi.PoolVariantOptions(PoolVariants, allowEmpty: true);
+    private IReadOnlyList<PoolVariantOption> GetPoolVariantOptions()
+    {
+        if (_machine == null)
+            return MachineSettingsUi.PoolVariantOptions(PoolVariants, allowEmpty: true);
+        var elementId = PlanMachineSettings.GetOutElementId(_machine);
+        var dna = PlanMachineSettings.GetOutMaterialDna(_machine);
+        return MachineSettingsUi.PoolVariantOptions(
+            PoolVariants,
+            allowEmpty: true,
+            ensureElementId: elementId > 0 ? elementId : null,
+            ensureDna: dna != 0 ? dna : null);
+    }
 
     private int GetNumericValue(MachineSettingField field)
     {

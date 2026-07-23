@@ -65,7 +65,14 @@ internal sealed class MelterProcessor : IMachineProcessor
 
         var cut = ResolveCutBoil(settingsJson);
         var heat = ResolveHeatDelta(settingsJson);
-        var (outDna, _) = DnaTransforms.Melt(pkt.Dna, cut, heat);
+        var (outDna, melted) = DnaTransforms.Melt(pkt.Dna, cut, heat);
+
+        if (!melted)
+        {
+            pkt.Dna = outDna;
+            slot.ElapsedTicks = 0;
+            return;
+        }
 
         var outPkt = new MaterialPacket
         {

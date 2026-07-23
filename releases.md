@@ -2,6 +2,12 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.9
+
+- **Sim:** melter incremental heating; seaport clears block each tick; withdraw rollback when output full; depleted pool stacks kept as discovered markers.
+- **API:** `POST /v1/boards/{id}/return-to-stock` — removing a machine returns it to inventory.
+- **UI:** place dialog icon grid; pipe auto-select single port; preview report banner before start; seaport dropdown keeps depleted variants; wiki mobile detail sheet; seaport label clarifies withdraw-only.
+
 ## 0.3.8
 
 - **Azure crash fix:** stop publishing `appsettings.Local.json` (localhost SQL) which overrode empty/Production connection and made migrate fail on App Service.

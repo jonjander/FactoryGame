@@ -79,6 +79,30 @@ public static class BoardEndpoints
             .WithName("PlaceMachineFromStock")
             .WithOpenApi();
 
+        group.MapPost("/{boardId:guid}/return-to-stock", async Task<IResult> (
+                HttpContext http,
+                Guid boardId,
+                [FromBody] ReturnMachineToStockRequest? body,
+                BoardService boards,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                if (body == null || string.IsNullOrWhiteSpace(body.MachineId))
+                    return Results.BadRequest(new { error = "MachineId is required." });
+                try
+                {
+                    await boards.ReturnMachineToStockAsync(playerId, boardId, body.MachineId.Trim(), ct);
+                    return Results.NoContent();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(new { error = ex.Message });
+                }
+            })
+            .WithName("ReturnMachineToStock")
+            .WithOpenApi();
+
         group.MapPost("/", async Task<IResult> (HttpContext http, [FromBody] CreateBoardRequest? body, BoardService boards, CancellationToken ct) =>
             {
                 if (http.Items["PlayerId"] is not Guid playerId)

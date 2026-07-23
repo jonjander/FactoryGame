@@ -24,8 +24,8 @@ public sealed class SeaportPoolGateway(AppDbContext db, Guid playerId) : ISeapor
         stack.Quantity -= qty;
         var pool = db.InventoryPools.First(p => p.PlayerId == playerId);
         pool.UsedVolume -= qty * VolumePerUnit;
-        if (stack.Quantity <= 0)
-            db.PoolStacks.Remove(stack);
+        if (stack.Quantity < 0)
+            stack.Quantity = 0;
         return true;
     }
 

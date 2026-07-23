@@ -138,7 +138,7 @@ public static class MachineSettingsUi
             ];
         if (t.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
             || t.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
-            return [new("outElementId", "Out element (pool)", [])];
+            return [new("outElementId", "Out element (pool withdraw only)", [])];
 
         return Array.Empty<MachineSettingField>();
     }
@@ -179,15 +179,34 @@ public static class MachineSettingsUi
 
     public static IReadOnlyList<PoolVariantOption> PoolVariantOptions(
         IReadOnlyList<FactoryGame.Contracts.Pool.PoolVariantStackDto> variants,
-        bool allowEmpty)
+        bool allowEmpty,
+        int? ensureElementId = null,
+        long? ensureDna = null)
     {
         var list = new List<PoolVariantOption>();
         if (allowEmpty)
             list.Add(new(0, 0, "(none)"));
-        foreach (var v in variants.OrderBy(x => x.ElementId).ThenBy(x => x.Phase, StringComparer.Ordinal))
+
+        var ordered = variants
+            .OrderBy(v => v.Quantity > 0 ? 0 : 1)
+            .ThenBy(x => x.ElementId)
+            .ThenBy(x => x.Phase, StringComparer.Ordinal);
+
+        foreach (var v in ordered)
         {
-            list.Add(new(v.ElementId, v.Dna, $"{v.Symbol} — {v.PhaseLabel} ({v.Quantity})"));
+            var qtyLabel = v.Quantity > 0
+                ? v.Quantity.ToString()
+                : "0, depleted";
+            list.Add(new(v.ElementId, v.Dna, $"{v.Symbol} — {v.PhaseLabel} ({qtyLabel})"));
         }
+
+        if (ensureElementId is > 0 && ensureDna is not null)
+        {
+            var key = (ensureElementId.Value, ensureDna.Value);
+            if (!list.Any(o => o.ElementId == key.Item1 && o.Dna == key.Item2))
+                list.Add(new(key.Item1, key.Item2, $"E{key.Item1:D2} — selected variant (0, depleted)"));
+        }
+
         return list;
     }
 }

@@ -162,6 +162,8 @@ public static class BoardInfoAnalyzer
             request.IsRunning,
             request.RuntimeState);
 
+        CollectMelterSlowMeltIssues(machinePortFlows, issues);
+
         return new BoardInfoReport(
             intoFactory,
             outOfFactory,
@@ -240,8 +242,7 @@ public static class BoardInfoAnalyzer
                     m.Id, m.Type, "out", c.ToId, c.ToPort, unitRate,
                     $"Pool → factory via {m.Id}.out → {c.ToId}.{c.ToPort}"));
             }
-            else if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
-                     || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
+            else if (SeaportExpectsWithdraw(m))
             {
                 issues.Add(BoardIssue.Warning(
                     "seaport_in_idle",
@@ -259,8 +260,7 @@ public static class BoardInfoAnalyzer
                     m.Id, m.Type, "in", c.FromId, c.FromPort, unitRate,
                     $"Factory → pool via {c.FromId}.{c.FromPort} → {m.Id}.in"));
             }
-            else if (m.Type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase)
-                     || m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
+            else if (m.Type.Equals("SeaportOut", StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add(BoardIssue.Warning(
                     "seaport_out_idle",
@@ -268,6 +268,62 @@ public static class BoardInfoAnalyzer
                     m.Id));
             }
         }
+    }
+
+    private static bool SeaportExpectsWithdraw(MachineInfo m)
+    {
+        if (m.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return m.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+               && SeaportConnectorProcessor.ParseOutElementId(m.Settings?.GetRawText()) > 0;
+    }
+
+    private static void CollectMelterSlowMeltIssues(
+        IReadOnlyList<MachinePortFlowDetail> flows,
+        List<BoardIssue> issues)
+    {
+        foreach (var flow in flows)
+        {
+            if (!flow.MachineType.Equals("Melter", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var note = flow.TransformNote ?? "";
+            if (note.Contains("pending", StringComparison.OrdinalIgnoreCase)
+                || note.Contains("still solid", StringComparison.OrdinalIgnoreCase)
+                || note.Contains("heating —", StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add(BoardIssue.Warning(
+                    "melter_slow_melt",
+                    $"Melter «{flow.MachineId}» may need many heat cycles before output becomes liquid — {note}. Lower melt cut or raise melt power.",
+                    flow.MachineId));
+                continue;
+            }
+
+            if (TryParseHeatSteps(note, out var steps) && steps >= 12)
+            {
+                issues.Add(BoardIssue.Info(
+                    "melter_slow_melt",
+                    $"Melter «{flow.MachineId}» needs ~{steps} heat steps per unit — throughput will be slow until liquid appears in the pool.",
+                    flow.MachineId));
+            }
+        }
+    }
+
+    private static bool TryParseHeatSteps(string note, out int steps)
+    {
+        steps = 0;
+        const string marker = "heat steps";
+        var idx = note.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return false;
+        var open = note.LastIndexOf('(', idx, idx + 1);
+        if (open < 0)
+            return false;
+        var close = note.IndexOf(')', open);
+        if (close < 0)
+            return false;
+        var inner = note[(open + 1)..close].Trim().TrimStart('~').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return inner.Length > 0 && int.TryParse(inner[0], out steps);
     }
 
     private static void CollectSorterDnaIssues(

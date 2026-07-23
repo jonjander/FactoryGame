@@ -331,24 +331,37 @@ public sealed class BoardCanvasSession : IAsyncDisposable
 
     public async Task OnCanvasMachineRemovedAsync(string machineId)
     {
-        if (IsSelectedBoardRunning() || string.IsNullOrWhiteSpace(machineId))
-            return;
-        if (!TryDeserializePlan(out var plan))
+        if (IsSelectedBoardRunning() || string.IsNullOrWhiteSpace(machineId) || Selected is not { } boardId)
             return;
 
-        var machines = plan.Machines.Where(m => !m.Id.Equals(machineId, StringComparison.Ordinal)).ToList();
-        if (machines.Count == plan.Machines.Count)
-            return;
+        Busy = true;
+        Error = null;
+        try
+        {
+            var res = await _http.PostAsJsonAsync($"/v1/boards/{boardId}/return-to-stock",
+                new ReturnMachineToStockRequest(machineId));
+            if (!res.IsSuccessStatusCode)
+            {
+                Error = await ApiConnectionErrors.FormatHttpAsync(res);
+                return;
+            }
 
-        var connections = plan.Connections
-            .Where(c => c.FromId != machineId && c.ToId != machineId)
-            .ToList();
-        PlanJson = SerializePlan(new BoardPlanDto(machines, connections));
-        SettingsMachineId = "";
-        SaveHint = $"Machine {machineId} removed (not saved).";
-        _snackbar.Show($"Machine {machineId} removed — save the plan.", SnackbarKind.Info);
-        await SyncBoardInfoFromEditorAsync();
-        NotifyChanged();
+            SettingsMachineId = "";
+            SaveHint = null;
+            _snackbar.Show($"Machine {machineId} returned to inventory.", SnackbarKind.Info);
+            await ReloadPlanUiAsync();
+            await LoadInventoryAsync();
+            await SyncBoardInfoFromEditorAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            Busy = false;
+            NotifyChanged();
+        }
     }
 
     public void ShowStoreInfo(MachineStoreItemDto item)
@@ -475,12 +488,10 @@ public sealed class BoardCanvasSession : IAsyncDisposable
             var view = await _http.GetFromJsonAsync<PoolOverviewDto>("/v1/me/pool/view", JsonRelaxed);
             OwnedPoolVariants = view?.Groups
                 .SelectMany(g => g.Variants)
-                .Where(v => v.Quantity > 0)
                 .ToList() ?? [];
             if (OwnedPoolVariants.Count == 0 && view?.Stacks is { Count: > 0 } stacks)
             {
                 OwnedPoolVariants = stacks
-                    .Where(s => s.Quantity > 0)
                     .Select(s => new PoolVariantStackDto(
                         s.ElementId, s.Symbol, s.Dna, s.Phase, s.PhaseLabel,
                         s.Quantity, s.VolumePerUnit, s.LastPrice, s.LineValue,
@@ -488,6 +499,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
                     .ToList();
             }
             OwnedPoolElementIds = OwnedPoolVariants
+                .Where(v => v.Quantity > 0)
                 .Select(v => v.ElementId)
                 .ToHashSet();
         }
@@ -848,10 +860,19 @@ public sealed class BoardCanvasSession : IAsyncDisposable
 
     public void OnPipeEndpointChanged()
     {
-        if (!GetOutputPortChoices(PipeFromId).Any(p => p.Name == PipeFromPort))
-            PipeFromPort = "";
-        if (!GetInputPortChoices(PipeToId).Any(p => p.Name == PipeToPort))
-            PipeToPort = "";
+        var fromPorts = GetOutputPortChoices(PipeFromId);
+        if (!fromPorts.Any(p => p.Name == PipeFromPort))
+            PipeFromPort = fromPorts.Count == 1 ? fromPorts[0].Name : "";
+
+        var toPorts = GetInputPortChoices(PipeToId);
+        if (!toPorts.Any(p => p.Name == PipeToPort))
+            PipeToPort = toPorts.Count == 1 ? toPorts[0].Name : "";
+
+        if (string.IsNullOrEmpty(PipeFromPort) && fromPorts.Count == 1)
+            PipeFromPort = fromPorts[0].Name;
+        if (string.IsNullOrEmpty(PipeToPort) && toPorts.Count == 1)
+            PipeToPort = toPorts[0].Name;
+
         NotifyChanged();
     }
 

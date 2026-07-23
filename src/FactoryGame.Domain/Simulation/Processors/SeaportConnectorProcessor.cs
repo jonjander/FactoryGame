@@ -9,7 +9,7 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
 
     public void Process(MachineRuntimeState machine, TickContext ctx, string? settingsJson)
     {
-        if (machine.IsBlocked || ctx.Pool == null)
+        if (ctx.Pool == null)
             return;
 
         var elementId = ParseOutElementId(settingsJson);
@@ -18,14 +18,20 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
         {
             if (ctx.Pool.TryWithdraw(elementId, materialDna, ctx.UnitsPerTick))
             {
-                ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
                 var pkt = new MaterialPacket
                 {
                     ElementId = elementId,
                     Dna = materialDna,
                     Quantity = ctx.UnitsPerTick
                 };
-                machine.GetOrCreateOutput("out").TryEnqueue(pkt);
+                if (machine.GetOrCreateOutput("out").TryEnqueue(pkt))
+                {
+                    ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
+                }
+                else if (!ctx.Pool.TryDeposit(elementId, materialDna, ctx.UnitsPerTick))
+                {
+                    machine.BlockedReason = "Seaport output blocked; pool rollback failed.";
+                }
             }
         }
 
@@ -107,14 +113,20 @@ internal sealed class SeaportInProcessor : IMachineProcessor
             return;
         if (!ctx.Pool.TryWithdraw(elementId, materialDna, ctx.UnitsPerTick))
             return;
-        ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
         var pkt = new MaterialPacket
         {
             ElementId = elementId,
             Dna = materialDna,
             Quantity = ctx.UnitsPerTick
         };
-        machine.GetOrCreateOutput("out").TryEnqueue(pkt);
+        if (machine.GetOrCreateOutput("out").TryEnqueue(pkt))
+        {
+            ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
+        }
+        else if (!ctx.Pool.TryDeposit(elementId, materialDna, ctx.UnitsPerTick))
+        {
+            machine.BlockedReason = "Seaport output blocked; pool rollback failed.";
+        }
     }
 }
 

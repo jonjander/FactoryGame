@@ -129,9 +129,9 @@ internal static class MaterialFlowTrace
         else if (machine.Type.Equals("Melter", StringComparison.OrdinalIgnoreCase))
         {
             var settings = machine.Settings?.GetRawText();
-            var cut = MachineSettingsJson.ReadInt(settings, 1800, 0, (int)DnaLayout.BoilingMask,
-                "cutBoil", "cutPoint", "cut");
-            var heat = MachineSettingsJson.ReadInt(settings, 20, 4, 128, "heatDelta", "heat", "power");
+            var cut = MachineSettingsJson.ReadInt(settings, 2048, 0, (int)DnaLayout.BoilingMask,
+                "cutBoiling", "cutBoil", "cutPoint", "cut", "targetBoil");
+            var heat = MachineSettingsJson.ReadInt(settings, 20, 8, 128, "heatDelta", "heat", "power");
             var (dna, melted, passes) = SimulateMeltPasses(sourceDna, cut, heat);
             outputDna = dna;
             note = melted

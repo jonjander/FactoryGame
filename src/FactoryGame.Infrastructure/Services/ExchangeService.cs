@@ -486,9 +486,8 @@ public sealed class ExchangeService(AppDbContext db)
 
         pool.UsedVolume -= qty * VolumePerUnit;
 
-        if (stack.Quantity == 0)
-
-            db.PoolStacks.Remove(stack);
+        if (stack.Quantity < 0)
+            stack.Quantity = 0;
 
     }
 

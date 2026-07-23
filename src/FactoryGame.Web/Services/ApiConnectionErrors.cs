@@ -27,6 +27,22 @@ public static class ApiConnectionErrors
         return string.IsNullOrWhiteSpace(ex.Message) ? technical : ex.Message;
     }
 
+    public static async Task<string> FormatHttpAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(body))
+                return body;
+        }
+        catch
+        {
+            /* ignore */
+        }
+
+        return $"Request failed ({(int)response.StatusCode} {response.ReasonPhrase}).";
+    }
+
     private static string DeepestMessage(Exception ex)
     {
         var e = ex;

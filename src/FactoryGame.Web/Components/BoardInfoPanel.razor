@@ -2,7 +2,90 @@
 @using FactoryGame.Web.Services
 
 <div class="panel fg-sub fg-board-info">
+    @{
+        var seaportInPorts = (Info.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())
+            .Where(p => p.Direction == "in")
+            .OrderBy(p => p.MachineId, StringComparer.Ordinal)
+            .ToList();
+        var machineFlows = (Info.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())
+            .Where(f => !f.IsPoolSource)
+            .OrderBy(f => f.MachineId, StringComparer.Ordinal)
+            .ThenBy(f => f.Port, StringComparer.Ordinal)
+            .ToList();
+        var isPreview = !string.Equals(Info.Mode, "Running", StringComparison.OrdinalIgnoreCase);
+        var previewWithdraw = isPreview
+            ? (Info.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())
+                .Where(p => p.Direction == "out" && p.IsConnected && !string.IsNullOrEmpty(p.ElementSymbol))
+                .ToList()
+            : [];
+        var previewDeposit = isPreview
+            ? seaportInPorts.Where(p => p.IsConnected && !string.IsNullOrEmpty(p.ElementSymbol)).ToList()
+            : [];
+        var previewTransforms = isPreview
+            ? machineFlows.Where(f => f.DnaChanged || !string.IsNullOrEmpty(f.TransformNote)).ToList()
+            : [];
+    }
     <h4>Factory info — @Info.Name</h4>
+    @if (isPreview)
+    {
+        <div class="fg-preview-report-banner">
+            <strong>Preview report</strong> — nothing is consumed or produced while the factory is stopped.
+            Numbers below are estimates of what will happen when you start.
+        </div>
+        @if (previewWithdraw.Count > 0 || previewTransforms.Count > 0 || previewDeposit.Count > 0)
+        {
+            <div class="fg-preview-material-path">
+                <h5>Expected material path</h5>
+                <ul class="fg-info-list">
+                    @foreach (var port in previewWithdraw)
+                    {
+                        <li>
+                            Pool withdraws <strong>@port.ElementSymbol</strong>
+                            via <code>@(port.MachineId).out</code>
+                        </li>
+                    }
+                    @foreach (var flow in previewTransforms)
+                    {
+                        <li>
+                            <code>@flow.MachineId</code>:
+                            @if (!string.IsNullOrEmpty(flow.InputElementSymbol))
+                            {
+                                <span>@flow.InputElementSymbol</span>
+                                @if (!string.IsNullOrEmpty(flow.InputPhase))
+                                {
+                                    <span class="fg-phase-badge fg-phase-@flow.InputPhase.ToLowerInvariant()">@FormatPhaseLabel(flow.InputPhase)</span>
+                                }
+                            }
+                            →
+                            @if (!string.IsNullOrEmpty(flow.OutputElementSymbol))
+                            {
+                                <span>@flow.OutputElementSymbol</span>
+                                @if (!string.IsNullOrEmpty(flow.OutputPhase))
+                                {
+                                    <span class="fg-phase-badge fg-phase-@flow.OutputPhase.ToLowerInvariant()">@FormatPhaseLabel(flow.OutputPhase)</span>
+                                }
+                            }
+                            @if (!string.IsNullOrEmpty(flow.TransformNote))
+                            {
+                                <span class="muted">(@flow.TransformNote)</span>
+                            }
+                        </li>
+                    }
+                    @foreach (var port in previewDeposit)
+                    {
+                        <li>
+                            Pool receives <strong>@port.ElementSymbol</strong>
+                            via <code>@(port.MachineId).in</code>
+                            @if (port.LinkedMachineId != null)
+                            {
+                                <span class="muted">from @port.LinkedMachineId.@port.LinkedPort</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    }
     <p class="muted">
         Mode: <strong>@Info.Mode</strong>
         · @Info.PlanMachineCount machine(s), @Info.PlanConnectionCount pipe(s)
@@ -23,12 +106,6 @@
         </div>
     </div>
 
-    @{
-        var seaportInPorts = (Info.SeaportPorts ?? Array.Empty<SeaportPortFlowDto>())
-            .Where(p => p.Direction == "in")
-            .OrderBy(p => p.MachineId, StringComparer.Ordinal)
-            .ToList();
-    }
     @if (seaportInPorts.Count > 0)
     {
         <h5>Seaport — input «in» (factory → pool)</h5>
@@ -129,13 +206,6 @@
         </ul>
     }
 
-    @{
-        var machineFlows = (Info.MachinePortFlows ?? Array.Empty<MachinePortFlowDto>())
-            .Where(f => !f.IsPoolSource)
-            .OrderBy(f => f.MachineId, StringComparer.Ordinal)
-            .ThenBy(f => f.Port, StringComparer.Ordinal)
-            .ToList();
-    }
     @if (machineFlows.Count > 0)
     {
         <h5>Machines — results (in → out)</h5>

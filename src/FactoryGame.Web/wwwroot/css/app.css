@@ -3005,3 +3005,80 @@ button.danger-outline:hover:not(:disabled) {
     }
 }
 
+.fg-preview-report-banner {
+    background: #1c2d41;
+    border: 1px solid #388bfd66;
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.fg-place-machine-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+}
+
+.fg-place-machine-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    cursor: pointer;
+    color: inherit;
+    text-align: center;
+}
+
+.fg-place-machine-card:hover {
+    border-color: #58a6ff;
+}
+
+.fg-place-machine-card-selected {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 1px #58a6ff66;
+}
+
+.fg-place-machine-type {
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.fg-place-machine-id {
+    font-size: 0.72rem;
+}
+
+.fg-place-machine-actions {
+    align-items: flex-end;
+}
+
+@media (max-width: 860px) {
+    .wiki-layout-detail-open .wiki-main .wiki-detail {
+        display: none;
+    }
+
+    .wiki-mobile-sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(1, 4, 9, 0.65);
+        z-index: 1200;
+    }
+
+    .wiki-mobile-sheet {
+        position: fixed;
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        max-height: min(72vh, 640px);
+        overflow: auto;
+        z-index: 1201;
+        margin: 0;
+    }
+}
+

@@ -61,7 +61,7 @@ public sealed class MarketQueryService(AppDbContext db)
             return null;
 
         var stacks = await db.PoolStacks.AsNoTracking()
-            .Where(s => s.PlayerId == playerId && s.Quantity > 0)
+            .Where(s => s.PlayerId == playerId)
             .OrderBy(s => s.ElementId)
             .ThenBy(s => s.Dna)
             .ToListAsync(ct);

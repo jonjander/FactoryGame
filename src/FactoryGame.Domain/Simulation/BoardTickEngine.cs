@@ -47,12 +47,10 @@ public static class BoardTickEngine
             if (!machineMeta.TryGetValue(machineId, out var meta))
                 continue;
             var runtime = state.Machines[machineId];
+            runtime.BlockedReason = null;
 
-            if (!runtime.IsBlocked)
-            {
-                var processor = MachineProcessorRegistry.Resolve(meta.Type);
-                processor.Process(runtime, ctx, meta.SettingsJson);
-            }
+            var processor = MachineProcessorRegistry.Resolve(meta.Type);
+            processor.Process(runtime, ctx, meta.SettingsJson);
         }
 
         var active = state.Machines.Values.Count(m => !m.IsBlocked);

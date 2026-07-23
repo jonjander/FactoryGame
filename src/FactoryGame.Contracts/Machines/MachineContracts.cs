@@ -9,3 +9,5 @@ public sealed record PlayerMachineStockDto(Guid Id, string MachineType, DateTime
 public sealed record PurchaseMachineRequest(string MachineType);
 
 public sealed record PlaceMachineFromStockRequest(Guid StockId, string MachineId);
+
+public sealed record ReturnMachineToStockRequest(string MachineId);
