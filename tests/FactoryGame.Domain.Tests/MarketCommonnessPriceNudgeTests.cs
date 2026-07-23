@@ -1,3 +1,4 @@
+using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Market;
 
 namespace FactoryGame.Domain.Tests;
@@ -14,6 +15,25 @@ public sealed class MarketCommonnessPriceNudgeTests
         Assert.Equal(1m, scores[1]);
         Assert.Equal(0.1m, scores[2]);
         Assert.Equal(0.5m, scores[3]);
+    }
+
+    [Fact]
+    public void ComputeVariantCommonnessScores_rare_variant_has_low_score()
+    {
+        var catalog = ElementCatalog.All[0];
+        var rare = new VariantMarketKey(catalog.Id, catalog.Dna + 1);
+        var common = new VariantMarketKey(catalog.Id, catalog.Dna);
+
+        var scores = MarketCommonnessPriceNudge.ComputeVariantCommonnessScores(
+            [rare, common],
+            new Dictionary<VariantMarketKey, long>
+            {
+                [rare] = 5,
+                [common] = 100
+            });
+
+        Assert.Equal(0.05m, scores[rare]);
+        Assert.Equal(1m, scores[common]);
     }
 
     [Fact]

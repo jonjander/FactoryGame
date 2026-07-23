@@ -61,7 +61,8 @@
             {
                 <li>
                     <strong>@insight.CompanyName</strong> buys
-                    <span class="fg-element-badge">@insight.Symbol</span> @insight.PhaseLabel
+                    <span class="fg-element-badge">@MaterialLabelUi.Compact(insight.Symbol) ?? insight.Symbol</span>
+                    @insight.DisplayName
                     @@ <strong>@insight.LimitPrice.ToString("0.##")</strong>
                     (volume @insight.OpenQuantity)
                     <button type="button" class="secondary" @onclick="() => ApplySellInsightAsync(insight)">Sell now</button>
@@ -94,7 +95,7 @@ else if (_summary.Count > 0)
                 @foreach (var item in _summary.OrderBy(s => s.DisplayName).ThenBy(s => s.Phase, StringComparer.Ordinal))
                 {
                     <tr class="@(IsSelected(item) ? "selected" : "")" @onclick="() => SelectVariantAsync(item)">
-                        <td><span class="fg-element-badge">@item.Symbol</span> @item.DisplayName</td>
+                        <td><span class="fg-element-badge">@MaterialLabelUi.Compact(item.Symbol) ?? item.Symbol</span> @item.DisplayName</td>
                         <td><span class="fg-phase-badge fg-phase-@item.Phase.ToLowerInvariant()">@item.PhaseLabel</span></td>
                         <td><strong>@item.PoolQuantity</strong></td>
                         <td>@item.LastPrice.ToString("0.##")</td>
@@ -113,7 +114,7 @@ else if (_summary.Count > 0)
                 {
                     <li class="@(IsSelected(item) ? "selected" : "")">
                         <button type="button" class="exchange-element-btn" @onclick="() => SelectVariantAsync(item)">
-                            <span class="exchange-element-name">@item.Symbol — @item.PhaseLabel</span>
+                            <span class="exchange-element-name">@item.DisplayName</span>
                             <span class="exchange-element-meta">
                                 <span>@item.LastPrice.ToString("0.##")</span>
                                 @if (item.ChangePercent24h is { } ch)
@@ -123,7 +124,7 @@ else if (_summary.Count > 0)
                                     </span>
                                 }
                             </span>
-                            <span class="muted exchange-element-qty">@item.PoolQuantity in pool · @item.DisplayName</span>
+                            <span class="muted exchange-element-qty">@item.PoolQuantity in pool · <span class="fg-phase-badge fg-phase-@item.Phase.ToLowerInvariant()">@item.PhaseLabel</span></span>
                         </button>
                     </li>
                 }
@@ -135,8 +136,8 @@ else if (_summary.Count > 0)
             {
                 <div class="exchange-ticker">
                     <div>
-                        <h3>@_selected.Symbol — @_selected.PhaseLabel</h3>
-                        <p class="exchange-owned">@_selected.DisplayName · <strong>@_selected.PoolQuantity</strong> in pool</p>
+                        <h3>@_selected.DisplayName</h3>
+                        <p class="exchange-owned"><span class="fg-phase-badge fg-phase-@_selected.Phase.ToLowerInvariant()">@_selected.PhaseLabel</span> · <strong>@_selected.PoolQuantity</strong> in pool</p>
                     </div>
                     <span class="exchange-last">@_selected.LastPrice.ToString("0.##")</span>
                     @if (_selected.ChangePercent24h is { } pct)
@@ -550,7 +551,7 @@ else if (_summary.Count > 0)
     private async Task LoadVariantDetailAsync(int elementId, long dna)
     {
         await LoadDepthAsync(elementId, dna);
-        await LoadHistoryAsync(elementId);
+        await LoadHistoryAsync(elementId, dna);
         await LoadTradesAsync(elementId, dna);
         await LoadMyOpenOrdersAsync(elementId, dna);
         ApplySuggestedPrice();
@@ -572,12 +573,12 @@ else if (_summary.Count > 0)
         }
     }
 
-    private async Task LoadHistoryAsync(int elementId)
+    private async Task LoadHistoryAsync(int elementId, long dna)
     {
         try
         {
             var history = await Http.GetFromJsonAsync<List<MarketCandleDto>>(
-                $"/v1/market/elements/{elementId}/history?points=48", JsonOpts);
+                $"/v1/market/elements/{elementId}/history?points=48&dna={dna}", JsonOpts);
             _history.Clear();
             if (history != null)
                 _history.AddRange(history);
@@ -1177,10 +1178,10 @@ else if (_summary.Count > 0)
             var row = new MarketElementSummaryDto(
                 elementId,
                 dna,
-                element.Symbol,
+                depth?.Symbol ?? element.Symbol,
                 phaseKey,
                 WikiPresentation.PhaseLabel(phaseKey),
-                element.Name,
+                depth?.DisplayName ?? element.Name,
                 0,
                 depth?.BestAsk ?? depth?.BestBid ?? 10m,
                 null,

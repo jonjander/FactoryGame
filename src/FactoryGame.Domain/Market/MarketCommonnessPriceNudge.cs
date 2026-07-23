@@ -26,6 +26,26 @@ public static class MarketCommonnessPriceNudge
     }
 
     /// <summary>
+    /// Per-variant commonness from global pool qty per (ElementId, Dna).
+    /// </summary>
+    public static IReadOnlyDictionary<VariantMarketKey, decimal> ComputeVariantCommonnessScores(
+        IEnumerable<VariantMarketKey> variants,
+        IReadOnlyDictionary<VariantMarketKey, long> globalPoolQuantityByVariant)
+    {
+        var keys = variants.Distinct().ToList();
+        if (keys.Count == 0)
+            return new Dictionary<VariantMarketKey, decimal>();
+
+        var maxQty = keys.Max(k => globalPoolQuantityByVariant.GetValueOrDefault(k, 0L));
+        if (maxQty <= 0)
+            return keys.ToDictionary(k => k, _ => 0.5m);
+
+        return keys.ToDictionary(
+            k => k,
+            k => globalPoolQuantityByVariant.GetValueOrDefault(k, 0L) / (decimal)maxQty);
+    }
+
+    /// <summary>
     /// Price multiplier: rare (low commonness) &gt; 1, common (high commonness) &lt; 1.
     /// </summary>
     public static decimal ComputeMultiplier(

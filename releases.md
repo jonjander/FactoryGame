@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.15
+
+- **Exchange:** holdings and trade list show full variant labels (`E03-161903 (Base-Variant)`) like Pool; price chart and history are per DNA variant.
+- **Market:** candles, last price, 24h change, NPC liquidity and 15-min drift run per `(ElementId, Dna)` — `E03-161903` and `E03-323659` are separate markets with distinct prices and order books.
+
 ## 0.3.14
 
 - **Pool:** each variant row shows full material label (`E02-123456 (BaseName-VariantName)`) instead of duplicate base symbol `E02`.

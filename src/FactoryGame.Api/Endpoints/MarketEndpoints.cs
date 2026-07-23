@@ -58,6 +58,7 @@ public static class MarketEndpoints
         group.MapGet("/elements/{elementId:int}/depth", async Task<IResult> (
                 int elementId,
                 long? dna,
+                HttpContext http,
                 AppDbContext db,
                 IServiceScopeFactory scopeFactory,
                 MarketQueryService query,
@@ -66,22 +67,29 @@ public static class MarketEndpoints
                 if (!IsTradeableElement(elementId))
                     return Results.NotFound();
 
+                var resolvedDna = dna ?? FactoryGame.Domain.Content.ElementCatalogLookup.CatalogDnaFor(elementId);
+
                 try
                 {
                     await using var scope = scopeFactory.CreateAsyncScope();
                     var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
-                    await liquidity.EnsureLiquidityForElementAsync(elementId, ct);
+                    await liquidity.EnsureLiquidityForElementAsync(elementId, ct, dna: resolvedDna);
                 }
                 catch
                 {
                     // Return existing depth even if synthetic liquidity could not be refreshed.
                 }
 
-                var resolvedDna = dna ?? FactoryGame.Domain.Content.ElementCatalogLookup.CatalogDnaFor(elementId);
+                var locale = http.Request.Headers.AcceptLanguage.ToString().Split(',')[0].Trim();
+                if (string.IsNullOrEmpty(locale))
+                    locale = "en";
+
                 var depth = await query.GetDepthAsync(elementId, resolvedDna, ct);
                 var dto = new MarketDepthDto(
                     depth.ElementId,
                     depth.Dna,
+                    FactoryGame.Domain.Names.MaterialLabelFormatter.VariantCode(elementId, resolvedDna),
+                    FactoryGame.Domain.Names.MaterialLabelFormatter.Format(elementId, resolvedDna, locale),
                     depth.BestBid,
                     depth.BestAsk,
                     depth.Levels.Select(l => new MarketDepthLevelDto(l.Price, l.BidQuantity, l.AskQuantity)).ToList());
@@ -92,6 +100,7 @@ public static class MarketEndpoints
 
         group.MapGet("/elements/{elementId:int}/history", async Task<IResult> (
                 int elementId,
+                long? dna,
                 int? points,
                 AppDbContext db,
                 MarketQueryService query,
@@ -100,7 +109,8 @@ public static class MarketEndpoints
                 if (!IsTradeableElement(elementId))
                     return Results.NotFound();
 
-                var history = await query.GetHistoryAsync(elementId, points ?? 48, ct);
+                var resolvedDna = dna ?? FactoryGame.Domain.Content.ElementCatalogLookup.CatalogDnaFor(elementId);
+                var history = await query.GetHistoryAsync(elementId, resolvedDna, points ?? 48, ct);
                 var dtos = history.Select(c => new MarketCandleDto(
                     c.BucketStart, c.Open, c.High, c.Low, c.Close, c.Volume)).ToList();
                 return Results.Ok(dtos);

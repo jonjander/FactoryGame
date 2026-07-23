@@ -82,10 +82,11 @@ public sealed class MarketLiquidityTests : IClassFixture<ApiWebApplicationFixtur
         var liquidity = scope.ServiceProvider.GetRequiredService<MarketLiquidityService>();
 
         const int elementId = 2;
-        await liquidity.EnsureLiquidityForElementAsync(elementId, force: true);
+        var catalogDna = ElementCatalogLookup.CatalogDnaFor(elementId);
+        await liquidity.EnsureLiquidityForElementAsync(elementId, force: true, dna: catalogDna);
 
         var before = (await db.MarketPriceCandles.AsNoTracking()
-            .Where(c => c.ElementId == elementId)
+            .Where(c => c.ElementId == elementId && c.Dna == catalogDna)
             .ToListAsync())
             .OrderByDescending(c => c.BucketStart)
             .Select(c => c.Close)
@@ -94,7 +95,7 @@ public sealed class MarketLiquidityTests : IClassFixture<ApiWebApplicationFixtur
         await liquidity.ApplyPeriodicAliveMarketDriftAsync();
 
         var after = (await db.MarketPriceCandles.AsNoTracking()
-            .Where(c => c.ElementId == elementId)
+            .Where(c => c.ElementId == elementId && c.Dna == catalogDna)
             .ToListAsync())
             .OrderByDescending(c => c.BucketStart)
             .Select(c => c.Close)

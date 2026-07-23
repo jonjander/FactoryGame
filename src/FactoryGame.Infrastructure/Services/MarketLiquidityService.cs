@@ -23,16 +23,15 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             return;
         }
 
-        var elementIds = await GetElementsNeedingRefreshAsync(
-            await GetPooledElementIdsAsync(ct),
+        var variants = await GetPooledVariantsNeedingRefreshAsync(
             Math.Max(1, _opts.MaxElementsPerBackgroundRefresh),
             ct);
-        if (elementIds.Count == 0)
+        if (variants.Count == 0)
             return;
 
         await EnsureSystemPlayerAsync(ct);
-        foreach (var elementId in elementIds)
-            await EnsureLiquidityForElementAsync(elementId, ct);
+        foreach (var variant in variants)
+            await EnsureLiquidityForElementAsync(variant.ElementId, ct, dna: variant.Dna);
     }
 
     public async Task EnsureLiquidityForPlayerPoolAsync(Guid playerId, CancellationToken ct = default)
@@ -61,27 +60,26 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
 
         await EnsureSystemPlayerAsync(ct);
 
-        var quantities = await LoadGlobalPoolQuantitiesAsync(ct);
-        var scores = MarketCommonnessPriceNudge.ComputeCommonnessScores(
-            ElementCatalog.All.Select(e => e.Id),
-            quantities);
+        var variants = await GetActiveMarketVariantsAsync(ct);
+        var quantities = await LoadGlobalPoolQuantitiesByVariantAsync(ct);
+        var scores = MarketCommonnessPriceNudge.ComputeVariantCommonnessScores(variants, quantities);
         var driftBucket = GetDriftBucket();
 
-        foreach (var element in ElementCatalog.All)
+        foreach (var variant in variants)
         {
-            var jitter = ComputeAliveJitter(element.Id, driftBucket);
+            var jitter = ComputeAliveJitter(variant.ElementId, variant.Dna, driftBucket);
             var multiplier = MarketCommonnessPriceNudge.ComputeMultiplier(
-                scores[element.Id],
+                scores[variant],
                 _opts.CommonnessDriftMaxFraction,
                 jitter);
 
-            await EnsureLiquidityForElementAsync(element.Id, ct, force: false, dna: element.Dna);
-            await ApplyCandleDriftAsync(element.Id, multiplier, ct);
+            await EnsureLiquidityForElementAsync(variant.ElementId, ct, force: false, dna: variant.Dna);
+            await ApplyCandleDriftAsync(variant.ElementId, variant.Dna, multiplier, ct);
             await EnsureLiquidityForElementAsync(
-                element.Id,
+                variant.ElementId,
                 ct,
                 force: true,
-                dna: element.Dna,
+                dna: variant.Dna,
                 priceNudgeMultiplier: multiplier);
         }
     }
@@ -230,12 +228,13 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
 
     private async Task SeedHistoryIfNeededAsync(int elementId, long dna, CancellationToken ct)
     {
-        var hasCandles = await db.MarketPriceCandles.AnyAsync(c => c.ElementId == elementId, ct);
+        var hasCandles = await db.MarketPriceCandles.AnyAsync(
+            c => c.ElementId == elementId && c.Dna == dna, ct);
         if (hasCandles)
             return;
 
         var reference = ElementReferencePrice.Compute(dna);
-        var rng = CreateRng(elementId, "history");
+        var rng = CreateRng(elementId, $"history-{dna}");
         var now = DateTimeOffset.UtcNow;
         var price = reference;
         var interval = TimeSpan.FromHours(1);
@@ -255,6 +254,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             db.MarketPriceCandles.Add(new MarketPriceCandleEntity
             {
                 ElementId = elementId,
+                Dna = dna,
                 BucketStart = bucket,
                 Open = open,
                 High = high,
@@ -264,7 +264,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             });
         }
 
-        var tradeRng = CreateRng(elementId, "trades");
+        var tradeRng = CreateRng(elementId, $"trades-{dna}");
         var systemId = _opts.SystemPlayerId;
         for (var t = 0; t < _opts.HistoryTradeSamples; t++)
         {
@@ -278,6 +278,7 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
             {
                 Id = Guid.NewGuid(),
                 ElementId = elementId,
+                Dna = dna,
                 Price = tradePrice,
                 Quantity = tradeQty,
                 BuyerPlayerId = systemId,
@@ -351,26 +352,24 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task<List<int>> GetPooledElementIdsAsync(CancellationToken ct) =>
-        await db.PoolStacks.AsNoTracking()
+    private async Task<List<VariantMarketKey>> GetPooledVariantsNeedingRefreshAsync(int maxCount, CancellationToken ct)
+    {
+        if (maxCount <= 0)
+            return [];
+
+        var stacks = await db.PoolStacks.AsNoTracking()
             .Where(s => s.Quantity > 0)
-            .Select(s => s.ElementId)
+            .Select(s => new { s.ElementId, s.Dna })
             .Distinct()
             .ToListAsync(ct);
 
-    private async Task<List<int>> GetElementsNeedingRefreshAsync(
-        IReadOnlyList<int> candidateElementIds,
-        int maxCount,
-        CancellationToken ct)
-    {
-        if (candidateElementIds.Count == 0 || maxCount <= 0)
-            return [];
-
-        var result = new List<int>(Math.Min(maxCount, candidateElementIds.Count));
-        foreach (var elementId in candidateElementIds)
+        var result = new List<VariantMarketKey>(Math.Min(maxCount, stacks.Count));
+        foreach (var stack in stacks)
         {
-            if (await NeedsLiquidityRefreshAsync(elementId, ElementCatalogLookup.CatalogDnaFor(elementId), ct))
-                result.Add(elementId);
+            if (!ElementCatalog.All.Any(e => e.Id == stack.ElementId))
+                continue;
+            if (await NeedsLiquidityRefreshAsync(stack.ElementId, stack.Dna, ct))
+                result.Add(new VariantMarketKey(stack.ElementId, stack.Dna));
             if (result.Count >= maxCount)
                 break;
         }
@@ -378,10 +377,42 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         return result;
     }
 
+    private async Task<List<VariantMarketKey>> GetActiveMarketVariantsAsync(CancellationToken ct)
+    {
+        var set = new HashSet<VariantMarketKey>();
+
+        foreach (var element in ElementCatalog.All)
+            set.Add(new VariantMarketKey(element.Id, element.Dna));
+
+        var pooled = await db.PoolStacks.AsNoTracking()
+            .Where(s => s.PlayerId != _opts.SystemPlayerId && s.Quantity > 0)
+            .Select(s => new { s.ElementId, s.Dna })
+            .Distinct()
+            .ToListAsync(ct);
+        foreach (var row in pooled)
+        {
+            if (ElementCatalog.All.Any(e => e.Id == row.ElementId))
+                set.Add(new VariantMarketKey(row.ElementId, row.Dna));
+        }
+
+        var ordered = await db.MarketOrders.AsNoTracking()
+            .Where(o => o.Status == OrderStatus.Open && o.QuantityRemaining > 0)
+            .Select(o => new { o.ElementId, o.Dna })
+            .Distinct()
+            .ToListAsync(ct);
+        foreach (var row in ordered)
+        {
+            if (ElementCatalog.All.Any(e => e.Id == row.ElementId))
+                set.Add(new VariantMarketKey(row.ElementId, row.Dna));
+        }
+
+        return set.OrderBy(v => v.ElementId).ThenBy(v => v.Dna).ToList();
+    }
+
     private async Task<bool> NeedsLiquidityRefreshAsync(int elementId, long dna, CancellationToken ct)
     {
         var hasCandles = await db.MarketPriceCandles.AsNoTracking()
-            .AnyAsync(c => c.ElementId == elementId, ct);
+            .AnyAsync(c => c.ElementId == elementId && c.Dna == dna, ct);
         if (!hasCandles)
             return true;
 
@@ -405,21 +436,21 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         return newestSynthetic < cooldownCutoff;
     }
 
-    private async Task<Dictionary<int, long>> LoadGlobalPoolQuantitiesAsync(CancellationToken ct)
+    private async Task<Dictionary<VariantMarketKey, long>> LoadGlobalPoolQuantitiesByVariantAsync(CancellationToken ct)
     {
         var rows = await db.PoolStacks.AsNoTracking()
             .Where(s => s.PlayerId != _opts.SystemPlayerId && s.Quantity > 0)
-            .GroupBy(s => s.ElementId)
-            .Select(g => new { ElementId = g.Key, Total = g.Sum(s => s.Quantity) })
+            .GroupBy(s => new { s.ElementId, s.Dna })
+            .Select(g => new { g.Key.ElementId, g.Key.Dna, Total = g.Sum(s => s.Quantity) })
             .ToListAsync(ct);
 
-        return rows.ToDictionary(r => r.ElementId, r => r.Total);
+        return rows.ToDictionary(r => new VariantMarketKey(r.ElementId, r.Dna), r => r.Total);
     }
 
-    private async Task ApplyCandleDriftAsync(int elementId, decimal multiplier, CancellationToken ct)
+    private async Task ApplyCandleDriftAsync(int elementId, long dna, decimal multiplier, CancellationToken ct)
     {
         var candles = await db.MarketPriceCandles
-            .Where(c => c.ElementId == elementId)
+            .Where(c => c.ElementId == elementId && c.Dna == dna)
             .ToListAsync(ct);
         var latest = candles.OrderByDescending(c => c.BucketStart).FirstOrDefault();
         if (latest == null)
@@ -443,12 +474,12 @@ public sealed class MarketLiquidityService(AppDbContext db, IOptions<MarketLiqui
         return DateTimeOffset.UtcNow.UtcTicks / bucketTicks;
     }
 
-    private decimal ComputeAliveJitter(int elementId, long driftBucket)
+    private decimal ComputeAliveJitter(int elementId, long dna, long driftBucket)
     {
         if (_opts.AliveDriftMaxFraction <= 0)
             return 0m;
 
-        var hash = HashCode.Combine(elementId, driftBucket, _opts.SeedVersion, "alive-drift");
+        var hash = HashCode.Combine(elementId, dna, driftBucket, _opts.SeedVersion, "alive-drift");
         var rng = new Random(hash);
         var unit = (decimal)rng.NextDouble() * 2m - 1m;
         return unit * _opts.AliveDriftMaxFraction;

@@ -21,6 +21,8 @@ public sealed record MarketDepthLevelDto(decimal Price, long BidQuantity, long A
 public sealed record MarketDepthDto(
     int ElementId,
     [property: JsonConverter(typeof(DnaJsonConverter))] long Dna,
+    string Symbol,
+    string DisplayName,
     decimal? BestBid,
     decimal? BestAsk,
     IReadOnlyList<MarketDepthLevelDto> Levels);

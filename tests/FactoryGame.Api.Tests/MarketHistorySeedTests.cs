@@ -1,3 +1,4 @@
+using FactoryGame.Domain.Content;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -19,11 +20,12 @@ public sealed class MarketHistorySeedTests : IClassFixture<ApiWebApplicationFixt
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         const int elementId = 2;
-        await liquidity.EnsureLiquidityForElementAsync(elementId);
-        var count1 = await db.MarketPriceCandles.CountAsync(c => c.ElementId == elementId);
+        var catalogDna = ElementCatalogLookup.CatalogDnaFor(elementId);
+        await liquidity.EnsureLiquidityForElementAsync(elementId, force: true, dna: catalogDna);
+        var count1 = await db.MarketPriceCandles.CountAsync(c => c.ElementId == elementId && c.Dna == catalogDna);
 
-        await liquidity.EnsureLiquidityForElementAsync(elementId);
-        var count2 = await db.MarketPriceCandles.CountAsync(c => c.ElementId == elementId);
+        await liquidity.EnsureLiquidityForElementAsync(elementId, force: true, dna: catalogDna);
+        var count2 = await db.MarketPriceCandles.CountAsync(c => c.ElementId == elementId && c.Dna == catalogDna);
 
         Assert.True(count1 > 0);
         Assert.Equal(count1, count2);

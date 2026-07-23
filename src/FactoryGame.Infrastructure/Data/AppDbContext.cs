@@ -90,7 +90,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable("MarketPriceCandles");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
-            e.HasIndex(x => new { x.ElementId, x.BucketStart }).IsUnique();
+            e.HasIndex(x => new { x.ElementId, x.Dna, x.BucketStart }).IsUnique();
             e.Property(x => x.Open).HasPrecision(18, 4);
             e.Property(x => x.High).HasPrecision(18, 4);
             e.Property(x => x.Low).HasPrecision(18, 4);

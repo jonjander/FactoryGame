@@ -270,6 +270,9 @@ namespace FactoryGame.Infrastructure.Data.Migrations
                     b.Property<int>("ElementId")
                         .HasColumnType("int");
 
+                    b.Property<long>("Dna")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal>("High")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
@@ -287,7 +290,7 @@ namespace FactoryGame.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ElementId", "BucketStart")
+                    b.HasIndex("ElementId", "Dna", "BucketStart")
                         .IsUnique();
 
                     b.ToTable("MarketPriceCandles", (string)null);

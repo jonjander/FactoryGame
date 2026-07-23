@@ -6,6 +6,8 @@ public class MarketPriceCandleEntity
 
     public int ElementId { get; set; }
 
+    public long Dna { get; set; }
+
     public DateTimeOffset BucketStart { get; set; }
 
     public decimal Open { get; set; }

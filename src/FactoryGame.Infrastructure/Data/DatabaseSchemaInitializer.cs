@@ -22,6 +22,7 @@ internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializ
     {
         await db.Database.EnsureCreatedAsync(cancellationToken);
         await ApplyMarketLiquidityPatchesAsync(db, cancellationToken);
+        await ApplyMarketCandleDnaPatchesAsync(db, cancellationToken);
         await ApplyPoolDnaPatchesAsync(db, cancellationToken);
         await ApplySponsorCompanyPatchesAsync(db, cancellationToken);
         await ApplyPlayerCreatedAtUtcTicksPatchAsync(db, cancellationToken);
@@ -48,6 +49,22 @@ internal sealed class SqliteDatabaseSchemaInitializer : IDatabaseSchemaInitializ
             "CREATE UNIQUE INDEX IF NOT EXISTS IX_MarketPriceCandles_ElementId_BucketStart ON MarketPriceCandles (ElementId, BucketStart);", ct);
         await db.Database.ExecuteSqlRawAsync(
             "CREATE INDEX IF NOT EXISTS IX_MarketOrders_ElementId_IsSynthetic_Status ON MarketOrders (ElementId, IsSynthetic, Status);", ct);
+    }
+
+    private static async Task ApplyMarketCandleDnaPatchesAsync(AppDbContext db, CancellationToken ct)
+    {
+        await TryAddColumnAsync(db, "MarketPriceCandles", "Dna", "INTEGER NOT NULL DEFAULT 0", ct);
+
+        foreach (var element in FactoryGame.Domain.Content.ElementCatalog.All)
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE MarketPriceCandles SET Dna = {0} WHERE ElementId = {1} AND Dna = 0;",
+                element.Dna, element.Id);
+        }
+
+        await db.Database.ExecuteSqlRawAsync("DROP INDEX IF EXISTS IX_MarketPriceCandles_ElementId_BucketStart;", ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "CREATE UNIQUE INDEX IF NOT EXISTS IX_MarketPriceCandles_ElementId_Dna_BucketStart ON MarketPriceCandles (ElementId, Dna, BucketStart);", ct);
     }
 
     private static async Task ApplyPoolDnaPatchesAsync(AppDbContext db, CancellationToken ct)

@@ -29,17 +29,17 @@ public sealed class MarketQueryService(AppDbContext db)
         var summaries = new List<MarketElementSummary>();
         foreach (var stack in stacks)
         {
-            var element = ElementCatalog.All.First(e => e.Id == stack.ElementId);
             var depth = await GetDepthAsync(stack.ElementId, stack.Dna, ct);
             var (lastPrice, changePct) = await GetLastPriceAndChangeAsync(stack.ElementId, stack.Dna, ct);
             var phase = MaterialPhaseLabels.DecodePhase(stack.Dna);
+            var label = MaterialLabelFormatter.Format(stack.ElementId, stack.Dna, locale);
             summaries.Add(new MarketElementSummary(
                 stack.ElementId,
                 stack.Dna,
-                element.Symbol,
+                MaterialLabelFormatter.VariantCode(stack.ElementId, stack.Dna),
                 MaterialPhaseLabels.PhaseKey(phase),
                 MaterialPhaseLabels.PhaseLabel(phase),
-                ElementNameGenerator.Generate(stack.Dna, locale),
+                label,
                 stack.Quantity,
                 lastPrice,
                 changePct,
@@ -159,7 +159,7 @@ public sealed class MarketQueryService(AppDbContext db)
     {
         var depth = await GetDepthAsync(elementId, dna, ct);
         var candles = (await db.MarketPriceCandles.AsNoTracking()
-            .Where(c => c.ElementId == elementId)
+            .Where(c => c.ElementId == elementId && c.Dna == dna)
             .ToListAsync(ct))
             .OrderByDescending(c => c.BucketStart)
             .Take(2)
@@ -206,11 +206,18 @@ public sealed class MarketQueryService(AppDbContext db)
         return new MarketDepthSnapshot(elementId, dna, bid, ask, levels);
     }
 
-    public async Task<IReadOnlyList<MarketCandlePoint>> GetHistoryAsync(int elementId, int points, CancellationToken ct = default)
+    public async Task<IReadOnlyList<MarketCandlePoint>> GetHistoryAsync(
+        int elementId,
+        long dna,
+        int points,
+        CancellationToken ct = default)
     {
+        if (dna == 0)
+            dna = ElementCatalogLookup.CatalogDnaFor(elementId);
+
         var take = Math.Clamp(points, 1, 500);
         return (await db.MarketPriceCandles.AsNoTracking()
-            .Where(c => c.ElementId == elementId)
+            .Where(c => c.ElementId == elementId && c.Dna == dna)
             .ToListAsync(ct))
             .OrderByDescending(c => c.BucketStart)
             .Take(take)
@@ -384,9 +391,9 @@ public sealed class MarketQueryService(AppDbContext db)
             company.LogoUrl,
             order.ElementId,
             order.Dna,
-            element.Symbol,
+            MaterialLabelFormatter.VariantCode(order.ElementId, order.Dna),
             MaterialPhaseLabels.PhaseLabel(phase),
-            ElementNameGenerator.Generate(order.Dna, locale),
+            MaterialLabelFormatter.Format(order.ElementId, order.Dna, locale),
             price,
             order.QuantityRemaining,
             company.ExposureTier,

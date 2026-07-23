@@ -2,6 +2,7 @@ using System.Text.Json;
 using FactoryGame.Contracts.Boards;
 using FactoryGame.Domain.Boards;
 using FactoryGame.Domain.Content;
+using FactoryGame.Domain.Market;
 using FactoryGame.Domain.Simulation;
 using FactoryGame.Infrastructure.Data;
 using FactoryGame.Infrastructure.Data.Entities;
@@ -370,8 +371,18 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .ToDictionary(s => new PoolStackKey(s.ElementId, s.Dna), s => (decimal)s.Quantity);
 
         var prices = db.MarketPriceCandles.AsNoTracking()
+            .AsEnumerable()
             .GroupBy(c => c.ElementId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.BucketStart).First().Close);
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var catalogDna = ElementCatalogLookup.CatalogDnaFor(g.Key);
+                    return g.Where(c => c.Dna == catalogDna)
+                        .OrderByDescending(c => c.BucketStart)
+                        .FirstOrDefault()?.Close
+                        ?? ElementReferencePrice.Compute(catalogDna);
+                });
 
         var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
             machines,
