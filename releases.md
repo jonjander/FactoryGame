@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.19
+
+- **Pool info modal:** fix DNA hex display (`0x…` instead of literal Razor text); pass pool variant DNA; **Show in Exchange** opens `/exchange?elementId=&dna=&side=sell`.
+
 ## 0.3.18
 
 - **Exchange:** variant badge only in holdings, trade list and ticker header — full name on hover (`title`), no duplicate `E03-161903` text beside badge.

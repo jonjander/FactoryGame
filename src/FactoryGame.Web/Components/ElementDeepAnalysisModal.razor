@@ -1,3 +1,4 @@
+@using System.Globalization
 @using FactoryGame.Web.Models
 @using FactoryGame.Web.Services
 
@@ -7,9 +8,9 @@
         <div class="fg-modal fg-modal-wide pool-analysis-modal" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="pool-analysis-title">
             <div class="pool-analysis-header">
                 <div>
-                    <h3 id="pool-analysis-title" class="fg-modal-title">@Element.Name</h3>
+                    <h3 id="pool-analysis-title" class="fg-modal-title">@DisplayTitle</h3>
                     <p class="muted pool-analysis-subtitle">
-                        <span class="fg-element-badge">@Element.Symbol</span>
+                        <span class="fg-element-badge" title="@VariantLabel">@DisplayBadge</span>
                         Element @Element.Id
                     </p>
                 </div>
@@ -31,7 +32,7 @@
                     </div>
                 }
             </div>
-            <p class="muted pool-dna-hex">DNA: 0x@Element.Dna.ToString("X16")</p>
+            <p class="muted pool-dna-hex">DNA: @FormatDnaHex(EffectiveDna)</p>
 
             <h4 class="pool-analysis-section-title">Properties</h4>
             <dl class="pool-props-grid">
@@ -45,7 +46,8 @@
             </dl>
 
             <div class="fg-modal-actions pool-analysis-footer">
-                <a class="button-link" href="/wiki?elementId=@Element.Id">Open in wiki</a>
+                <a class="button-link" href="@ExchangeHref">Show in Exchange</a>
+                <a class="button-link secondary" href="/wiki?elementId=@Element.Id">Open in wiki</a>
                 <button type="button" class="secondary" @onclick="CloseAsync">Close</button>
             </div>
         </div>
@@ -60,7 +62,27 @@
     public ElementContentItem? Element { get; set; }
 
     [Parameter]
+    public long? VariantDna { get; set; }
+
+    [Parameter]
+    public string? VariantLabel { get; set; }
+
+    [Parameter]
     public EventCallback OnClose { get; set; }
+
+    private long EffectiveDna => VariantDna ?? Element?.Dna ?? 0;
+
+    private string DisplayTitle => VariantLabel ?? Element?.Name ?? "";
+
+    private string DisplayBadge =>
+        MaterialLabelUi.Compact(VariantLabel) ?? Element?.Symbol ?? "";
+
+    private string ExchangeHref =>
+        Element is null || EffectiveDna == 0
+            ? "/exchange"
+            : $"/exchange?elementId={Element.Id}&dna={EffectiveDna.ToString(CultureInfo.InvariantCulture)}&side=sell";
+
+    private static string FormatDnaHex(long dna) => $"0x{dna.ToString("X16", CultureInfo.InvariantCulture)}";
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 

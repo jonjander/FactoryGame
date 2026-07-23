@@ -8,6 +8,8 @@
 
 <ElementDeepAnalysisModal Visible="_analysisVisible"
                           Element="_analysisElement"
+                          VariantDna="_analysisDna"
+                          VariantLabel="_analysisLabel"
                           OnClose="CloseAnalysisAsync" />
 
 @if (string.IsNullOrEmpty(Tokens.BearerToken))
@@ -85,7 +87,7 @@ else if (_overview is not null)
                             <td class="pool-col-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
                             <td class="pool-col-rank">#@row.PriceRank <span class="muted">/@row.CatalogSize</span></td>
                             <td class="pool-col-action">
-                                <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row.ElementId)">Info</button>
+                                <button type="button" class="secondary pool-info-btn" @onclick="() => OpenAnalysisAsync(row)">Info</button>
                             </td>
                         </tr>
                     }
@@ -108,6 +110,8 @@ else if (_overview is not null)
     private List<ElementContentItem> _elements = [];
     private bool _analysisVisible;
     private ElementContentItem? _analysisElement;
+    private long _analysisDna;
+    private string? _analysisLabel;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -205,9 +209,11 @@ else if (_overview is not null)
         _elements = items ?? [];
     }
 
-    private void OpenAnalysisAsync(int elementId)
+    private void OpenAnalysisAsync(PoolFlatRow row)
     {
-        _analysisElement = _elements.FirstOrDefault(e => e.Id == elementId);
+        _analysisElement = _elements.FirstOrDefault(e => e.Id == row.ElementId);
+        _analysisDna = row.Variant.Dna;
+        _analysisLabel = row.DisplayName;
         _analysisVisible = _analysisElement != null;
     }
 

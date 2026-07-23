@@ -388,6 +388,7 @@ else if (_summary.Count > 0)
     private long _selectedDna;
     private int? _pendingElementId;
     private long? _pendingDna;
+    private string? _pendingSide;
     private MarketElementSummaryDto? _selected;
     private string _side = "buy";
     private decimal _price = 10m;
@@ -1129,7 +1130,6 @@ else if (_summary.Count > 0)
             {
                 _pendingElementId = elementId;
                 _selectedId = elementId;
-                _side = "buy";
             }
             else if (key.Equals("dna", StringComparison.OrdinalIgnoreCase)
                      && long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var dna)
@@ -1138,7 +1138,16 @@ else if (_summary.Count > 0)
                 _pendingDna = dna;
                 _selectedDna = dna;
             }
+            else if (key.Equals("side", StringComparison.OrdinalIgnoreCase))
+            {
+                var side = value.ToLowerInvariant();
+                if (side is "buy" or "sell")
+                    _pendingSide = side;
+            }
         }
+
+        if (_pendingSide is { } sideFromQuery)
+            _side = sideFromQuery;
     }
 
     private bool TryApplyPendingSelection()
@@ -1152,7 +1161,7 @@ else if (_summary.Count > 0)
 
         _selectedId = elementId;
         _selectedDna = dna;
-        _side = "buy";
+        _side = _pendingSide ?? "buy";
         _selected = match;
         return true;
     }
@@ -1190,7 +1199,7 @@ else if (_summary.Count > 0)
             _summary.Insert(0, row);
             _selectedId = elementId;
             _selectedDna = dna;
-            _side = "buy";
+            _side = _pendingSide ?? "buy";
             _selected = row;
         }
         catch
