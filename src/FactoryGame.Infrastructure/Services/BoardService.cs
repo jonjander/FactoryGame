@@ -472,7 +472,9 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             kf.RevisionVersion,
             board.LastSnapshotNote ?? "",
             board.Mode.ToString(),
-            new SeaportDeltaDto(delta.WithdrawnFromPool, delta.DepositedToPool));
+            new SeaportDeltaDto(
+                SumSeaportDeltaByElement(delta.WithdrawnFromPool),
+                SumSeaportDeltaByElement(delta.DepositedToPool)));
     }
 
     private static void ValidateSorterRules(BoardPlanDto plan)
@@ -580,7 +582,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .Where(s => s.PlayerId == playerId)
             .ToDictionaryAsync(s => new PoolStackKey(s.ElementId, s.Dna), s => (decimal)s.Quantity, ct);
 
-    public async Task<IReadOnlyDictionary<int, PoolElementFactoryFlow>> GetPlayerSeaportElementFlowsAsync(
+    public async Task<IReadOnlyDictionary<PoolStackKey, PoolElementFactoryFlow>> GetPlayerSeaportElementFlowsAsync(
         Guid playerId,
         CancellationToken ct = default)
     {
@@ -588,7 +590,7 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             .Where(b => b.PlayerId == playerId)
             .ToListAsync(ct);
         if (boards.Count == 0)
-            return new Dictionary<int, PoolElementFactoryFlow>();
+            return new Dictionary<PoolStackKey, PoolElementFactoryFlow>();
 
         var poolQty = await LoadPoolQuantitiesAsync(playerId, ct);
         var poolVariants = await LoadPoolVariantQuantitiesAsync(playerId, ct);
@@ -670,4 +672,18 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
             new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>()),
             new Dictionary<int, decimal>(),
             new Dictionary<PoolStackKey, decimal>());
+
+    private static Dictionary<int, decimal> SumSeaportDeltaByElement(Dictionary<string, decimal> variants)
+    {
+        var result = new Dictionary<int, decimal>();
+        foreach (var (key, qty) in variants)
+        {
+            if (qty <= 0)
+                continue;
+            var variant = SeaportTickDelta.ParseVariantKey(key);
+            result[variant.ElementId] = result.GetValueOrDefault(variant.ElementId) + qty;
+        }
+
+        return result;
+    }
 }

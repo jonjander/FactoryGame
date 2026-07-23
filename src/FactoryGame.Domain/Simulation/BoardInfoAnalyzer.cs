@@ -439,14 +439,14 @@ public static class BoardInfoAnalyzer
 
         if (request.PoolQuantities != null && request.LastSeaportDelta != null)
         {
-            foreach (var (elementId, withdrawn) in request.LastSeaportDelta.WithdrawnFromPool)
+            foreach (var (variant, withdrawn) in request.LastSeaportDelta.WithdrawVariants())
             {
-                var available = request.PoolQuantities.GetValueOrDefault(elementId);
+                var available = request.PoolQuantities.GetValueOrDefault(variant.ElementId);
                 if (available <= 0 && withdrawn > 0)
                 {
                     issues.Add(BoardIssue.Warning(
                         "pool_empty",
-                        $"Seaport could not withdraw element {elementId} — the pool has none left.",
+                        $"Seaport could not withdraw element {variant.ElementId} — the pool has none left.",
                         null));
                 }
             }
@@ -459,23 +459,26 @@ public static class BoardInfoAnalyzer
         SeaportTickDelta delta,
         int tickSec)
     {
-        foreach (var (elementId, qty) in delta.WithdrawnFromPool)
+        foreach (var (variant, qty) in delta.WithdrawVariants())
         {
-            if (qty <= 0) continue;
+            if (qty <= 0)
+                continue;
             var rate = (double)qty / tickSec;
             intoFactory.Add(new SeaportFlowLine(
                 "pool", "SeaportPool", "out", null, null, rate,
-                $"Pool → factory: element {elementId}, {qty:0.##}/tick",
-                elementId));
+                $"Pool → factory: {variant.ElementId}, {qty:0.##}/tick",
+                variant.ElementId));
         }
-        foreach (var (elementId, qty) in delta.DepositedToPool)
+
+        foreach (var (variant, qty) in delta.DepositVariants())
         {
-            if (qty <= 0) continue;
+            if (qty <= 0)
+                continue;
             var rate = (double)qty / tickSec;
             outOfFactory.Add(new SeaportFlowLine(
                 "pool", "SeaportPool", "in", null, null, rate,
-                $"Factory → pool: element {elementId}, {qty:0.##}/tick",
-                elementId));
+                $"Factory → pool: {variant.ElementId}, {qty:0.##}/tick",
+                variant.ElementId));
         }
     }
 

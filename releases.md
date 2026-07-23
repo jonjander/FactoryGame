@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.23
+
+- **Pool:** seaport flow arrows per DNA variant (not whole element) — withdraw/deposit tracked at seaport boundary only; no false ↑↓ on unrelated variants or internal factory paths.
+
 ## 0.3.22
 
 - **Pool:** responsive table layout on small screens — no overlapping columns; Price/Rank hidden progressively; element name truncates; info modal buttons stack on narrow viewports.

@@ -1,12 +1,12 @@
 namespace FactoryGame.Domain.Simulation;
 
-/// <summary>Aggregates seaport withdraw/deposit per element across a player's boards.</summary>
+/// <summary>Aggregates pool withdraw/deposit per DNA variant across a player's boards (seaport boundary only).</summary>
 public static class PlayerSeaportElementFlowAggregator
 {
-    public static IReadOnlyDictionary<int, PoolElementFactoryFlow> Aggregate(
+    public static IReadOnlyDictionary<PoolStackKey, PoolElementFactoryFlow> Aggregate(
         IEnumerable<PlayerBoardSeaportFlowSnapshot> boards)
     {
-        var acc = new Dictionary<int, Accumulator>();
+        var acc = new Dictionary<PoolStackKey, Accumulator>();
 
         foreach (var board in boards)
         {
@@ -15,52 +15,39 @@ public static class PlayerSeaportElementFlowAggregator
 
             if (hasDelta)
             {
-                foreach (var (elementId, qty) in board.LastSeaportDelta!.WithdrawnFromPool)
+                foreach (var (variant, qty) in board.LastSeaportDelta!.WithdrawVariants())
+                    Get(acc, variant).AddMeasuredConsume((double)qty / tickSec);
+
+                foreach (var (variant, qty) in board.LastSeaportDelta.DepositVariants())
+                    Get(acc, variant).AddMeasuredProduce((double)qty / tickSec);
+            }
+            else
+            {
+                foreach (var port in board.SeaportPorts)
                 {
-                    if (qty <= 0)
+                    if (!port.IsConnected || port.ElementId is not int elementId)
                         continue;
-                    Get(acc, elementId).AddMeasuredConsume((double)qty / tickSec);
-                }
 
-                foreach (var (elementId, qty) in board.LastSeaportDelta.DepositedToPool)
-                {
-                    if (qty <= 0)
+                    var dna = port.MaterialDna ?? 0;
+                    if (dna == 0)
                         continue;
-                    Get(acc, elementId).AddMeasuredProduce((double)qty / tickSec);
+
+                    var variant = new PoolStackKey(elementId, dna);
+                    var rate = ResolveSeaportPortRate(port, board.IntoFactory, board.OutOfFactory);
+                    var isEstimate = port.IsEstimate || !board.IsRunning;
+
+                    if (port.Port.Equals("out", StringComparison.OrdinalIgnoreCase))
+                        Get(acc, variant).NoteConsumeEstimate(rate, isEstimate);
+                    else if (port.Port.Equals("in", StringComparison.OrdinalIgnoreCase))
+                        Get(acc, variant).NoteProduceEstimate(rate, isEstimate);
                 }
-            }
-
-            foreach (var port in board.SeaportPorts)
-            {
-                if (port.ElementId is not int elementId || !port.IsConnected)
-                    continue;
-
-                var rate = ResolvePortRate(port, board.IntoFactory, board.OutOfFactory);
-                if (port.Port.Equals("out", StringComparison.OrdinalIgnoreCase))
-                    Get(acc, elementId).NoteConsumePresence(rate, hasDelta ? null : port.IsEstimate || !board.IsRunning);
-                else if (port.Port.Equals("in", StringComparison.OrdinalIgnoreCase))
-                    Get(acc, elementId).NoteProducePresence(rate, hasDelta ? null : port.IsEstimate || !board.IsRunning);
-            }
-
-            foreach (var line in board.IntoFactory)
-            {
-                if (line.ElementId is not int elementId)
-                    continue;
-                Get(acc, elementId).NoteConsumePresence(line.UnitsPerSecond, hasDelta ? null : !board.IsRunning);
-            }
-
-            foreach (var line in board.OutOfFactory)
-            {
-                if (line.ElementId is not int elementId)
-                    continue;
-                Get(acc, elementId).NoteProducePresence(line.UnitsPerSecond, hasDelta ? null : !board.IsRunning);
             }
         }
 
         return acc.ToDictionary(kv => kv.Key, kv => kv.Value.ToFlow());
     }
 
-    private static double ResolvePortRate(
+    private static double ResolveSeaportPortRate(
         SeaportPortFlowDetail port,
         IReadOnlyList<SeaportFlowLine> intoFactory,
         IReadOnlyList<SeaportFlowLine> outOfFactory)
@@ -81,12 +68,12 @@ public static class PlayerSeaportElementFlowAggregator
             .Max();
     }
 
-    private static Accumulator Get(Dictionary<int, Accumulator> acc, int elementId)
+    private static Accumulator Get(Dictionary<PoolStackKey, Accumulator> acc, PoolStackKey variant)
     {
-        if (!acc.TryGetValue(elementId, out var a))
+        if (!acc.TryGetValue(variant, out var a))
         {
             a = new Accumulator();
-            acc[elementId] = a;
+            acc[variant] = a;
         }
 
         return a;
@@ -102,6 +89,8 @@ public static class PlayerSeaportElementFlowAggregator
         private bool _hasMeasuredProduce;
         private double _estimatedConsume;
         private double _estimatedProduce;
+        private bool _estimateConsume;
+        private bool _estimateProduce;
 
         public void AddMeasuredConsume(double rate)
         {
@@ -117,29 +106,30 @@ public static class PlayerSeaportElementFlowAggregator
             _hasMeasuredProduce = true;
         }
 
-        public void NoteConsumePresence(double estimatedRate, bool? isEstimate)
+        public void NoteConsumeEstimate(double estimatedRate, bool isEstimate)
         {
             _consumed = true;
             if (estimatedRate > 0)
                 _estimatedConsume += estimatedRate;
-            if (isEstimate == true)
-                _ = isEstimate;
+            if (isEstimate)
+                _estimateConsume = true;
         }
 
-        public void NoteProducePresence(double estimatedRate, bool? isEstimate)
+        public void NoteProduceEstimate(double estimatedRate, bool isEstimate)
         {
             _produced = true;
             if (estimatedRate > 0)
                 _estimatedProduce += estimatedRate;
-            if (isEstimate == true)
-                _ = isEstimate;
+            if (isEstimate)
+                _estimateProduce = true;
         }
 
         public PoolElementFactoryFlow ToFlow()
         {
             var consume = _hasMeasuredConsume ? _measuredConsume : _estimatedConsume;
             var produce = _hasMeasuredProduce ? _measuredProduce : _estimatedProduce;
-            var isEstimate = (_consumed && !_hasMeasuredConsume) || (_produced && !_hasMeasuredProduce);
+            var isEstimate = (_consumed && _estimateConsume && !_hasMeasuredConsume)
+                || (_produced && _estimateProduce && !_hasMeasuredProduce);
 
             return new PoolElementFactoryFlow(
                 _consumed,

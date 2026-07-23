@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Simulation;
 
 namespace FactoryGame.Infrastructure.Simulation;
@@ -25,8 +26,45 @@ public static class BoardLineStateSerializer
     public static string SerializeDelta(SeaportTickDelta delta) =>
         JsonSerializer.Serialize(delta, Json);
 
-    public static SeaportTickDelta DeserializeDelta(string json) =>
-        JsonSerializer.Deserialize<SeaportTickDelta>(json, Json) ?? new SeaportTickDelta();
+    public static SeaportTickDelta DeserializeDelta(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}")
+            return new SeaportTickDelta();
+
+        using var doc = JsonDocument.Parse(json);
+        var delta = new SeaportTickDelta();
+        if (doc.RootElement.TryGetProperty("withdrawnFromPool", out var withdrawn))
+            ImportVariantMap(delta.WithdrawnFromPool, withdrawn);
+        if (doc.RootElement.TryGetProperty("depositedToPool", out var deposited))
+            ImportVariantMap(delta.DepositedToPool, deposited);
+        return delta;
+    }
+
+    private static void ImportVariantMap(Dictionary<string, decimal> target, JsonElement obj)
+    {
+        if (obj.ValueKind != JsonValueKind.Object)
+            return;
+
+        foreach (var prop in obj.EnumerateObject())
+        {
+            if (!prop.Value.TryGetDecimal(out var qty) || qty <= 0)
+                continue;
+
+            if (prop.Name.Contains(':', StringComparison.Ordinal))
+            {
+                target[prop.Name] = target.GetValueOrDefault(prop.Name) + qty;
+                continue;
+            }
+
+            if (!int.TryParse(prop.Name, out var elementId))
+                continue;
+
+            var legacyKey = SeaportTickDelta.VariantKey(
+                elementId,
+                ElementCatalogLookup.CatalogDnaFor(elementId));
+            target[legacyKey] = target.GetValueOrDefault(legacyKey) + qty;
+        }
+    }
 
     private static BoardLineStateDto ToDto(BoardLineState state)
     {

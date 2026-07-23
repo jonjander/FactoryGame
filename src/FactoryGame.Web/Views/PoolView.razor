@@ -85,11 +85,11 @@ else if (_overview is not null)
                                         <span class="pool-factory-flow-badges">
                                             @if (flow.ConsumedByFactory)
                                             {
-                                                <span class="pool-factory-flow-icon pool-factory-flow-consume" title="Used by factory">↓</span>
+                                                <span class="pool-factory-flow-icon pool-factory-flow-consume" title="Withdrawn via seaport">↓</span>
                                             }
                                             @if (flow.ProducedByFactory)
                                             {
-                                                <span class="pool-factory-flow-icon pool-factory-flow-produce" title="Produced by factory">↑</span>
+                                                <span class="pool-factory-flow-icon pool-factory-flow-produce" title="Deposited via seaport">↑</span>
                                             }
                                         </span>
                                     }
@@ -142,7 +142,7 @@ else if (_overview is not null)
                     MaterialLabelUi.Compact(v.Symbol) ?? v.Symbol,
                     v.Symbol,
                     v,
-                    g.FactoryFlow)));
+                    v.FactoryFlow)));
     }
 
     private sealed record PoolFlatRow(

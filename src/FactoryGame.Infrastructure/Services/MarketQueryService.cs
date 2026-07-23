@@ -102,7 +102,8 @@ public sealed class MarketQueryService(AppDbContext db, BoardService boardServic
                     lineValue,
                     priceRank > 0 ? priceRank : catalogSize,
                     catalogSize,
-                    changePct);
+                    changePct,
+                    MapFactoryFlow(factoryFlows, stack.ElementId, stack.Dna));
                 variants.Add(variant);
                 stackViews.Add(new PoolStackViewDto(
                     stack.ElementId,
@@ -125,8 +126,7 @@ public sealed class MarketQueryService(AppDbContext db, BoardService boardServic
                 element.Symbol,
                 ElementNameGenerator.Generate(element.Dna, locale),
                 groupQty,
-                variants,
-                MapFactoryFlow(factoryFlows, element.Id)));
+                variants));
         }
 
         return new PoolOverviewDto(
@@ -138,10 +138,12 @@ public sealed class MarketQueryService(AppDbContext db, BoardService boardServic
     }
 
     private static PoolElementFactoryFlowDto? MapFactoryFlow(
-        IReadOnlyDictionary<int, PoolElementFactoryFlow> flows,
-        int elementId)
+        IReadOnlyDictionary<PoolStackKey, PoolElementFactoryFlow> flows,
+        int elementId,
+        long dna)
     {
-        if (!flows.TryGetValue(elementId, out var flow))
+        var key = new PoolStackKey(elementId, dna);
+        if (!flows.TryGetValue(key, out var flow))
             return null;
         if (!flow.ConsumedByFactory && !flow.ProducedByFactory)
             return null;

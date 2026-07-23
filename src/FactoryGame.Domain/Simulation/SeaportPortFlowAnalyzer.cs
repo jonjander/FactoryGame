@@ -68,6 +68,7 @@ public static class SeaportPortFlowAnalyzer
         }
 
         int? elementId = null;
+        long? materialDna = null;
         string? elementSymbol = null;
         string summary;
         var isEstimate = !isRunning || runtime == null;
@@ -87,21 +88,26 @@ public static class SeaportPortFlowAnalyzer
             if (pkt != null)
             {
                 elementId = pkt.ElementId;
+                materialDna = pkt.Dna;
                 elementSymbol = MaterialLabelFormatter.Format(pkt.ElementId, pkt.Dna);
             }
             else if (isRunning && lastDelta != null && lastDelta.DepositedToPool.Count > 0)
             {
                 var top = lastDelta.DepositedToPool.OrderByDescending(kv => kv.Value).First();
-                elementId = top.Key;
-                var dna = ElementCatalogLookup.CatalogDnaFor(top.Key);
-                elementSymbol = MaterialLabelFormatter.Format(top.Key, dna);
+                var variant = SeaportTickDelta.ParseVariantKey(top.Key);
+                elementId = variant.ElementId;
+                materialDna = variant.Dna;
+                elementSymbol = MaterialLabelFormatter.Format(variant.ElementId, variant.Dna);
             }
             else if (linkedMachineId != null && linkedPort != null)
             {
-                var traced = TraceUpstreamMaterial(
-                    linkedMachineId, linkedPort, machineById, connections, runtime, new HashSet<string>(StringComparer.Ordinal));
-                elementId = traced.ElementId;
-                elementSymbol = traced.ElementSymbol;
+                var direct = TryReadPacket(runtime, linkedMachineId, linkedPort, isOutput: true);
+                if (direct != null)
+                {
+                    elementId = direct.ElementId;
+                    materialDna = direct.Dna;
+                    elementSymbol = MaterialLabelFormatter.Format(direct.ElementId, direct.Dna);
+                }
             }
 
             var depositPhase = pkt != null
@@ -120,23 +126,25 @@ public static class SeaportPortFlowAnalyzer
             elementId = poolElementId > 0 ? poolElementId : null;
             if (elementId is > 0)
             {
-                var materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(
+                materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(
                     m.Settings?.GetRawText(), elementId.Value);
-                elementSymbol = MaterialLabelFormatter.Format(elementId.Value, materialDna);
+                elementSymbol = MaterialLabelFormatter.Format(elementId.Value, materialDna.Value);
             }
 
             if (isRunning && lastDelta != null && lastDelta.WithdrawnFromPool.Count > 0)
             {
                 var top = lastDelta.WithdrawnFromPool.OrderByDescending(kv => kv.Value).First();
-                elementId = top.Key;
-                var dna = ElementCatalogLookup.CatalogDnaFor(top.Key);
-                elementSymbol = MaterialLabelFormatter.Format(top.Key, dna);
+                var variant = SeaportTickDelta.ParseVariantKey(top.Key);
+                elementId = variant.ElementId;
+                materialDna = variant.Dna;
+                elementSymbol = MaterialLabelFormatter.Format(variant.ElementId, variant.Dna);
             }
 
             var pkt = TryReadPacket(runtime, m.Id, portName, isOutput: true);
             if (pkt != null)
             {
                 elementId = pkt.ElementId;
+                materialDna = pkt.Dna;
                 elementSymbol = MaterialLabelFormatter.Format(pkt.ElementId, pkt.Dna);
             }
 
@@ -155,6 +163,7 @@ public static class SeaportPortFlowAnalyzer
             linkedMachineId,
             linkedPort,
             elementId,
+            materialDna,
             elementSymbol,
             summary,
             isEstimate));
@@ -340,6 +349,7 @@ public sealed record SeaportPortFlowDetail(
     string? LinkedMachineId,
     string? LinkedPort,
     int? ElementId,
+    long? MaterialDna,
     string? ElementSymbol,
     string Summary,
     bool IsEstimate);

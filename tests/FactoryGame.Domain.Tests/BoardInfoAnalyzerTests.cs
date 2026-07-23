@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Dna;
 using FactoryGame.Domain.Simulation;
 
@@ -142,8 +143,8 @@ public sealed class BoardInfoAnalyzerTests
         };
 
         var delta = new SeaportTickDelta();
-        delta.AddWithdraw(3, 1m);
-        delta.AddDeposit(3, 1m);
+        delta.AddWithdraw(3, ElementCatalogLookup.CatalogDnaFor(3), 1m);
+        delta.AddDeposit(3, ElementCatalogLookup.CatalogDnaFor(3), 1m);
 
         var report = BoardInfoAnalyzer.Analyze(new BoardInfoAnalyzeRequest(
             machines,

@@ -15,8 +15,7 @@ public sealed record PoolElementGroupDto(
     string Symbol,
     string DisplayName,
     long TotalQuantity,
-    IReadOnlyList<PoolVariantStackDto> Variants,
-    PoolElementFactoryFlowDto? FactoryFlow = null);
+    IReadOnlyList<PoolVariantStackDto> Variants);
 
 public sealed record PoolElementFactoryFlowDto(
     bool ConsumedByFactory,
@@ -37,7 +36,8 @@ public sealed record PoolVariantStackDto(
     decimal LineValue,
     int PriceRank,
     int CatalogSize,
-    decimal? ChangePercent24h);
+    decimal? ChangePercent24h,
+    PoolElementFactoryFlowDto? FactoryFlow = null);
 
 /// <summary>Legacy flat stack row (one per DNA variant).</summary>
 public sealed record PoolStackViewDto(

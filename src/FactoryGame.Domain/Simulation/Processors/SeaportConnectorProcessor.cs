@@ -26,7 +26,7 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
                 };
                 if (machine.GetOrCreateOutput("out").TryEnqueue(pkt))
                 {
-                    ctx.SeaportDelta.AddWithdraw(elementId, ctx.UnitsPerTick);
+                    ctx.SeaportDelta.AddWithdraw(elementId, materialDna, ctx.UnitsPerTick);
                 }
                 else if (!ctx.Pool.TryDeposit(elementId, materialDna, ctx.UnitsPerTick))
                 {
@@ -40,7 +40,7 @@ internal sealed class SeaportConnectorProcessor : IMachineProcessor
         {
             if (ctx.Pool.TryDeposit(incoming.ElementId, incoming.Dna, incoming.Quantity))
             {
-                ctx.SeaportDelta.AddDeposit(incoming.ElementId, incoming.Quantity);
+                ctx.SeaportDelta.AddDeposit(incoming.ElementId, incoming.Dna, incoming.Quantity);
             }
             else
             {

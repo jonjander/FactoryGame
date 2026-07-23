@@ -22,20 +22,20 @@
 
             @if (FactoryFlow is { } flow && (flow.ConsumedByFactory || flow.ProducedByFactory))
             {
-                <h4 class="pool-analysis-section-title">Factory seaport</h4>
+                <h4 class="pool-analysis-section-title">Seaport</h4>
                 <ul class="pool-factory-flow-list">
                     @if (flow.ConsumedByFactory)
                     {
                         <li>
                             <span class="pool-factory-flow-icon pool-factory-flow-consume" aria-hidden="true">↓</span>
-                            To factory: <strong>@FormatRate(flow.ConsumeUnitsPerSecond)</strong> units/s
+                            Withdraw to factory: <strong>@FormatRate(flow.ConsumeUnitsPerSecond)</strong> units/s
                         </li>
                     }
                     @if (flow.ProducedByFactory)
                     {
                         <li>
                             <span class="pool-factory-flow-icon pool-factory-flow-produce" aria-hidden="true">↑</span>
-                            From factory: <strong>@FormatRate(flow.ProduceUnitsPerSecond)</strong> units/s
+                            Deposit from factory: <strong>@FormatRate(flow.ProduceUnitsPerSecond)</strong> units/s
                         </li>
                     }
                     @if (flow.ConsumedByFactory && flow.ProducedByFactory)
