@@ -82,6 +82,15 @@ public static class MachineCanvasStatus
         if (flow.DnaChanged
             && !string.IsNullOrEmpty(flow.InputElementSymbol)
             && !string.IsNullOrEmpty(flow.OutputElementSymbol)
+            && flow.InputElementSymbol == flow.OutputElementSymbol
+            && !string.IsNullOrEmpty(flow.TransformNote))
+        {
+            return $"{flow.OutputElementSymbol} · {flow.TransformNote}";
+        }
+
+        if (flow.DnaChanged
+            && !string.IsNullOrEmpty(flow.InputElementSymbol)
+            && !string.IsNullOrEmpty(flow.OutputElementSymbol)
             && !string.IsNullOrEmpty(flow.InputPhase)
             && !string.IsNullOrEmpty(flow.OutputPhase))
         {

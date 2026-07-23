@@ -90,7 +90,7 @@ public sealed class MarketQueryService(AppDbContext db)
 
                 var variant = new PoolVariantStackDto(
                     stack.ElementId,
-                    element.Symbol,
+                    MaterialLabelFormatter.Format(stack.ElementId, stack.Dna, locale),
                     stack.Dna,
                     MaterialPhaseLabels.PhaseKey(phase),
                     MaterialPhaseLabels.PhaseLabel(phase),
@@ -104,11 +104,11 @@ public sealed class MarketQueryService(AppDbContext db)
                 variants.Add(variant);
                 stackViews.Add(new PoolStackViewDto(
                     stack.ElementId,
-                    element.Symbol,
+                    MaterialLabelFormatter.Format(stack.ElementId, stack.Dna, locale),
                     stack.Dna,
                     MaterialPhaseLabels.PhaseKey(phase),
                     MaterialPhaseLabels.PhaseLabel(phase),
-                    ElementNameGenerator.Generate(stack.Dna, locale),
+                    MaterialLabelFormatter.Format(stack.ElementId, stack.Dna, locale),
                     stack.Quantity,
                     stack.VolumePerUnit,
                     lastPrice,

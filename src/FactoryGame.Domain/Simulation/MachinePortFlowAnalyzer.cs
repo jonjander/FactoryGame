@@ -40,7 +40,9 @@ public static class MachinePortFlowAnalyzer
                 int? inputId = null;
                 string? inputSymbol = null;
                 int? outputId = outPkt?.ElementId;
-                string? outputSymbol = outputId != null ? MaterialFlowTrace.SymbolFor(outputId.Value) : null;
+                string? outputSymbol = outPkt != null
+                    ? MaterialFlowTrace.SymbolForPacket(outPkt.ElementId, outPkt.Dna)
+                    : outputId != null ? MaterialFlowTrace.SymbolFor(outputId.Value) : null;
                 string? transformNote = null;
                 string? inputPhase = null;
                 string? outputPhase = null;
@@ -55,7 +57,9 @@ public static class MachinePortFlowAnalyzer
                     var poolDna = SeaportConnectorProcessor.ResolveOutMaterialDna(machine.Settings?.GetRawText(), poolId);
                     outputId = poolId > 0 ? poolId : null;
                     outputDna = poolId > 0 ? poolDna : null;
-                    outputSymbol = outputId != null ? MaterialFlowTrace.SymbolFor(outputId.Value) : null;
+                    outputSymbol = outputId != null && outputDna is { } poolOutDna
+                        ? MaterialFlowTrace.SymbolForPacket(outputId.Value, poolOutDna)
+                        : outputId != null ? MaterialFlowTrace.SymbolFor(outputId.Value) : null;
                     if (outputDna is { } pd)
                     {
                         var phase = MaterialPhaseLabels.DecodePhase(pd);
@@ -95,7 +99,7 @@ public static class MachinePortFlowAnalyzer
                         inputDna = slotPkt.Dna;
                         inputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(slotPkt.Dna));
                         inputId = slotPkt.ElementId;
-                        inputSymbol = MaterialFlowTrace.SymbolFor(slotPkt.ElementId);
+                        inputSymbol = MaterialFlowTrace.SymbolForPacket(slotPkt.ElementId, slotPkt.Dna);
                     }
 
                     if (inPkt != null)
@@ -103,7 +107,7 @@ public static class MachinePortFlowAnalyzer
                         inputDna = inPkt.Dna;
                         inputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(inPkt.Dna));
                         inputId ??= inPkt.ElementId;
-                        inputSymbol ??= MaterialFlowTrace.SymbolFor(inPkt.ElementId);
+                        inputSymbol ??= MaterialFlowTrace.SymbolForPacket(inPkt.ElementId, inPkt.Dna);
                     }
                     else if (inputId != null && inputDna == null)
                     {
@@ -115,7 +119,7 @@ public static class MachinePortFlowAnalyzer
                     if (outPkt != null)
                     {
                         outputId = outPkt.ElementId;
-                        outputSymbol = MaterialFlowTrace.SymbolFor(outPkt.ElementId);
+                        outputSymbol = MaterialFlowTrace.SymbolForPacket(outPkt.ElementId, outPkt.Dna);
                         outputDna = outPkt.Dna;
                         outputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(outPkt.Dna));
 
@@ -146,8 +150,12 @@ public static class MachinePortFlowAnalyzer
                     {
                         var activeInputDna = inPkt?.Dna ?? inputDna;
                         var activeInputId = inPkt?.ElementId ?? inputId;
-                        var predicted = MaterialFlowTrace.PredictOutput(
-                            machine, port.Name, activeInputId, inputSymbol, activeInputDna);
+                        var predicted = machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase)
+                            ? TryPredictMixerOutput(machine, connections, machineById)
+                            ?? MaterialFlowTrace.PredictOutput(
+                                machine, port.Name, activeInputId, inputSymbol, activeInputDna)
+                            : MaterialFlowTrace.PredictOutput(
+                                machine, port.Name, activeInputId, inputSymbol, activeInputDna);
                         outputId = predicted.OutputId ?? activeInputId;
                         outputSymbol = predicted.OutputSymbol ?? inputSymbol;
                         outputDna = predicted.OutputDna ?? activeInputDna;
@@ -169,6 +177,23 @@ public static class MachinePortFlowAnalyzer
                                     ? MaterialProcessStatus.Transformed
                                     : MaterialProcessStatus.Idle;
                         }
+                    }
+                }
+                else if (machine.Type.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
+                {
+                    var predicted = TryPredictMixerOutput(machine, connections, machineById);
+                    if (predicted != null)
+                    {
+                        outputId = predicted.OutputId;
+                        outputSymbol = predicted.OutputSymbol;
+                        outputDna = predicted.OutputDna;
+                        transformNote = predicted.TransformNote;
+                        inputPhase = predicted.InputPhase;
+                        outputPhase = predicted.OutputPhase;
+                        dnaChanged = predicted.DnaChanged;
+                        processStatus = dnaChanged
+                            ? MaterialProcessStatus.Transformed
+                            : MaterialProcessStatus.Idle;
                     }
                 }
 
@@ -228,6 +253,67 @@ public static class MachinePortFlowAnalyzer
             if (elementId <= 0)
                 return null;
             return SeaportConnectorProcessor.ResolveOutMaterialDna(settings, elementId);
+        }
+
+        return null;
+    }
+
+    private static PredictedOutput? TryPredictMixerOutput(
+        MachineInfo machine,
+        IReadOnlyList<ConnectionInfo> connections,
+        IReadOnlyDictionary<string, MachineInfo> machineById)
+    {
+        var dnaA = ResolveUpstreamSourceDna(machine, "in1", connections, machineById);
+        var dnaB = ResolveUpstreamSourceDna(machine, "in2", connections, machineById);
+        var idA = ResolveUpstreamElementId(machine, "in1", connections, machineById);
+        var idB = ResolveUpstreamElementId(machine, "in2", connections, machineById);
+        if (dnaA == null || dnaB == null || idA == null || idB == null)
+            return null;
+
+        var settings = machine.Settings?.GetRawText();
+        var ratio = MachineSettingsJson.ReadInt(settings, 500, 100, 900, "ratioPermille", "ratio");
+        var intensity = MachineSettingsJson.ReadInt(settings, 350, 100, 1000,
+            "mixIntensityPermille", "mixIntensity", "intensity");
+        var (outDna, tier) = DnaTransforms.MixCombined(dnaA.Value, dnaB.Value, ratio, intensity);
+        var dominantId = ratio >= 500 ? idA.Value : idB.Value;
+        var inputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(dnaA.Value));
+        var outputPhase = MaterialPhaseLabels.PhaseKey(MaterialPhaseLabels.DecodePhase(outDna));
+        var inSym = MaterialFlowTrace.SymbolForPacket(idA.Value, dnaA.Value);
+        var in2Sym = MaterialFlowTrace.SymbolForPacket(idB.Value, dnaB.Value);
+        var outSym = MaterialFlowTrace.SymbolForPacket(dominantId, outDna);
+        var note = tier switch
+        {
+            MixTier.Volatile => $"mixed {inSym}+{in2Sym} (volatile)",
+            MixTier.Refined => $"mixed {inSym}+{in2Sym} (refined)",
+            _ => $"mixed {inSym}+{in2Sym} (poor)"
+        };
+        return new PredictedOutput(
+            dominantId,
+            outSym,
+            outDna,
+            inputPhase,
+            outputPhase,
+            note,
+            dnaA != dnaB || outDna != dnaA || outDna != dnaB);
+    }
+
+    private static int? ResolveUpstreamElementId(
+        MachineInfo machine,
+        string inPort,
+        IReadOnlyList<ConnectionInfo> connections,
+        IReadOnlyDictionary<string, MachineInfo> machineById)
+    {
+        var connIn = connections.FirstOrDefault(c =>
+            c.ToId == machine.Id && c.ToPort.Equals(inPort, StringComparison.OrdinalIgnoreCase));
+        if (connIn == null || !machineById.TryGetValue(connIn.FromId, out var sourceMachine))
+            return null;
+
+        var settings = sourceMachine.Settings?.GetRawText();
+        if (sourceMachine.Type.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase)
+            || sourceMachine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase))
+        {
+            var elementId = SeaportConnectorProcessor.ParseOutElementId(settings);
+            return elementId > 0 ? elementId : null;
         }
 
         return null;

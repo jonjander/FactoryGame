@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Dna;
+using FactoryGame.Domain.Names;
 using FactoryGame.Domain.Simulation.Processors;
 
 namespace FactoryGame.Domain.Simulation;
@@ -35,7 +36,7 @@ internal static class MaterialFlowTrace
         var pkt = TryReadPacket(runtime, machineId, portName, isOutput: true)
                   ?? TryReadPacket(runtime, machineId, portName, isOutput: false);
         if (pkt != null)
-            return (pkt.ElementId, SymbolFor(pkt.ElementId));
+            return (pkt.ElementId, LabelForPacket(pkt.ElementId, pkt.Dna));
 
         if (!machineById.TryGetValue(machineId, out var machine))
             return (null, null);
@@ -47,7 +48,10 @@ internal static class MaterialFlowTrace
             && portName.Equals("out", StringComparison.OrdinalIgnoreCase))
         {
             var id = SeaportConnectorProcessor.ParseOutElementId(settings);
-            return id > 0 ? (id, SymbolFor(id)) : (null, null);
+            if (id <= 0)
+                return (null, null);
+            var dna = SeaportConnectorProcessor.ResolveOutMaterialDna(settings, id);
+            return (id, LabelForPacket(id, dna));
         }
 
         if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase)
@@ -146,6 +150,16 @@ internal static class MaterialFlowTrace
                 inputElementId, inputElementSymbol, sourceDna, inputPhase, inputPhase,
                 "mixed in Mixer (requires two inputs; intensity controls quality)", false);
         }
+        else if (machine.Type.Equals("Destilator", StringComparison.OrdinalIgnoreCase))
+        {
+            var settings = machine.Settings?.GetRawText();
+            var cut = MachineSettingsJson.ReadInt(settings, 2048, 0, (int)DnaLayout.BoilingMask,
+                "cutBoiling", "cutPoint", "cut");
+            var (heavyDna, lightDna) = DnaTransforms.DistillFractions(sourceDna, cut);
+            var isLight = outPort.Equals("out2", StringComparison.OrdinalIgnoreCase);
+            outputDna = isLight ? lightDna : heavyDna;
+            note = isLight ? "light fraction (gas)" : "heavy fraction (liquid)";
+        }
         else if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase))
         {
             var ids = ParseSorterOutElements(machine.Settings?.GetRawText(), outPort);
@@ -218,13 +232,25 @@ internal static class MaterialFlowTrace
     {
         var match = ElementCatalog.All.FirstOrDefault(e => e.Dna == dna);
         if (match.Id > 0)
-            return (match.Id, match.Symbol, transformNote);
+            return (match.Id, MaterialLabelFormatter.Format(match.Id, dna), transformNote);
 
-        if (inputElementId is > 0 && !string.IsNullOrEmpty(inputSymbol))
-            return (inputElementId, inputSymbol, transformNote);
+        if (inputElementId is > 0)
+        {
+            var label = MaterialLabelFormatter.Format(inputElementId.Value, dna);
+            return (inputElementId, label, transformNote);
+        }
 
-        return (null, inputSymbol != null ? $"{inputSymbol}*" : null, $"{transformNote} (new DNA)");
+        return (null, null, $"{transformNote} (new DNA)");
     }
+
+    internal static string LabelForPacket(int elementId, long dna) =>
+        MaterialLabelFormatter.Format(elementId, dna);
+
+    internal static string CodeForPacket(int elementId, long dna) =>
+        MaterialLabelFormatter.VariantCode(elementId, dna);
+
+    internal static string? SymbolForPacket(int elementId, long dna) =>
+        LabelForPacket(elementId, dna);
 
     internal static string? ResolveUpstreamInputPort(string machineType, string outPort) =>
         machineType switch

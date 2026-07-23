@@ -771,15 +771,15 @@
         if (isOutput && _machinePortByKey.TryGetValue(PortFlowKey(machineId, portName), out var outFlow))
         {
             if (outFlow.IsPoolSource && !string.IsNullOrEmpty(outFlow.OutputElementSymbol))
-                return $"{outFlow.OutputElementSymbol} →";
+                return $"{MaterialLabelUi.Compact(outFlow.OutputElementSymbol)} →";
 
             if (!string.IsNullOrEmpty(outFlow.InputElementSymbol)
                 && !string.IsNullOrEmpty(outFlow.OutputElementSymbol)
                 && outFlow.InputElementSymbol != outFlow.OutputElementSymbol)
-                return $"{outFlow.InputElementSymbol}→{outFlow.OutputElementSymbol}";
+                return $"{MaterialLabelUi.Compact(outFlow.InputElementSymbol)}→{MaterialLabelUi.Compact(outFlow.OutputElementSymbol)}";
 
             if (!string.IsNullOrEmpty(outFlow.OutputElementSymbol))
-                return $"{outFlow.OutputElementSymbol} →";
+                return $"{MaterialLabelUi.Compact(outFlow.OutputElementSymbol)} →";
         }
 
         if (!isOutput)
@@ -789,12 +789,14 @@
             if (conn != null
                 && _machinePortByKey.TryGetValue(PortFlowKey(conn.FromId, conn.FromPort), out var src)
                 && !string.IsNullOrEmpty(src.OutputElementSymbol))
-                return $"← {src.OutputElementSymbol}";
+                return $"← {MaterialLabelUi.Compact(src.OutputElementSymbol)}";
         }
 
         if (_seaportPortByKey.TryGetValue(PortFlowKey(machineId, portName), out var sea)
             && !string.IsNullOrEmpty(sea.ElementSymbol))
-            return sea.Direction == "in" ? $"← {sea.ElementSymbol}" : $"{sea.ElementSymbol} →";
+            return sea.Direction == "in"
+                ? $"← {MaterialLabelUi.Compact(sea.ElementSymbol)}"
+                : $"{MaterialLabelUi.Compact(sea.ElementSymbol)} →";
 
         return Plan.Connections.Any(c =>
             (c.FromId == machineId && c.FromPort == portName) || (c.ToId == machineId && c.ToPort == portName))

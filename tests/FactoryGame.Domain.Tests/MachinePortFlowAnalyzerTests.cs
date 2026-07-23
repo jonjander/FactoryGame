@@ -1,5 +1,6 @@
 using FactoryGame.Domain.Content;
 using FactoryGame.Domain.Dna;
+using FactoryGame.Domain.Names;
 using FactoryGame.Domain.Simulation;
 
 namespace FactoryGame.Domain.Tests;
@@ -51,7 +52,8 @@ public sealed class MachinePortFlowAnalyzerTests
         var flows = MachinePortFlowAnalyzer.Analyze(machines, connections, isRunning: false, runtime: null);
         var boilerOut = Assert.Single(flows, f => f.MachineId == "b1" && f.Port == "out");
 
-        Assert.Equal("E01", boilerOut.InputElementSymbol);
+        var e01Dna = ElementCatalog.All.First(e => e.Id == 1).Dna;
+        Assert.Equal(MaterialLabelFormatter.Format(1, e01Dna), boilerOut.InputElementSymbol);
         Assert.NotNull(boilerOut.OutputElementSymbol);
         Assert.Contains("heated", boilerOut.TransformNote ?? boilerOut.Summary, StringComparison.OrdinalIgnoreCase);
     }
@@ -92,8 +94,11 @@ public sealed class MachinePortFlowAnalyzerTests
             runtime: tick.State);
 
         var condenserOut = Assert.Single(flows, f => f.MachineId == "c1" && f.Port == "out");
-        Assert.Equal("E04", condenserOut.InputElementSymbol);
-        Assert.Equal("E04", condenserOut.OutputElementSymbol);
+        var outPkt = tick.State.Machines["c1"].OutputPorts["out"].Peek();
+        Assert.NotNull(outPkt);
+        Assert.NotEqual(gasDna, outPkt!.Dna);
+        Assert.Equal(MaterialLabelFormatter.Format(4, outPkt.Dna), condenserOut.OutputElementSymbol);
+        Assert.True(condenserOut.DnaChanged);
         Assert.Equal("Liquid", condenserOut.OutputPhase);
     }
 
@@ -114,8 +119,10 @@ public sealed class MachinePortFlowAnalyzerTests
         var flows = MachinePortFlowAnalyzer.Analyze(machines, connections, isRunning: false, runtime: null);
         var condenserOut = Assert.Single(flows, f => f.MachineId == "c1" && f.Port == "out");
 
-        Assert.Equal("E04", condenserOut.InputElementSymbol);
-        Assert.Equal("E04", condenserOut.OutputElementSymbol);
+        var e04Dna = ElementCatalog.All.First(e => e.Id == 4).Dna;
+        var condensedDna = DnaTransforms.Condense(e04Dna);
+        Assert.Equal(MaterialLabelFormatter.Format(4, e04Dna), condenserOut.InputElementSymbol);
+        Assert.Equal(MaterialLabelFormatter.Format(4, condensedDna), condenserOut.OutputElementSymbol);
         Assert.True(condenserOut.DnaChanged || condenserOut.InputPhase != condenserOut.OutputPhase);
         Assert.Equal(MaterialProcessStatus.Transformed, condenserOut.ProcessStatus);
     }

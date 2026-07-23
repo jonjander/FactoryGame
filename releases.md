@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.12
+
+- **UI:** material labels show unique variant code plus generated names, e.g. `E03-509866 (MetaFeroneine-VolNitonide)` instead of plain `E03` on board info, port hints, pool dropdown, and seaport flow.
+- **Sim/info:** mixer/boiler/destillator preview uses DNA-aware labels; canvas port hints use compact variant code with full label in tooltips.
+
 ## 0.3.11
 
 - **UI:** machine progress bars on factory canvas (overall + step, input readiness segments, live shimmer); poll every 2s while running.

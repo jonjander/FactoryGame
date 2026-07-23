@@ -95,13 +95,14 @@ public static class SeaportPortFlowAnalyzer
             if (pkt != null)
             {
                 elementId = pkt.ElementId;
-                elementSymbol = SymbolFor(pkt.ElementId);
+                elementSymbol = MaterialLabelFormatter.Format(pkt.ElementId, pkt.Dna);
             }
             else if (isRunning && lastDelta != null && lastDelta.DepositedToPool.Count > 0)
             {
                 var top = lastDelta.DepositedToPool.OrderByDescending(kv => kv.Value).First();
                 elementId = top.Key;
-                elementSymbol = SymbolFor(top.Key);
+                var dna = ElementCatalogLookup.CatalogDnaFor(top.Key);
+                elementSymbol = MaterialLabelFormatter.Format(top.Key, dna);
             }
             else if (linkedMachineId != null && linkedPort != null)
             {
@@ -127,27 +128,24 @@ public static class SeaportPortFlowAnalyzer
             elementId = poolElementId > 0 ? poolElementId : null;
             if (elementId is > 0)
             {
-                elementSymbol = SymbolFor(elementId.Value);
                 var materialDna = SeaportConnectorProcessor.ResolveOutMaterialDna(
                     m.Settings?.GetRawText(), elementId.Value);
-                var displayName = ElementNameGenerator.Generate(
-                    materialDna > 0 ? materialDna : ElementCatalogLookup.CatalogDnaFor(elementId.Value), "en");
-                if (!string.IsNullOrEmpty(elementSymbol))
-                    elementSymbol = $"{elementSymbol} ({displayName})";
+                elementSymbol = MaterialLabelFormatter.Format(elementId.Value, materialDna);
             }
 
             if (isRunning && lastDelta != null && lastDelta.WithdrawnFromPool.Count > 0)
             {
                 var top = lastDelta.WithdrawnFromPool.OrderByDescending(kv => kv.Value).First();
                 elementId = top.Key;
-                elementSymbol = SymbolFor(top.Key);
+                var dna = ElementCatalogLookup.CatalogDnaFor(top.Key);
+                elementSymbol = MaterialLabelFormatter.Format(top.Key, dna);
             }
 
             var pkt = TryReadPacket(runtime, m.Id, portName, isOutput: true);
             if (pkt != null)
             {
                 elementId = pkt.ElementId;
-                elementSymbol = SymbolFor(pkt.ElementId);
+                elementSymbol = MaterialLabelFormatter.Format(pkt.ElementId, pkt.Dna);
             }
 
             var path = FormatPath(m.Id, portName, linkedMachineId, linkedPort);
@@ -197,7 +195,7 @@ public static class SeaportPortFlowAnalyzer
         var pkt = TryReadPacket(runtime, machineId, portName, isOutput: true)
                   ?? TryReadPacket(runtime, machineId, portName, isOutput: false);
         if (pkt != null)
-            return (pkt.ElementId, SymbolFor(pkt.ElementId));
+            return (pkt.ElementId, MaterialLabelFormatter.Format(pkt.ElementId, pkt.Dna));
 
         if (!machineById.TryGetValue(machineId, out var machine))
             return (null, null);
@@ -208,14 +206,20 @@ public static class SeaportPortFlowAnalyzer
             && portName.Equals("out", StringComparison.OrdinalIgnoreCase))
         {
             var id = SeaportConnectorProcessor.ParseOutElementId(settings);
-            return id > 0 ? (id, SymbolFor(id)) : (null, null);
+            if (id <= 0)
+                return (null, null);
+            var outDna = SeaportConnectorProcessor.ResolveOutMaterialDna(settings, id);
+            return (id, MaterialLabelFormatter.Format(id, outDna));
         }
 
         if (machine.Type.Equals("SeaportIn", StringComparison.OrdinalIgnoreCase)
             && portName.Equals("out", StringComparison.OrdinalIgnoreCase))
         {
             var id = SeaportConnectorProcessor.ParseOutElementId(settings);
-            return id > 0 ? (id, SymbolFor(id)) : (null, null);
+            if (id <= 0)
+                return (null, null);
+            var poolOutDna = SeaportConnectorProcessor.ResolveOutMaterialDna(settings, id);
+            return (id, MaterialLabelFormatter.Format(id, poolOutDna));
         }
 
         if (machine.Type.Equals("Sorter", StringComparison.OrdinalIgnoreCase)
@@ -223,7 +227,10 @@ public static class SeaportPortFlowAnalyzer
         {
             var ids = ParseSorterOutElements(settings, portName);
             if (ids.Count == 1)
-                return (ids[0], SymbolFor(ids[0]));
+            {
+                var catalogDna = ElementCatalogLookup.CatalogDnaFor(ids[0]);
+                return (ids[0], MaterialLabelFormatter.Format(ids[0], catalogDna));
+            }
             return (null, null);
         }
 
@@ -239,16 +246,21 @@ public static class SeaportPortFlowAnalyzer
         if (traced.ElementId == null)
             return traced;
 
-        var dna = ElementCatalog.All.FirstOrDefault(e => e.Id == traced.ElementId.Value).Dna;
+        var predictedDna = ElementCatalog.All.FirstOrDefault(e => e.Id == traced.ElementId.Value).Dna;
         if (machine.Type.Equals("Boiler", StringComparison.OrdinalIgnoreCase))
-            dna = DnaTransforms.Heat(dna);
+            predictedDna = DnaTransforms.Heat(predictedDna);
         else if (machine.Type.Equals("Heater", StringComparison.OrdinalIgnoreCase))
-            dna = DnaTransforms.Heat(dna, 4);
+            predictedDna = DnaTransforms.Heat(predictedDna, 4);
         else if (machine.Type.Equals("Cooler", StringComparison.OrdinalIgnoreCase))
-            dna = DnaTransforms.Cool(dna);
+            predictedDna = DnaTransforms.Cool(predictedDna);
 
-        var match = ElementCatalog.All.FirstOrDefault(e => e.Dna == dna);
-        return match.Id > 0 ? (match.Id, match.Symbol) : (traced.ElementId, traced.ElementSymbol);
+        if (traced.ElementId is > 0)
+            return (traced.ElementId, MaterialLabelFormatter.Format(traced.ElementId.Value, predictedDna));
+
+        var match = ElementCatalog.All.FirstOrDefault(e => e.Dna == predictedDna);
+        return match.Id > 0
+            ? (match.Id, MaterialLabelFormatter.Format(match.Id, predictedDna))
+            : traced;
     }
 
     private static string? ResolvePredictedDepositPhase(
@@ -333,11 +345,6 @@ public static class SeaportPortFlowAnalyzer
     private static string FormatPath(string? fromId, string? fromPort, string? toId, string? toPort) =>
         $"{fromId}.{fromPort} → {toId}.{toPort}";
 
-    private static string? SymbolFor(int elementId)
-    {
-        var el = ElementCatalog.All.FirstOrDefault(e => e.Id == elementId);
-        return el.Id == elementId ? el.Symbol : null;
-    }
 }
 
 public sealed record SeaportPortFlowDetail(
