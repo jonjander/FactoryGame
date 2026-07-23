@@ -1928,13 +1928,16 @@ button.danger-outline:hover:not(:disabled) {
 }
 
 .pool-table-wrap {
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     max-height: calc(100vh - 9.5rem);
     margin: 0 -0.15rem;
 }
 
 .pool-holdings-table {
     width: 100%;
+    min-width: 26rem;
     border-collapse: collapse;
     font-size: 0.84rem;
 }
@@ -1987,11 +1990,14 @@ button.danger-outline:hover:not(:disabled) {
 }
 
 .pool-element-cell {
+    max-width: 14rem;
+}
+
+.pool-element-cell-inner {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
     gap: 0.2rem 0.35rem;
-    max-width: 16rem;
+    min-width: 0;
 }
 
 .pool-element-cell .fg-element-badge {
@@ -2052,10 +2058,11 @@ button.danger-outline:hover:not(:disabled) {
 }
 
 .pool-element-name {
-    vertical-align: middle;
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pool-info-btn {
@@ -2063,9 +2070,33 @@ button.danger-outline:hover:not(:disabled) {
     padding: 0.12rem 0.45rem;
 }
 
+@media (max-width: 900px) {
+    .pool-holdings-table .pool-col-price {
+        display: none;
+    }
+}
+
 @media (max-width: 720px) {
     .pool-table-wrap {
         max-height: none;
+    }
+
+    .pool-holdings-table {
+        min-width: 20rem;
+        font-size: 0.8rem;
+    }
+
+    .pool-holdings-table th,
+    .pool-holdings-table td {
+        padding: 0.2rem 0.3rem;
+    }
+
+    .pool-holdings-table .pool-col-rank {
+        display: none;
+    }
+
+    .pool-element-cell {
+        max-width: 9rem;
     }
 
     .pool-element-name {
@@ -2074,6 +2105,31 @@ button.danger-outline:hover:not(:disabled) {
 
     .pool-toolbar .pool-refresh-btn {
         margin-left: 0;
+    }
+}
+
+@media (max-width: 420px) {
+    .pool-page {
+        padding: 0.5rem 0.55rem;
+    }
+
+    .pool-holdings-table {
+        min-width: 0;
+    }
+
+    .pool-info-btn {
+        padding: 0.12rem 0.35rem;
+    }
+
+    .pool-analysis-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pool-analysis-footer .button-link,
+    .pool-analysis-footer button {
+        width: 100%;
+        text-align: center;
     }
 }
 
@@ -2209,7 +2265,9 @@ button.danger-outline:hover:not(:disabled) {
 }
 
 .pool-analysis-footer {
+    flex-wrap: wrap;
     justify-content: space-between;
+    gap: 0.45rem;
 }
 
 .button-link {

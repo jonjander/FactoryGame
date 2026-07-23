@@ -66,8 +66,8 @@ else if (_overview is not null)
                         <th>Element</th>
                         <th>Variant</th>
                         <th class="pool-col-num">Qty</th>
-                        <th class="pool-col-num">Price/unit</th>
-                        <th class="pool-col-num">Line value</th>
+                        <th class="pool-col-num pool-col-price">Price</th>
+                        <th class="pool-col-num">Value</th>
                         <th class="pool-col-rank">Rank</th>
                         <th class="pool-col-action"></th>
                     </tr>
@@ -77,27 +77,29 @@ else if (_overview is not null)
                     {
                         <tr>
                             <td class="pool-element-cell">
-                                <span class="fg-element-badge" title="@row.DisplayName">@row.Symbol</span>
-                                <span class="pool-element-name">@row.DisplayName</span>
-                                @if (row.FactoryFlow is { } flow)
-                                {
-                                    <span class="pool-factory-flow-badges">
-                                        @if (flow.ConsumedByFactory)
-                                        {
-                                            <span class="pool-factory-flow-icon pool-factory-flow-consume" title="Used by factory">↓</span>
-                                        }
-                                        @if (flow.ProducedByFactory)
-                                        {
-                                            <span class="pool-factory-flow-icon pool-factory-flow-produce" title="Produced by factory">↑</span>
-                                        }
-                                    </span>
-                                }
+                                <div class="pool-element-cell-inner">
+                                    <span class="fg-element-badge" title="@row.DisplayName">@row.Symbol</span>
+                                    <span class="pool-element-name" title="@row.DisplayName">@row.DisplayName</span>
+                                    @if (row.FactoryFlow is { } flow)
+                                    {
+                                        <span class="pool-factory-flow-badges">
+                                            @if (flow.ConsumedByFactory)
+                                            {
+                                                <span class="pool-factory-flow-icon pool-factory-flow-consume" title="Used by factory">↓</span>
+                                            }
+                                            @if (flow.ProducedByFactory)
+                                            {
+                                                <span class="pool-factory-flow-icon pool-factory-flow-produce" title="Produced by factory">↑</span>
+                                            }
+                                        </span>
+                                    }
+                                </div>
                             </td>
                             <td>
                                 <span class="fg-phase-badge fg-phase-@row.Phase.ToLowerInvariant()">@row.PhaseLabel</span>
                             </td>
                             <td class="pool-col-num"><strong>@row.Quantity</strong></td>
-                            <td class="pool-col-num">@row.LastPrice.ToString("0.##")</td>
+                            <td class="pool-col-num pool-col-price">@row.LastPrice.ToString("0.##")</td>
                             <td class="pool-col-num"><strong>@row.LineValue.ToString("0.##")</strong></td>
                             <td class="pool-col-rank">#@row.PriceRank <span class="muted">/@row.CatalogSize</span></td>
                             <td class="pool-col-action">

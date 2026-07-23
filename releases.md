@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.22
+
+- **Pool:** responsive table layout on small screens — no overlapping columns; Price/Rank hidden progressively; element name truncates; info modal buttons stack on narrow viewports.
+
 ## 0.3.21
 
 - **Machines:** **Gas Mixer** (two gas inputs → blended gas out) and **Burner** (consumes burnable gas completely — no output).
