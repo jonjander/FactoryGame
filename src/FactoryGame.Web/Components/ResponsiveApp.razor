@@ -24,7 +24,14 @@
     protected override async Task OnInitializedAsync()
     {
         Viewport.Changed += OnViewportChanged;
-        await Viewport.InitializeAsync(Js);
+        try
+        {
+            await Viewport.InitializeAsync(Js);
+        }
+        catch (JSException)
+        {
+            // Stale service worker cache or offline — fall back to non-game-shell layout.
+        }
         _ready = true;
     }
 

@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.27
+
+- **PWA fix:** service worker network-first for `/js/` modules — fixes crash loading `viewport-layout.js` after deploy.
+- **Boot:** app continues if viewport module fails (falls back to standard layout).
+
 ## 0.3.26
 
 - **Pool:** production seaport arrow (↑) — predict deposit DNA variant from upstream machine chain when buffers are empty.

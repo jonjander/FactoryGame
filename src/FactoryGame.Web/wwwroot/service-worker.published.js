@@ -50,6 +50,8 @@ function shouldUseNetworkFirst(url, request) {
         return false;
     if (url.pathname.startsWith('/_framework/'))
         return true;
+    if (url.pathname.startsWith('/js/'))
+        return true;
     if (url.pathname === '/index.html')
         return true;
     return request.mode === 'navigate';
