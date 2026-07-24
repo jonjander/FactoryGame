@@ -1,3 +1,4 @@
+using FactoryGame.Domain.Content;
 using FactoryGame.Web.Models;
 
 namespace FactoryGame.Web.Services;
@@ -11,8 +12,11 @@ public static class ElementPropertyNarrator
         var risks = DescribeRisks(d.Explosivity, d.Flammability, d.Toxicity);
         var thermal = DescribeThermal(d.BoilingPoint, d.FreezePoint);
         var family = $"It belongs to family {d.FamilyId} in the catalog.";
+        var kind = element.Dna == ElementCatalogLookup.CatalogDnaFor(element.Id)
+            ? "base element"
+            : "material variant";
 
-        return $"{element.Name} ({element.Symbol}) is a base element in {phase}. {risks} {thermal} {family}";
+        return $"{element.Name} ({element.Symbol}) is a {kind} in {phase}. {risks} {thermal} {family}";
     }
 
     private static string DescribePhase(string phase) =>

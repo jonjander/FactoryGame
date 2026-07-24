@@ -131,7 +131,7 @@
 
             <div class="fg-modal-actions pool-analysis-footer">
                 <a class="button-link" href="@ExchangeHref">Show in Exchange</a>
-                <a class="button-link secondary" href="/wiki?elementId=@Element.Id">Open in wiki</a>
+                <a class="button-link secondary" href="@WikiHref">Open in wiki</a>
                 <button type="button" class="secondary" @onclick="CloseAsync">Close</button>
             </div>
         </div>
@@ -168,6 +168,13 @@
         Element is null || EffectiveDna == 0
             ? "/exchange"
             : $"/exchange?elementId={Element.Id}&dna={EffectiveDna.ToString(CultureInfo.InvariantCulture)}&side=sell";
+
+    private string WikiHref =>
+        Element is null
+            ? "/wiki"
+            : EffectiveDna == 0
+                ? $"/wiki?elementId={Element.Id}&tab=elements"
+                : $"/wiki?elementId={Element.Id}&dna={EffectiveDna.ToString(CultureInfo.InvariantCulture)}&tab=elements";
 
     private static string FormatDnaHex(long dna) => $"0x{dna.ToString("X16", CultureInfo.InvariantCulture)}";
 

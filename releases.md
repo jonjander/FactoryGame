@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.30
+
+- **Pool / Wiki:** *Open in wiki* opens the selected DNA variant (name, properties, DNA chart, suitable machines) — not just the base element.
+- **UI:** version footer uses flex sticky layout — stays at the bottom of the page/viewport instead of scrolling away.
+
 ## 0.3.29
 
 - **Market:** **Create company** button with admin-token modal; **Manage companies** opens Admin window.

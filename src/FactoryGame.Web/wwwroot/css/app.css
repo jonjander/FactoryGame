@@ -78,15 +78,28 @@ code {
 
 body {
     margin: 0;
+    min-height: 100%;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     background: #0f1419;
     color: #e6edf3;
 }
 
-.page {
-    min-height: 100vh;
+html {
+    height: 100%;
+}
+
+#app {
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
+}
+
+.page {
+    min-height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .top-bar {
@@ -184,7 +197,7 @@ body {
     max-width: 1100px;
     width: 100%;
     margin: 0 auto;
-    flex: 1;
+    flex: 1 0 auto;
 }
 
 .app-update-banner {
@@ -206,25 +219,17 @@ body {
 }
 
 .app-version-footer {
-    position: fixed;
-    left: max(0.65rem, env(safe-area-inset-left, 0px));
-    bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
+    flex-shrink: 0;
+    margin-top: auto;
     z-index: 120;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.15rem 0.55rem;
+    padding: 0.35rem max(1.25rem, env(safe-area-inset-left, 0px)) max(0.65rem, env(safe-area-inset-bottom, 0px));
     font-size: 0.7rem;
     line-height: 1.25;
     border-top: 1px solid #30363d;
-    border-right: 1px solid #30363d;
-    border-top-right-radius: 6px;
-    background: rgba(13, 17, 23, 0.94);
-    pointer-events: none;
-}
-
-.app-version-footer span {
-    pointer-events: none;
+    background: rgba(13, 17, 23, 0.98);
 }
 
 .app-footer {
@@ -3337,7 +3342,8 @@ button.danger-outline:hover:not(:disabled) {
 /* --- Desktop game shell (min-width 900px) --- */
 
 .game-shell {
-    height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
     overflow: hidden;
     background: #0a0e14;
 }

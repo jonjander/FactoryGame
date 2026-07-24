@@ -1,3 +1,4 @@
+@using System.Globalization
 @using System.Net.Http.Json
 @using FactoryGame.Web.Models
 @using FactoryGame.Web.Services
@@ -299,7 +300,7 @@
                         }
                     </section>
                 }
-                else if (_activeTab == "elements" && _selectedElementId is int eid && GetElementDetail(eid) is { } element)
+                else if (_activeTab == "elements" && _selectedElementId is int eid && GetElementDetailView(eid) is { } element)
                 {
                     <article class="panel wiki-detail wiki-element-detail">
                         <div class="wiki-detail-header wiki-element-detail-header">
@@ -370,7 +371,7 @@
                 </div>
             </div>
         }
-        else if (ShowMobileDetailSheet && _selectedElementId is int sheetEid && GetElementDetail(sheetEid) is { } sheetElement)
+        else if (ShowMobileDetailSheet && _selectedElementId is int sheetEid && GetElementDetailView(sheetEid) is { } sheetElement)
         {
             <div class="wiki-mobile-sheet-backdrop" @onclick="ClearElementSelection"></div>
             <div class="wiki-mobile-sheet panel wiki-detail wiki-element-detail">
@@ -418,6 +419,7 @@
     private string _elementPhaseFilter = "";
     private WikiMachineItem? _selectedMachine;
     private int? _selectedElementId;
+    private long? _selectedVariantDna;
     private bool _showDnaExplainer;
     private List<PhaseStat> _phaseStats = [];
 
@@ -504,8 +506,9 @@
         if (TryGetQueryInt("elementId", out var elementId))
         {
             _highlightElement = _wiki.Elements.FirstOrDefault(e => e.Id == elementId);
+            long? variantDna = TryGetQueryLong("dna", out var dna) ? dna : null;
             if (_highlightElement != null)
-                SelectElement(elementId, updateUrl: false);
+                SelectElement(elementId, updateUrl: false, variantDna: variantDna);
         }
 
         if (TryGetQueryString("machine", out var machineType))
@@ -595,6 +598,14 @@
     private ElementContentItem? GetElementDetail(int id) =>
         _elementDetails.FirstOrDefault(e => e.Id == id);
 
+    private ElementContentItem? GetElementDetailView(int id)
+    {
+        var baseElement = GetElementDetail(id);
+        return baseElement == null
+            ? null
+            : ElementContentVariant.WithDna(baseElement, _selectedVariantDna);
+    }
+
     private void SelectTab(string tabId)
     {
         _activeTab = tabId;
@@ -617,9 +628,10 @@
             SelectMachine(machine);
     }
 
-    private void SelectElement(int elementId, bool updateUrl = true)
+    private void SelectElement(int elementId, bool updateUrl = true, long? variantDna = null)
     {
         _selectedElementId = elementId;
+        _selectedVariantDna = variantDna;
         _activeTab = "elements";
         if (updateUrl)
             UpdateUrl(elementId: elementId);
@@ -634,6 +646,7 @@
     private void ClearElementSelection()
     {
         _selectedElementId = null;
+        _selectedVariantDna = null;
         UpdateUrl();
     }
 
@@ -656,7 +669,11 @@
         if (_activeTab == "machines" && (_selectedMachine != null || machine != null))
             q["machine"] = machine ?? _selectedMachine?.Type;
         else if (_activeTab == "elements" && (_selectedElementId != null || elementId != null))
+        {
             q["elementId"] = (elementId ?? _selectedElementId)?.ToString();
+            if (_selectedVariantDna is { } variantDna && variantDna != 0)
+                q["dna"] = variantDna.ToString(CultureInfo.InvariantCulture);
+        }
 
         var qs = string.Join("&", q.Where(kv => !string.IsNullOrEmpty(kv.Value)).Select(kv =>
             $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value!)}"));
@@ -668,6 +685,14 @@
     {
         value = 0;
         return TryGetQueryString(key, out var raw) && int.TryParse(raw, out value) && value > 0;
+    }
+
+    private bool TryGetQueryLong(string key, out long value)
+    {
+        value = 0;
+        return TryGetQueryString(key, out var raw)
+               && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
+               && value != 0;
     }
 
     private bool TryGetQueryString(string key, out string value)
