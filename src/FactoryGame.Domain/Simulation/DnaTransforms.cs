@@ -11,6 +11,13 @@ public enum MixTier
     Volatile
 }
 
+public sealed record ToxicMeltSplitResult(
+    long GasDna,
+    long LiquidDna,
+    bool ExtremeTransmute,
+    int GasElementId,
+    int LiquidElementId);
+
 /// <summary>Deterministic bitwise DNA transforms for machine processors (v1).</summary>
 public static class DnaTransforms
 {
@@ -329,6 +336,50 @@ public static class DnaTransforms
         light = (light & ~3UL) | 1UL;
 
         return ((long)dense, (long)light);
+    }
+
+    /// <summary>
+    /// Toxic melter: volatile toxic fluid + low-toxic solid carrier → vent gas (out1) and purified liquid (out2).
+    /// Extreme feed can transmute the liquid to the carrier element id.
+    /// </summary>
+    public static ToxicMeltSplitResult ToxicMeltSplit(
+        long toxicDna,
+        int toxicElementId,
+        long carrierDna,
+        int carrierElementId,
+        int cutBoiling,
+        int heatPermille)
+    {
+        cutBoiling = Math.Clamp(cutBoiling, 0, (int)DnaLayout.BoilingMask);
+        heatPermille = Math.Clamp(heatPermille, 100, 1000);
+
+        var toxic = DnaDecoder.Decode(toxicDna);
+        var carrier = DnaDecoder.Decode(carrierDna);
+        var spread = MeasureDnaSpreadPermille(toxicDna);
+
+        var (_, lightGas) = DistillFractions(toxicDna, cutBoiling);
+        var gasU = (ulong)lightGas;
+        var gasTox = (int)((gasU >> DnaLayout.ToxicityShift) & DnaLayout.ToxicityMask);
+        gasTox = Math.Clamp(gasTox + 28 + heatPermille / 40, 0, (int)DnaLayout.ToxicityMask);
+        gasU = SetBand(gasU, DnaLayout.ToxicityShift, DnaLayout.ToxicityMask, gasTox);
+        gasU = (gasU & ~3UL) | 2UL;
+
+        var (meltedCarrier, _) = Melt(carrierDna, cutBoiling, Math.Max(heatPermille / 45, 14));
+        var (heavyToxic, _) = DistillFractions(toxicDna, cutBoiling);
+        var liquidU = (ulong)meltedCarrier;
+        liquidU ^= ((ulong)heavyToxic >> 12) & Band(DnaLayout.FamilyShift, DnaLayout.FamilyMask);
+        var carrierToxRaw = carrier.Toxicity * (int)DnaLayout.ToxicityMask / 100;
+        var scrubbed = Math.Clamp(carrierToxRaw + 8, 0, (int)(DnaLayout.ToxicityMask * 0.35));
+        liquidU = SetBand(liquidU, DnaLayout.ToxicityShift, DnaLayout.ToxicityMask, scrubbed);
+        liquidU = (liquidU & ~3UL) | 1UL;
+
+        var extreme = toxic.Toxicity >= 88 && carrier.Toxicity <= 30 && spread >= 500;
+        var gasElement = toxicElementId;
+        var liquidElement = toxicElementId;
+        if (extreme)
+            liquidElement = carrierElementId;
+
+        return new ToxicMeltSplitResult((long)gasU, (long)liquidU, extreme, gasElement, liquidElement);
     }
 
     private static ulong Band(int shift, long mask) => (ulong)mask << shift;

@@ -14,6 +14,7 @@ public static class MachineRateCatalog
             ["Condenser"] = Profile(700, In("in", 1000), Out("out", 1000), opRate: true, timeDna: true),
             ["Crystallizer"] = Profile(650, In("in", 1000), Out("out", 1000), opRate: true, timeDna: true),
             ["Melter"] = Profile(550, In("in", 1000), Out("out", 1000), opRate: true, timeDna: true),
+            ["ToxicMelter"] = Profile(480, In("in1", 1000, "in2", 1000), Out("out1", 320, "out2", 480), opRate: true, timeDna: false),
             ["Mixer"] = Profile(500, In("in1", 1000, "in2", 1000), Out("out", 800), opRate: true, timeDna: false),
             ["GasMixer"] = Profile(520, In("in1", 1000, "in2", 1000), Out("out", 850), opRate: true, timeDna: false),
             ["Burner"] = Profile(900, In("in", 1000), outputs: null, opRate: true, timeDna: false),

@@ -109,6 +109,13 @@ public static class MachineSettingsUi
                 new("cutBoiling", "Melt cut", CutBand),
                 new("heatDelta", "Melt power", MeltHeat)
             ]);
+        if (t.Equals("ToxicMelter", StringComparison.OrdinalIgnoreCase))
+            return WithOperationRate(
+            [
+                new("cutBoiling", "Boil cut", CutBand),
+                new("heatPermille", "Melt power", MeltHeat),
+                new("gasSplitPermille", "Gas fraction", MixRatio)
+            ]);
         if (t.Equals("Mixer", StringComparison.OrdinalIgnoreCase))
             return WithOperationRate(
             [

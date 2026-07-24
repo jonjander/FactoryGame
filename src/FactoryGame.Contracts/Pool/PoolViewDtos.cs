@@ -22,7 +22,22 @@ public sealed record PoolElementFactoryFlowDto(
     bool ProducedByFactory,
     double? ConsumeUnitsPerSecond,
     double? ProduceUnitsPerSecond,
-    bool FlowIsEstimate);
+    bool FlowIsEstimate,
+    IReadOnlyList<PoolElementFactoryBoardDto> Boards);
+
+public sealed record PoolElementFactoryBoardDto(
+    Guid BoardId,
+    string BoardName,
+    bool IsRunning,
+    IReadOnlyList<PoolElementFactoryMachineDto> Machines);
+
+public sealed record PoolElementFactoryMachineDto(
+    string MachineId,
+    string MachineType,
+    string Role,
+    double? UnitsPerSecond,
+    bool IsEstimate,
+    string? Summary);
 
 public sealed record PoolVariantStackDto(
     int ElementId,

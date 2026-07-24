@@ -153,8 +153,22 @@ public sealed class MarketQueryService(AppDbContext db, BoardService boardServic
             flow.ProducedByFactory,
             flow.ConsumeUnitsPerSecond,
             flow.ProduceUnitsPerSecond,
-            flow.FlowIsEstimate);
+            flow.FlowIsEstimate,
+            flow.Boards.Select(MapFactoryBoard).ToList());
     }
+
+    private static PoolElementFactoryBoardDto MapFactoryBoard(PoolElementFactoryBoard board) =>
+        new(
+            board.BoardId,
+            board.BoardName,
+            board.IsRunning,
+            board.Machines.Select(m => new PoolElementFactoryMachineDto(
+                m.MachineId,
+                m.MachineType,
+                m.Role,
+                m.UnitsPerSecond,
+                m.IsEstimate,
+                m.Summary)).ToList());
 
     public async Task<IReadOnlyDictionary<int, int>> GetGlobalPriceRanksAsync(CancellationToken ct = default)
     {

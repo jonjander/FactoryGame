@@ -24,6 +24,8 @@ public static class MachineInputCompatibility
     private const int DefaultMeltHeatPerPass = 20;
     private const int DefaultChillPerPass = 16;
     private const int SlowProcessPasses = 10;
+    private const int MinToxicFluid = 60;
+    private const int MaxCarrierToxic = 35;
 
     private static readonly string[] InputMachineTypes =
     [
@@ -33,6 +35,7 @@ public static class MachineInputCompatibility
         "Condenser",
         "Crystallizer",
         "Melter",
+        "ToxicMelter",
         "Mixer",
         "GasMixer",
         "Burner",
@@ -77,6 +80,7 @@ public static class MachineInputCompatibility
         return machineType switch
         {
             "Melter" => AssessMelter(dna),
+            "ToxicMelter" => AssessToxicMelter(dna),
             "Crystallizer" => AssessCrystallizer(dna),
             "Condenser" => AssessCondenser(dna),
             "Destilator" => AssessDestilator(dna),
@@ -108,6 +112,19 @@ public static class MachineInputCompatibility
         if (t.Equals("Melter", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Solid)
             return "Requires solid phase.";
 
+        if (t.Equals("ToxicMelter", StringComparison.OrdinalIgnoreCase))
+        {
+            if (d.Phase == MaterialPhase.Solid && d.Toxicity > MaxCarrierToxic)
+                return "Solid carrier on in2 must have low toxicity.";
+            if (d.Phase != MaterialPhase.Solid && d.Toxicity < MinToxicFluid)
+                return "Toxic fluid on in1 must be liquid or gas with high toxicity.";
+            if (d.Phase == MaterialPhase.Solid && d.Toxicity <= MaxCarrierToxic)
+                return null;
+            if (d.Phase != MaterialPhase.Solid && d.Toxicity >= MinToxicFluid)
+                return null;
+            return "Use high-toxic liquid/gas on in1 and low-toxic solid on in2.";
+        }
+
         if (t.Equals("GasMixer", StringComparison.OrdinalIgnoreCase) && d.Phase != MaterialPhase.Gas)
             return "Requires gas phase — boil or distil light fractions first.";
 
@@ -137,6 +154,9 @@ public static class MachineInputCompatibility
 
         if (machineType.Equals("Melter", StringComparison.OrdinalIgnoreCase))
             return GetMelterLimitedReason(dna);
+
+        if (machineType.Equals("ToxicMelter", StringComparison.OrdinalIgnoreCase))
+            return GetToxicMelterLimitedReason(dna);
 
         if (machineType.Equals("Crystallizer", StringComparison.OrdinalIgnoreCase))
             return GetCrystallizerLimitedReason(dna);
@@ -202,6 +222,28 @@ public static class MachineInputCompatibility
             return MachineInputFit.Limited;
 
         return MachineInputFit.Good;
+    }
+
+    private static MachineInputFit AssessToxicMelter(long dna)
+    {
+        var d = DnaDecoder.Decode(dna);
+        if (d.Phase == MaterialPhase.Solid)
+            return d.Toxicity <= MaxCarrierToxic ? MachineInputFit.Good : MachineInputFit.Limited;
+
+        if (d.Phase is MaterialPhase.Liquid or MaterialPhase.Gas)
+            return d.Toxicity >= MinToxicFluid ? MachineInputFit.Good : MachineInputFit.Limited;
+
+        return MachineInputFit.Blocked;
+    }
+
+    private static string? GetToxicMelterLimitedReason(long dna)
+    {
+        var d = DnaDecoder.Decode(dna);
+        if (d.Phase == MaterialPhase.Solid && d.Toxicity > MaxCarrierToxic)
+            return "Too toxic for carrier bed — pick a cleaner solid on in2.";
+        if (d.Phase != MaterialPhase.Solid && d.Toxicity < MinToxicFluid)
+            return "Not toxic enough for in1 — needs a hazardous liquid or gas.";
+        return null;
     }
 
     private static MachineInputFit AssessCrystallizer(long dna)

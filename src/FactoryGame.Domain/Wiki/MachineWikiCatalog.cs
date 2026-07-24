@@ -18,6 +18,7 @@ public static class MachineWikiCatalog
         Entry("Condenser", "Chilled coil that condenses gas to liquid — never sends vapour downstream."),
         Entry("Crystallizer", "Supercools unruly liquid until it locks into solid crystal — never outputs gas."),
         Entry("Melter", "Induction furnace for stubborn solids; spread-out feed melts to pourable liquid, compact ingots may pass through."),
+        Entry("ToxicMelter", "Splits hazardous fluid and a clean solid carrier into vent gas (out1) and purified liquid (out2). Extreme toxicity can transmute the liquid to the carrier element."),
         Entry("Sorter", "Routes configured elements to ports 1–3; all other to port 4 (rest)."),
         Entry("Tank", "Buffer storage with configurable capacity (small/medium/large)."),
         Entry("Junction", "Splits one input across two outputs with fair alternation or capacity-weighted routing."),

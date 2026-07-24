@@ -14,6 +14,7 @@ public static class MachineStoreCatalog
         new("Condenser", "Condenser", 2200m),
         new("Crystallizer", "Crystallizer", 2800m),
         new("Melter", "Melter", 3000m),
+        new("ToxicMelter", "Toxic melter", 4200m),
         new("LiquidSeparator", "Liquid separator", 3200m),
         new("Destilator", "Destilator", 3500m),
         new("Sorter", "Sorter", 5000m),

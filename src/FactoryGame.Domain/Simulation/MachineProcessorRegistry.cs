@@ -11,6 +11,7 @@ public static class MachineProcessorRegistry
             new Processors.CondenserProcessor(),
             new Processors.CrystallizerProcessor(),
             new Processors.MelterProcessor(),
+            new Processors.ToxicMelterProcessor(),
             new Processors.MixerProcessor(),
             new Processors.GasMixerProcessor(),
             new Processors.BurnerProcessor(),

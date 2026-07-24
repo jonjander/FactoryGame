@@ -45,3 +45,16 @@ Detailed shell architecture: **`@factory-game-game-shell`** (`.cursor/skills/fac
 - [ ] Clear error messages on rejected commands (validation reason from server).
 - [ ] Mobile: parity + navigation per F19 (no cut-down logic).
 - [ ] Desktop shell: content in `Views/`, state in services (`BoardCanvasSession`), not duplicated in hidden `@Body`.
+
+## PWA / service worker
+
+Production logic lives in `wwwroot/service-worker.published.js` (copied to `service-worker.js` on Release publish). **Dev uses a no-op SW** — always test SW changes in **Release** or on Azure.
+
+**Before changing fetch handling, read:** `docs/pwa-service-worker.md`
+
+Critical rules (see doc for incident 0.3.25–0.3.28):
+
+- Call **`event.respondWith()` once** on the fetch listener; async handler **returns** `Response`, never calls `respondWith` again.
+- **Bypass** `/v1/`, `/diagnostics/`, `/swagger`, `/health` — do not cache or intercept API.
+- **Network-first** for `/_framework/`, `/js/`, `/css/`, navigations — avoids stale WASM/JS after deploy.
+- Verify with Playwright `serviceWorkers: 'allow'` — `#blazor-error-ui` must stay hidden; `fetch('/v1/app/version')` must not throw.

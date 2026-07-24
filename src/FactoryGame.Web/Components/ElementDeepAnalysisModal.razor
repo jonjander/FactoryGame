@@ -2,6 +2,11 @@
 @using FactoryGame.Contracts.Pool
 @using FactoryGame.Web.Models
 @using FactoryGame.Web.Services
+@inject BoardCanvasSession Session
+@inject ViewportLayoutService Viewport
+@inject GameShellNavigation ShellNav
+@inject GameWindowService Windows
+@inject NavigationManager Nav
 
 @if (Visible && Element is not null)
 {
@@ -50,6 +55,62 @@
                 else
                 {
                     <p class="muted pool-factory-flow-hint">Planned seaport capacity from running factory layout.</p>
+                }
+
+                @if (flow.Boards.Count > 0)
+                {
+                    <div class="pool-factory-board-list">
+                        @foreach (var board in flow.Boards)
+                        {
+                            <section class="pool-factory-board-card">
+                                <div class="pool-factory-board-header">
+                                    <div>
+                                        <strong>@board.BoardName</strong>
+                                        <span class="muted pool-factory-board-mode">
+                                            @(board.IsRunning ? "Running" : "Stopped")
+                                        </span>
+                                    </div>
+                                    <button type="button" class="secondary pool-factory-open-btn" @onclick="() => OpenFactoryAsync(board.BoardId, null)">
+                                        Open factory
+                                    </button>
+                                </div>
+                                @if (board.Machines.Count > 0)
+                                {
+                                    <ul class="pool-factory-machine-list">
+                                        @foreach (var machine in board.Machines)
+                                        {
+                                            <li class="pool-factory-machine-row">
+                                                <span class="pool-factory-flow-icon @(machine.Role == "produce" ? "pool-factory-flow-produce" : "pool-factory-flow-consume")" aria-hidden="true">
+                                                    @(machine.Role == "produce" ? "↑" : "↓")
+                                                </span>
+                                                <div class="pool-factory-machine-main">
+                                                    <button type="button" class="pool-factory-machine-link" @onclick="() => OpenFactoryAsync(board.BoardId, machine.MachineId)">
+                                                        <strong>@machine.MachineId</strong>
+                                                        <span class="muted">@machine.MachineType</span>
+                                                    </button>
+                                                    <span class="muted pool-factory-machine-role">
+                                                        @(machine.Role == "produce" ? "Deposits to pool" : "Withdraws from pool")
+                                                        @if (machine.UnitsPerSecond is { } rate and > 0)
+                                                        {
+                                                            <span> · @FormatRate(rate) u/s</span>
+                                                        }
+                                                        @if (machine.IsEstimate)
+                                                        {
+                                                            <span> · estimate</span>
+                                                        }
+                                                    </span>
+                                                    @if (!string.IsNullOrWhiteSpace(machine.Summary))
+                                                    {
+                                                        <span class="muted pool-factory-machine-summary">@machine.Summary</span>
+                                                    }
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </section>
+                        }
+                    </div>
                 }
             }
 
@@ -115,6 +176,22 @@
 
     private static double? TotalTurnover(PoolElementFactoryFlowDto flow) =>
         (flow.ConsumeUnitsPerSecond ?? 0) + (flow.ProduceUnitsPerSecond ?? 0);
+
+    private async Task OpenFactoryAsync(Guid boardId, string? machineId)
+    {
+        await Session.OpenFactoryAsync(boardId, machineId);
+        await CloseAsync();
+
+        if (Viewport.UseGameShell)
+        {
+            ShellNav.NavigateAndOpen("/boards", "boards-picker");
+            Windows.Close("pool");
+        }
+        else
+        {
+            Nav.NavigateTo("/boards");
+        }
+    }
 
     private Task CloseAsync() => OnClose.InvokeAsync();
 }

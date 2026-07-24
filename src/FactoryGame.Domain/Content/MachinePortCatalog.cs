@@ -37,6 +37,13 @@ public static class MachinePortCatalog
             ["Condenser"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
             ["Crystallizer"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
             ["Melter"] = [new("in", PortDirection.In), new("out", PortDirection.Out)],
+            ["ToxicMelter"] =
+            [
+                new("in1", PortDirection.In),
+                new("in2", PortDirection.In),
+                new("out1", PortDirection.Out),
+                new("out2", PortDirection.Out)
+            ],
             ["Sorter"] =
             [
                 new("in", PortDirection.In),

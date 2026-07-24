@@ -17,6 +17,7 @@ public static class WikiPresentation
         "Condenser" => "Condenser",
         "Crystallizer" => "Crystallizer",
         "Melter" => "Melter",
+        "ToxicMelter" => "Toxic melter",
         "Sorter" => "Sorter",
         "Tank" => "Tank",
         "Junction" => "Junction",
@@ -27,7 +28,7 @@ public static class WikiPresentation
 
     public static string MachineCategory(string type) => type switch
     {
-        "Boiler" or "Heater" or "Cooler" or "Melter" => "heat",
+        "Boiler" or "Heater" or "Cooler" or "Melter" or "ToxicMelter" => "heat",
         "Condenser" or "Crystallizer" => "phase",
         "Mixer" or "GasMixer" or "Destilator" or "LiquidSeparator" or "Sorter" => "separation",
         "Burner" => "heat",
@@ -51,6 +52,7 @@ public static class WikiPresentation
         "Condenser" => "💧",
         "Crystallizer" => "🧊",
         "Melter" => "🫠",
+        "ToxicMelter" => "☣",
         "Mixer" => "🌀",
         "GasMixer" => "💨",
         "Destilator" or "LiquidSeparator" => "⚗️",
@@ -104,6 +106,12 @@ public static class WikiPresentation
             "Spread-out solid needs sustained furnace heat before it pours.",
             "Compact solids may pass through unchanged.",
             "Good intermediate step before liquid processes."
+        ],
+        "ToxicMelter" =>
+        [
+            "in1: hazardous liquid or gas (high toxicity). in2: clean solid carrier (low toxicity).",
+            "out1 vents a different gas; out2 yields a different purified liquid.",
+            "Extreme toxicity can transmute the liquid to the carrier element."
         ],
         "Mixer" =>
         [
@@ -221,6 +229,7 @@ public static class WikiPresentation
         "Condenser" => "Chilled coil converts gas to liquid. Output is always liquid.",
         "Crystallizer" => "Supercooled bath locks unruly liquid into solid crystal. Never gas out.",
         "Melter" => "Induction furnace melts spread-out solid into pourable liquid. Compact solid may pass through.",
+        "ToxicMelter" => "Hazardous fluid plus clean solid carrier → toxic vent gas and purified liquid. Extreme runs can change the liquid element.",
         "Mixer" => "Blends two streams. Mix intensity and ratio decide whether the blend stays stable or turns volatile.",
         "GasMixer" => "Blends two gas streams into one stable vapour — always gas out.",
         "Burner" => "Controlled flare — burns moderately flammable gas completely with no residue.",

@@ -6,6 +6,9 @@ namespace FactoryGame.Domain.Tests;
 
 public sealed class PlayerSeaportElementFlowAggregatorTests
 {
+    private static readonly Guid Board1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid Board2Id = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
     private const long DnaSolid = 1L << DnaLayout.PhaseShift;
     private const long DnaGas = 2L << DnaLayout.PhaseShift;
 
@@ -14,9 +17,10 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     {
         var snapshots = new[]
         {
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board1Id,
+                "Alpha",
                 IsRunning: true,
-                TickIntervalSeconds: 10,
                 LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 2m)),
                 IntoFactory:
                 [
@@ -27,9 +31,10 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
                 [
                     new SeaportPortFlowDetail("sea1", "SeaportConnector", "out", "out", true, "b1", "in", 3, DnaSolid, "E03", "From pool", false)
                 ]),
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board2Id,
+                "Beta",
                 IsRunning: true,
-                TickIntervalSeconds: 10,
                 LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 5m), deposit: (7, DnaGas, 2m)),
                 IntoFactory:
                 [
@@ -60,14 +65,50 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     }
 
     [Fact]
+    public void Aggregate_lists_boards_and_machines_for_variant()
+    {
+        var snapshots = new[]
+        {
+            Snapshot(
+                Board1Id,
+                "Cool chain",
+                IsRunning: false,
+                IntoFactory:
+                [
+                    new SeaportFlowLine("sea1", "SeaportConnector", "out", "boiler1", "in", 0.5, "Pool → factory", null)
+                ],
+                OutOfFactory: [],
+                SeaportPorts:
+                [
+                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "out", "out", true, "boiler1", "in", 3, DnaSolid, "E03", "From pool", true)
+                ],
+                MachinePortFlows:
+                [
+                    new MachinePortFlowDetail(
+                        "boiler1", "Boiler", "out", "mix1", "in",
+                        3, "E03", 3, "E03", "solid", "solid", DnaSolid, DnaSolid,
+                        null, "Heats material", MaterialProcessStatus.Transformed, false, true, false)
+                ])
+        };
+
+        var key = new PoolStackKey(3, DnaSolid);
+        var flow = PlayerSeaportElementFlowAggregator.Aggregate(snapshots)[key];
+
+        Assert.Single(flow.Boards);
+        Assert.Equal("Cool chain", flow.Boards[0].BoardName);
+        Assert.Equal(Board1Id, flow.Boards[0].BoardId);
+        Assert.Contains(flow.Boards[0].Machines, m => m.MachineId == "boiler1" && m.Role == "consume");
+    }
+
+    [Fact]
     public void Aggregate_same_element_different_variants_does_not_merge_directions()
     {
         var snapshots = new[]
         {
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board1Id,
+                "Split",
                 IsRunning: false,
-                TickIntervalSeconds: 10,
-                LastSeaportDelta: null,
                 IntoFactory:
                 [
                     new SeaportFlowLine("sea1", "SeaportConnector", "out", "b1", "in", 0.5, "Pool → factory", null)
@@ -98,10 +139,10 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     {
         var snapshots = new[]
         {
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board1Id,
+                "Stopped",
                 IsRunning: false,
-                TickIntervalSeconds: 10,
-                LastSeaportDelta: null,
                 IntoFactory:
                 [
                     new SeaportFlowLine("sea1", "SeaportConnector", "out", "b1", "in", 0.5, "Pool → factory", null)
@@ -126,9 +167,10 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     {
         var snapshots = new[]
         {
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board1Id,
+                "Running",
                 IsRunning: true,
-                TickIntervalSeconds: 10,
                 LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 2m)),
                 IntoFactory:
                 [
@@ -153,10 +195,10 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     {
         var snapshots = new[]
         {
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board1Id,
+                "Withdraw only",
                 IsRunning: false,
-                TickIntervalSeconds: 10,
-                LastSeaportDelta: null,
                 IntoFactory:
                 [
                     new SeaportFlowLine("sea1", "SeaportConnector", "out", "b1", "in", 0.5, "Pool → factory", null)
@@ -181,10 +223,10 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
         var heatedDna = DnaTransforms.Heat(DnaSolid);
         var snapshots = new[]
         {
-            new PlayerBoardSeaportFlowSnapshot(
+            Snapshot(
+                Board1Id,
+                "Heated out",
                 IsRunning: false,
-                TickIntervalSeconds: 10,
-                LastSeaportDelta: null,
                 IntoFactory: [],
                 OutOfFactory:
                 [
@@ -203,6 +245,26 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
         Assert.False(flows[key].ConsumedByFactory);
         Assert.Equal(0.4, flows[key].ProduceUnitsPerSecond);
     }
+
+    private static PlayerBoardSeaportFlowSnapshot Snapshot(
+        Guid boardId,
+        string boardName,
+        bool IsRunning,
+        IReadOnlyList<SeaportFlowLine>? IntoFactory = null,
+        IReadOnlyList<SeaportFlowLine>? OutOfFactory = null,
+        IReadOnlyList<SeaportPortFlowDetail>? SeaportPorts = null,
+        IReadOnlyList<MachinePortFlowDetail>? MachinePortFlows = null,
+        SeaportTickDelta? LastSeaportDelta = null) =>
+        new(
+            boardId,
+            boardName,
+            IsRunning,
+            TickIntervalSeconds: 10,
+            LastSeaportDelta,
+            IntoFactory ?? [],
+            OutOfFactory ?? [],
+            SeaportPorts ?? [],
+            MachinePortFlows ?? []);
 
     private static SeaportTickDelta CreateDelta(
         (int ElementId, long Dna, decimal Qty)? withdraw = null,

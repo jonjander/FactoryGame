@@ -2,9 +2,16 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.29
+
+- **Market:** **Create company** button with admin-token modal; **Manage companies** opens Admin window.
+- **Pool:** element info lists seaport source factories and machines (consume/produce); open factory from modal.
+- **Machines:** **Toxic Melter** — toxic fluid/gas + solid carrier → gas + liquid; extreme cases can transmute element.
+- **Docs:** `docs/pwa-service-worker.md` (PWA troubleshooting guide referenced from 0.3.28).
+
 ## 0.3.28
 
-- **PWA fix:** service worker fetch handler — return responses instead of double `respondWith` (fixes `Failed to fetch` for CSS and API when SW active).
+- **PWA fix:** service worker fetch handler — return responses instead of double `respondWith` (fixes `Failed to fetch` for CSS and API when SW active). See `docs/pwa-service-worker.md`.
 - **PWA:** bypass `/v1/` and diagnostics from service worker; network-first for `/css/`.
 
 ## 0.3.27

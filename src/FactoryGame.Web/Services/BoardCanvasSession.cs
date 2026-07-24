@@ -864,6 +864,14 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         StartPollingIfRunning();
     }
 
+    public async Task OpenFactoryAsync(Guid boardId, string? machineId = null)
+    {
+        await SelectBoardAsync(boardId);
+        if (!string.IsNullOrEmpty(machineId))
+            SettingsMachineId = machineId;
+        NotifyChanged();
+    }
+
     public async Task RefreshBoardInfoAsync()
     {
         if (Selected is not { } boardId)

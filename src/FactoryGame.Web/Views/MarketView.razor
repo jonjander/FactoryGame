@@ -1,14 +1,29 @@
 @using System.Net.Http.Json
+@using FactoryGame.Contracts.Admin
 @using FactoryGame.Contracts.Market
 @inject HttpClient Http
 @inject TokenStore Tokens
+@inject GameShellNavigation ShellNav
 
 <PageTitle>Market</PageTitle>
 
 <div class="panel">
-    <h2>Market analysis</h2>
-    <p class="muted">Leaderboards and hottest markets — sponsored companies show name and logo.</p>
+    <div class="pool-analysis-header">
+        <div>
+            <h2>Market analysis</h2>
+            <p class="muted">Leaderboards and hottest markets — sponsored companies show name and logo.</p>
+        </div>
+        <div class="market-header-actions">
+            <button type="button" @onclick="() => _showCreateCompany = true">Create company</button>
+            <button type="button" class="secondary" @onclick="OpenAdminAsync">Manage companies</button>
+        </div>
+    </div>
 </div>
+
+<CreateSponsorCompanyModal
+    Visible="_showCreateCompany"
+    OnClose="() => _showCreateCompany = false"
+    OnCreated="OnCompanyCreatedAsync" />
 
 @if (_error is { } err)
 {
@@ -79,11 +94,20 @@ else if (_boards is { } boards)
 
 @code {
     private bool _busy = true;
+    private bool _showCreateCompany;
     private string? _error;
     private MarketLeaderboardsDto? _boards;
     private MarketInsightsResponse? _insights;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private void OpenAdminAsync() => ShellNav.NavigateAndOpen("/admin", "admin");
+
+    private async Task OnCompanyCreatedAsync(SponsorCompanyDto _)
+    {
+        _showCreateCompany = false;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

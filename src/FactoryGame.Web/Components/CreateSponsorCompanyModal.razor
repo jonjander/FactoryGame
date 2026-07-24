@@ -1,0 +1,173 @@
+@using System.Net.Http.Json
+@using FactoryGame.Contracts.Admin
+@inject HttpClient Http
+@inject AdminTokenStore AdminTokens
+@implements IDisposable
+
+@if (Visible)
+{
+    <div class="fg-modal-backdrop" @onclick="CloseAsync">
+        <div class="fg-modal fg-modal-wide" @onclick:stopPropagation="true" role="dialog" aria-modal="true" aria-labelledby="create-company-title">
+            <div class="pool-analysis-header">
+                <h4 id="create-company-title" class="fg-modal-title">Create sponsored company</h4>
+                <button type="button" class="secondary" @onclick="CloseAsync">Close</button>
+            </div>
+
+            @if (string.IsNullOrEmpty(AdminTokens.Token))
+            {
+                <p class="muted">Admin token required (<code>X-Admin-Token</code>).</p>
+                <form @onsubmit="SaveTokenAsync" @onsubmit:preventDefault="true">
+                    <label for="market-admin-token">Admin token</label>
+                    <input id="market-admin-token" type="password" @bind="_tokenInput" />
+                    <div class="fg-modal-actions">
+                        <button type="submit">Save token</button>
+                        <button type="button" class="secondary" @onclick="CloseAsync">Cancel</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                @if (_success is { } ok)
+                {
+                    <p class="muted">Created <strong>@ok.Name</strong>.</p>
+                }
+                @if (_error is { } err)
+                {
+                    <p class="error">@err</p>
+                }
+
+                <form @onsubmit="CreateCompanyAsync" @onsubmit:preventDefault="true">
+                    <div class="admin-form-grid">
+                        <label>Name <input @bind="_name" required /></label>
+                        <label>Description <textarea @bind="_description" rows="2"></textarea></label>
+                        <label>Logo URL <input @bind="_logoUrl" /></label>
+                        <label>Mode
+                            <select @bind="_fundingMode">
+                                <option value="Budget">Budget</option>
+                                <option value="Utopia">Utopia (unlimited)</option>
+                            </select>
+                        </label>
+                        <label>Budget <input type="number" step="0.01" @bind="_budget" disabled="@(_fundingMode == "Utopia")" /></label>
+                        <label>Exposure tier (1-5) <input type="number" min="1" max="5" @bind="_tier" /></label>
+                    </div>
+                    <div class="fg-modal-actions">
+                        <button type="submit" disabled="@_busy">Create company</button>
+                        <button type="button" class="secondary" @onclick="CloseAsync">Cancel</button>
+                    </div>
+                </form>
+
+                <p class="muted" style="margin-top: 0.75rem;">
+                    Token saved. <button type="button" class="secondary" @onclick="ClearTokenAsync">Change token</button>
+                </p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback<SponsorCompanyDto> OnCreated { get; set; }
+
+    private string _tokenInput = "";
+    private bool _busy;
+    private string? _error;
+    private SponsorCompanyDto? _success;
+
+    private string _name = "";
+    private string _description = "";
+    private string _logoUrl = "";
+    private string _fundingMode = "Budget";
+    private decimal _budget = 100_000m;
+    private int _tier = 3;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AdminTokens.LoadAsync();
+        AdminTokens.Changed += OnAdminTokenChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!Visible)
+            ResetForm();
+    }
+
+    private void OnAdminTokenChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SaveTokenAsync()
+    {
+        _error = null;
+        await AdminTokens.SetAsync(_tokenInput);
+        _tokenInput = "";
+    }
+
+    private async Task ClearTokenAsync()
+    {
+        _error = null;
+        _success = null;
+        await AdminTokens.ClearAsync();
+    }
+
+    private async Task CreateCompanyAsync()
+    {
+        _busy = true;
+        _error = null;
+        _success = null;
+        try
+        {
+            var body = new CreateSponsorCompanyRequest(
+                _name,
+                _description,
+                _logoUrl,
+                _fundingMode,
+                _fundingMode == "Utopia" ? null : _budget,
+                _tier);
+            using var req = new HttpRequestMessage(HttpMethod.Post, "/v1/admin/companies");
+            req.Headers.Add("X-Admin-Token", AdminTokens.Token);
+            req.Content = JsonContent.Create(body);
+            var res = await Http.SendAsync(req);
+            if (!res.IsSuccessStatusCode)
+            {
+                var text = await res.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"{(int)res.StatusCode}: {text}");
+            }
+
+            var created = await res.Content.ReadFromJsonAsync<SponsorCompanyDto>()
+                ?? throw new InvalidOperationException("Empty response.");
+            _success = created;
+            await OnCreated.InvokeAsync(created);
+            _name = "";
+            _description = "";
+            _logoUrl = "";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task CloseAsync()
+    {
+        ResetForm();
+        return OnClose.InvokeAsync();
+    }
+
+    private void ResetForm()
+    {
+        _error = null;
+        _success = null;
+        _tokenInput = "";
+    }
+
+    public void Dispose() => AdminTokens.Changed -= OnAdminTokenChanged;
+}

@@ -1608,6 +1608,7 @@ input:disabled {
 .market-layout { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .market-leaderboard { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 .sponsor-logo-thumb { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 0.35rem; }
+.market-header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; }
 .admin-form-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 0.75rem; }
 .admin-company-head { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
 .admin-active-toggle { margin-left: auto; }
@@ -2072,6 +2073,83 @@ button.danger-outline:hover:not(:disabled) {
 
 .pool-factory-flow-hint {
     margin: -0.5rem 0 1rem;
+    font-size: 0.78rem;
+}
+
+.pool-factory-board-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+}
+
+.pool-factory-board-card {
+    border: 1px solid var(--fg-border, rgba(255, 255, 255, 0.12));
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.75rem;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.pool-factory-board-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.pool-factory-board-mode {
+    margin-left: 0.45rem;
+    font-size: 0.78rem;
+}
+
+.pool-factory-open-btn {
+    font-size: 0.78rem;
+    padding: 0.15rem 0.55rem;
+    white-space: nowrap;
+}
+
+.pool-factory-machine-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.pool-factory-machine-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+}
+
+.pool-factory-machine-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.pool-factory-machine-link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.pool-factory-machine-link:hover strong {
+    text-decoration: underline;
+}
+
+.pool-factory-machine-role,
+.pool-factory-machine-summary {
     font-size: 0.78rem;
 }
 

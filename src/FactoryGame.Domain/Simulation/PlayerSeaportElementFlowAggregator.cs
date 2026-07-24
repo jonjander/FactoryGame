@@ -13,6 +13,8 @@ public static class PlayerSeaportElementFlowAggregator
 
         foreach (var board in boards)
         {
+            var touchedVariants = new HashSet<PoolStackKey>();
+
             foreach (var port in board.SeaportPorts)
             {
                 if (!port.IsConnected || port.ElementId is not int elementId)
@@ -23,17 +25,65 @@ public static class PlayerSeaportElementFlowAggregator
                     continue;
 
                 var variant = new PoolStackKey(elementId, dna);
+                touchedVariants.Add(variant);
                 var rate = ResolveSeaportPortRate(port, board.IntoFactory, board.OutOfFactory);
                 var isEstimate = port.IsEstimate || !board.IsRunning;
 
                 if (port.Port.Equals("out", StringComparison.OrdinalIgnoreCase))
+                {
                     Get(acc, variant).NoteConsume(rate, isEstimate);
+                    var machineId = port.LinkedMachineId ?? port.MachineId;
+                    Get(acc, variant).AddMachine(
+                        board, machineId, ResolveMachineType(board, machineId), "consume", rate, isEstimate,
+                        port.Summary);
+                }
                 else if (port.Port.Equals("in", StringComparison.OrdinalIgnoreCase))
+                {
                     Get(acc, variant).NoteProduce(rate, isEstimate);
+                    var machineId = port.LinkedMachineId ?? port.MachineId;
+                    Get(acc, variant).AddMachine(
+                        board, machineId, ResolveMachineType(board, machineId), "produce", rate, isEstimate,
+                        port.Summary);
+                }
+            }
+
+            foreach (var variant in touchedVariants)
+            {
+                var elementId = variant.ElementId;
+                var dna = variant.Dna;
+                foreach (var flow in board.MachinePortFlows)
+                {
+                    if (flow.MachineType.Equals("SeaportConnector", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (flow.InputElementId == elementId && flow.InputDna == dna)
+                    {
+                        Get(acc, variant).AddMachine(
+                            board, flow.MachineId, flow.MachineType, "consume", null,
+                            flow.IsEstimate || !board.IsRunning, flow.Summary);
+                    }
+
+                    if (flow.OutputElementId == elementId && flow.OutputDna == dna)
+                    {
+                        Get(acc, variant).AddMachine(
+                            board, flow.MachineId, flow.MachineType, "produce", null,
+                            flow.IsEstimate || !board.IsRunning, flow.Summary);
+                    }
+                }
             }
         }
 
         return acc.ToDictionary(kv => kv.Key, kv => kv.Value.ToFlow());
+    }
+
+    private static string ResolveMachineType(PlayerBoardSeaportFlowSnapshot board, string machineId)
+    {
+        var fromFlow = board.MachinePortFlows.FirstOrDefault(f => f.MachineId == machineId);
+        if (fromFlow != null)
+            return fromFlow.MachineType;
+
+        var fromPort = board.SeaportPorts.FirstOrDefault(p => p.MachineId == machineId);
+        return fromPort?.MachineType ?? "Machine";
     }
 
     private static double ResolveSeaportPortRate(
@@ -76,6 +126,7 @@ public static class PlayerSeaportElementFlowAggregator
         private double _produceRate;
         private bool _estimateConsume;
         private bool _estimateProduce;
+        private readonly Dictionary<Guid, BoardAccumulator> _boards = new();
 
         public void NoteConsume(double rate, bool isEstimate)
         {
@@ -95,31 +146,121 @@ public static class PlayerSeaportElementFlowAggregator
                 _estimateProduce = true;
         }
 
+        public void AddMachine(
+            PlayerBoardSeaportFlowSnapshot board,
+            string machineId,
+            string machineType,
+            string role,
+            double? rate,
+            bool isEstimate,
+            string? summary)
+        {
+            if (!_boards.TryGetValue(board.BoardId, out var boardAcc))
+            {
+                boardAcc = new BoardAccumulator(board.BoardId, board.BoardName, board.IsRunning);
+                _boards[board.BoardId] = boardAcc;
+            }
+
+            boardAcc.AddMachine(machineId, machineType, role, rate, isEstimate, summary);
+        }
+
         public PoolElementFactoryFlow ToFlow()
         {
             var isEstimate = (_consumed && _estimateConsume) || (_produced && _estimateProduce);
+            var boards = _boards.Values
+                .Select(b => b.ToBoard())
+                .OrderBy(b => b.BoardName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             return new PoolElementFactoryFlow(
                 _consumed,
                 _produced,
                 _consumed ? _consumeRate : null,
                 _produced ? _produceRate : null,
-                isEstimate);
+                isEstimate,
+                boards);
+        }
+    }
+
+    private sealed class BoardAccumulator(Guid boardId, string boardName, bool isRunning)
+    {
+        private readonly Dictionary<(string MachineId, string Role), PoolElementFactoryMachine> _machines = new();
+
+        public void AddMachine(
+            string machineId,
+            string machineType,
+            string role,
+            double? rate,
+            bool isEstimate,
+            string? summary)
+        {
+            var key = (machineId, role);
+            if (_machines.TryGetValue(key, out var existing))
+            {
+                var mergedRate = MergeRate(existing.UnitsPerSecond, rate);
+                _machines[key] = existing with
+                {
+                    UnitsPerSecond = mergedRate,
+                    IsEstimate = existing.IsEstimate || isEstimate,
+                    Summary = existing.Summary ?? summary
+                };
+                return;
+            }
+
+            _machines[key] = new PoolElementFactoryMachine(
+                machineId, machineType, role, rate, isEstimate, summary);
+        }
+
+        public PoolElementFactoryBoard ToBoard() =>
+            new(
+                boardId,
+                boardName,
+                isRunning,
+                _machines.Values
+                    .OrderBy(m => m.Role, StringComparer.Ordinal)
+                    .ThenBy(m => m.MachineId, StringComparer.Ordinal)
+                    .ToList());
+
+        private static double? MergeRate(double? left, double? right)
+        {
+            if (left is null)
+                return right;
+            if (right is null)
+                return left;
+            return Math.Max(left.Value, right.Value);
         }
     }
 }
 
 public sealed record PlayerBoardSeaportFlowSnapshot(
+    Guid BoardId,
+    string BoardName,
     bool IsRunning,
     int TickIntervalSeconds,
     SeaportTickDelta? LastSeaportDelta,
     IReadOnlyList<SeaportFlowLine> IntoFactory,
     IReadOnlyList<SeaportFlowLine> OutOfFactory,
-    IReadOnlyList<SeaportPortFlowDetail> SeaportPorts);
+    IReadOnlyList<SeaportPortFlowDetail> SeaportPorts,
+    IReadOnlyList<MachinePortFlowDetail> MachinePortFlows);
+
+public sealed record PoolElementFactoryMachine(
+    string MachineId,
+    string MachineType,
+    string Role,
+    double? UnitsPerSecond,
+    bool IsEstimate,
+    string? Summary);
+
+public sealed record PoolElementFactoryBoard(
+    Guid BoardId,
+    string BoardName,
+    bool IsRunning,
+    IReadOnlyList<PoolElementFactoryMachine> Machines);
 
 public sealed record PoolElementFactoryFlow(
     bool ConsumedByFactory,
     bool ProducedByFactory,
     double? ConsumeUnitsPerSecond,
     double? ProduceUnitsPerSecond,
-    bool FlowIsEstimate);
+    bool FlowIsEstimate,
+    IReadOnlyList<PoolElementFactoryBoard> Boards);

@@ -696,12 +696,15 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
                 poolVariants));
 
             snapshots.Add(new PlayerBoardSeaportFlowSnapshot(
+                board.Id,
+                board.Name,
                 board.Mode == BoardMode.Running,
                 _economy.SimulationTickIntervalSeconds,
                 delta,
                 report.IntoFactory,
                 report.OutOfFactory,
-                report.SeaportPorts));
+                report.SeaportPorts,
+                report.MachinePortFlows));
         }
 
         return PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
