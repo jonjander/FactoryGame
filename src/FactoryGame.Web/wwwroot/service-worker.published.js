@@ -25,6 +25,7 @@ async function onInstall(event) {
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+    self.skipWaiting();
 }
 
 async function onActivate(event) {
@@ -35,21 +36,53 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+    await self.clients.claim();
+}
+
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
+function shouldUseNetworkFirst(url, request) {
+    if (request.method !== 'GET')
+        return false;
+    if (url.pathname.startsWith('/_framework/'))
+        return true;
+    if (url.pathname === '/index.html')
+        return true;
+    return request.mode === 'navigate';
 }
 
 async function onFetch(event) {
+    const url = new URL(event.request.url);
+    if (url.origin !== self.location.origin)
+        return;
+
+    if (shouldUseNetworkFirst(url, event.request)) {
+        event.respondWith((async () => {
+            try {
+                return await fetch(event.request);
+            } catch {
+                const cache = await caches.open(cacheName);
+                if (event.request.mode === 'navigate')
+                    return (await cache.match('index.html')) || fetch(event.request);
+                return (await cache.match(event.request)) || fetch(event.request);
+            }
+        })());
+        return;
+    }
+
     let cachedResponse = null;
     if (event.request.method === 'GET') {
-        // For all navigation requests, try to serve index.html from cache,
-        // unless that request is for an offline resource.
-        // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
         const shouldServeIndexHtml = event.request.mode === 'navigate'
-            && !manifestUrlList.some(url => url === event.request.url);
+            && !manifestUrlList.some(manifestUrl => manifestUrl === event.request.url);
 
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);
         cachedResponse = await cache.match(request);
     }
 
-    return cachedResponse || fetch(event.request);
+    event.respondWith(cachedResponse || fetch(event.request));
 }

@@ -2,6 +2,10 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.25
+
+- **PWA:** after deploy, recover from stuck loading — boot watchdog clears cache; service worker uses network-first for WASM and activates updates immediately.
+
 ## 0.3.24
 
 - **Boards:** delete factory with confirm — all planned machines return to machine inventory; running boards rejected.

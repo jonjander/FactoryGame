@@ -57,6 +57,35 @@
             });
             window.factoryGameClientLog = postClientLog;
         })();
+        (function bootWatchdog() {
+            var reloadKey = 'fg_boot_reload_attempt';
+            var appEl = document.getElementById('app');
+            if (!appEl) return;
+
+            var obs = new MutationObserver(function () {
+                if (!appEl.querySelector('.loading-progress')) {
+                    try { sessionStorage.removeItem(reloadKey); } catch (e) { }
+                    obs.disconnect();
+                }
+            });
+            obs.observe(appEl, { childList: true, subtree: true });
+
+            setTimeout(function () {
+                if (!appEl.querySelector('.loading-progress')) return;
+                try {
+                    if (sessionStorage.getItem(reloadKey) === '1') return;
+                    sessionStorage.setItem(reloadKey, '1');
+                    window.factoryGameClientLog('Warning', 'Blazor boot timeout — clearing PWA cache and reloading', 'bootWatchdog');
+                    if (window.factoryGame && window.factoryGame.hardReloadClient) {
+                        window.factoryGame.hardReloadClient();
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (e) {
+                    window.location.reload();
+                }
+            }, 25000);
+        })();
         window.factoryGame = {
             storageGet: (k) => localStorage.getItem(k),
             storageSet: (k, v) => localStorage.setItem(k, v),
@@ -83,7 +112,29 @@
         };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
-    <script>navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });</script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                .then(function (reg) {
+                    reg.addEventListener('updatefound', function () {
+                        var worker = reg.installing;
+                        if (!worker) return;
+                        worker.addEventListener('statechange', function () {
+                            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                                worker.postMessage({ type: 'SKIP_WAITING' });
+                            }
+                        });
+                    });
+                })
+                .catch(function () { });
+            var reloadedForSw;
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (reloadedForSw) return;
+                reloadedForSw = true;
+                window.location.reload();
+            });
+        }
+    </script>
 </body>
 
 </html>
