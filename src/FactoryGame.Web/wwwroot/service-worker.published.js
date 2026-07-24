@@ -4,7 +4,7 @@
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
-self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
+self.addEventListener('fetch', event => onFetchEvent(event));
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
@@ -45,6 +45,19 @@ self.addEventListener('message', event => {
     }
 });
 
+function shouldBypassServiceWorker(url, request) {
+    const path = url.pathname;
+    if (path.startsWith('/v1/'))
+        return true;
+    if (path.startsWith('/diagnostics/'))
+        return true;
+    if (path.startsWith('/swagger'))
+        return true;
+    if (path === '/health')
+        return true;
+    return request.method !== 'GET';
+}
+
 function shouldUseNetworkFirst(url, request) {
     if (request.method !== 'GET')
         return false;
@@ -52,28 +65,36 @@ function shouldUseNetworkFirst(url, request) {
         return true;
     if (url.pathname.startsWith('/js/'))
         return true;
+    if (url.pathname.startsWith('/css/'))
+        return true;
     if (url.pathname === '/index.html')
         return true;
     return request.mode === 'navigate';
 }
 
-async function onFetch(event) {
+function onFetchEvent(event) {
     const url = new URL(event.request.url);
     if (url.origin !== self.location.origin)
         return;
 
-    if (shouldUseNetworkFirst(url, event.request)) {
-        event.respondWith((async () => {
-            try {
-                return await fetch(event.request);
-            } catch {
-                const cache = await caches.open(cacheName);
-                if (event.request.mode === 'navigate')
-                    return (await cache.match('index.html')) || fetch(event.request);
-                return (await cache.match(event.request)) || fetch(event.request);
-            }
-        })());
+    if (shouldBypassServiceWorker(url, event.request))
         return;
+
+    event.respondWith(onFetch(event));
+}
+
+async function onFetch(event) {
+    const url = new URL(event.request.url);
+
+    if (shouldUseNetworkFirst(url, event.request)) {
+        try {
+            return await fetch(event.request);
+        } catch {
+            const cache = await caches.open(cacheName);
+            if (event.request.mode === 'navigate')
+                return (await cache.match('index.html')) || fetch(event.request);
+            return (await cache.match(event.request)) || fetch(event.request);
+        }
     }
 
     let cachedResponse = null;
@@ -86,5 +107,5 @@ async function onFetch(event) {
         cachedResponse = await cache.match(request);
     }
 
-    event.respondWith(cachedResponse || fetch(event.request));
+    return cachedResponse || fetch(event.request);
 }

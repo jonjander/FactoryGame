@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.28
+
+- **PWA fix:** service worker fetch handler — return responses instead of double `respondWith` (fixes `Failed to fetch` for CSS and API when SW active).
+- **PWA:** bypass `/v1/` and diagnostics from service worker; network-first for `/css/`.
+
 ## 0.3.27
 
 - **PWA fix:** service worker network-first for `/js/` modules — fixes crash loading `viewport-layout.js` after deploy.
