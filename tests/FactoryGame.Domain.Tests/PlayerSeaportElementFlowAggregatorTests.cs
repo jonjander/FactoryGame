@@ -175,6 +175,35 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
         Assert.Single(flows);
     }
 
+    [Fact]
+    public void Aggregate_marks_produce_when_in_port_has_planned_deposit_variant()
+    {
+        var heatedDna = DnaTransforms.Heat(DnaSolid);
+        var snapshots = new[]
+        {
+            new PlayerBoardSeaportFlowSnapshot(
+                IsRunning: false,
+                TickIntervalSeconds: 10,
+                LastSeaportDelta: null,
+                IntoFactory: [],
+                OutOfFactory:
+                [
+                    new SeaportFlowLine("sea1", "SeaportConnector", "in", "boiler1", "out", 0.4, "Factory → pool", null)
+                ],
+                SeaportPorts:
+                [
+                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "in", "in", true, "boiler1", "out", 3, heatedDna, "E03", "To pool", true)
+                ])
+        };
+
+        var flows = PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
+
+        var key = new PoolStackKey(3, heatedDna);
+        Assert.True(flows[key].ProducedByFactory);
+        Assert.False(flows[key].ConsumedByFactory);
+        Assert.Equal(0.4, flows[key].ProduceUnitsPerSecond);
+    }
+
     private static SeaportTickDelta CreateDelta(
         (int ElementId, long Dna, decimal Qty)? withdraw = null,
         (int ElementId, long Dna, decimal Qty)? deposit = null)

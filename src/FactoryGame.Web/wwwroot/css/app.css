@@ -298,15 +298,6 @@ input, textarea, select {
 
 .fg-board-tile {
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.fg-board-tile-delete {
-    align-self: flex-end;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.5rem;
 }
 
 .fg-board-tile-main {
@@ -400,6 +391,24 @@ input, textarea, select {
 
 .fg-board-title-row h3 {
     margin: 0;
+}
+
+.fg-board-picker-selected-name {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fg-board-title-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .fg-board-rename-row {

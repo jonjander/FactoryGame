@@ -7,6 +7,31 @@
         <button type="button" class="secondary" @onclick='() => Session.LoadBoardsAsync()' disabled="@Session.Busy">List</button>
         <button type="button" @onclick="Session.CreateBoardAsync" disabled="@Session.Busy">New board</button>
     </div>
+    @if (Session.Selected != null)
+    {
+        <div class="fg-board-title-row">
+            @if (Session.RenamingBoard)
+            {
+                <div class="fg-board-rename-row">
+                    <label for="fg-board-picker-rename">Name</label>
+                    <input id="fg-board-picker-rename" @bind="Session.RenameDraft" maxlength="120" />
+                    <button type="button" @onclick="Session.SaveRenameAsync" disabled="@Session.Busy">Save name</button>
+                    <button type="button" class="secondary" @onclick="Session.CancelRename" disabled="@Session.Busy">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <h4 class="fg-board-picker-selected-name">@Session.GetSelectedBoardName()</h4>
+                <div class="fg-board-title-actions">
+                    <button type="button" class="secondary" @onclick="Session.BeginRename" disabled="@Session.Busy">Rename</button>
+                    <button type="button"
+                            class="danger-outline"
+                            @onclick="async () => await Session.DeleteBoardAsync(Session.Selected!.Value)"
+                            disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Delete</button>
+                </div>
+            }
+        </div>
+    }
     @if (!string.IsNullOrEmpty(Session.Error))
     {
         <p class="error">@Session.Error</p>
@@ -30,12 +55,6 @@
                         · @b.PlanConnectionCount pipes
                     </span>
                 </button>
-                <button type="button"
-                        class="fg-board-tile-delete danger-outline"
-                        title="Delete factory"
-                        disabled="@(Session.Busy || b.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase))"
-                        @onclick="async () => await Session.DeleteBoardAsync(b.Id)"
-                        @onclick:stopPropagation="true">Delete</button>
             </li>
         }
     </ul>

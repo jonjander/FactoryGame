@@ -19,9 +19,9 @@
 
 <PageTitle>Factory</PageTitle>
 
-<ConfirmDialog Visible="Session.ConfirmVisible"
-               Message="Session.ConfirmMessage"
-               ConfirmLabel="Session.ConfirmLabel"
+<ConfirmDialog Visible="@Session.ConfirmVisible"
+               Message="@Session.ConfirmMessage"
+               ConfirmLabel="@Session.ConfirmLabel"
                OnConfirm="Session.OnConfirmDialogYesAsync"
                OnCancel="Session.OnConfirmDialogNoAsync" />
 
@@ -68,12 +68,6 @@
                         <span class="fg-board-tile-hint">@displayHint</span>
                     }
                 </button>
-                <button type="button"
-                        class="fg-board-tile-delete danger-outline"
-                        title="Delete factory"
-                        disabled="@(Session.Busy || b.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase))"
-                        @onclick="async () => await Session.DeleteBoardAsync(b.Id)"
-                        @onclick:stopPropagation="true">Delete</button>
             </li>
         }
     </ul>
@@ -148,7 +142,7 @@
                 <button type="button"
                         class="danger-outline"
                         @onclick="async () => await Session.DeleteBoardAsync(Session.Selected!.Value)"
-                        disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Delete factory</button>
+                        disabled="@(Session.Busy || Session.IsSelectedBoardRunning())">Delete</button>
             }
         </div>
 

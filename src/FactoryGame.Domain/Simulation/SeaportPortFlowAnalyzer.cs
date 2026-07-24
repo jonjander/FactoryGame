@@ -110,6 +110,19 @@ public static class SeaportPortFlowAnalyzer
                 }
             }
 
+            if (materialDna is null or 0)
+            {
+                TryResolveDepositVariant(
+                    linkedMachineId,
+                    linkedPort,
+                    machineById,
+                    connections,
+                    runtime,
+                    ref elementId,
+                    ref materialDna,
+                    ref elementSymbol);
+            }
+
             var depositPhase = pkt != null
                 ? MaterialPhaseLabels.PhaseLabel(MaterialPhaseLabels.DecodePhase(pkt.Dna))
                 : ResolvePredictedDepositPhase(linkedMachineId, linkedPort, machineById, connections, runtime);
@@ -337,6 +350,52 @@ public static class SeaportPortFlowAnalyzer
 
     private static string FormatPath(string? fromId, string? fromPort, string? toId, string? toPort) =>
         $"{fromId}.{fromPort} → {toId}.{toPort}";
+
+    /// <summary>When runtime buffers are empty, predict which variant will be deposited via seaport.in.</summary>
+    private static void TryResolveDepositVariant(
+        string? linkedMachineId,
+        string? linkedPort,
+        IReadOnlyDictionary<string, MachineInfo> machineById,
+        IReadOnlyList<ConnectionInfo> connections,
+        BoardLineState? runtime,
+        ref int? elementId,
+        ref long? materialDna,
+        ref string? elementSymbol)
+    {
+        if (materialDna is > 0)
+            return;
+        if (linkedMachineId == null || linkedPort == null)
+            return;
+        if (!machineById.TryGetValue(linkedMachineId, out var machine))
+            return;
+        if (machine.Type.Equals("Burner", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var traced = MaterialFlowTrace.TraceUpstream(
+            linkedMachineId, linkedPort, machineById, connections, runtime);
+
+        long? inputDna = null;
+        var inPort = MaterialFlowTrace.ResolveUpstreamInputPort(machine.Type, linkedPort);
+        if (inPort != null)
+        {
+            var inPkt = MaterialFlowTrace.TryReadPacket(runtime, linkedMachineId, inPort, isOutput: false);
+            inputDna = inPkt?.Dna;
+        }
+
+        var predicted = MaterialFlowTrace.PredictOutput(
+            machine, linkedPort, traced.ElementId, traced.ElementSymbol, inputDna);
+
+        if (predicted.OutputDna is not { } outDna || outDna == 0)
+            return;
+
+        materialDna = outDna;
+        var outId = predicted.OutputId ?? traced.ElementId ?? elementId;
+        if (outId is > 0)
+        {
+            elementId = outId;
+            elementSymbol = MaterialLabelFormatter.Format(outId.Value, outDna);
+        }
+    }
 
 }
 

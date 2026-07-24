@@ -15,6 +15,12 @@
 
     <div class="game-shell-main">
         <div class="game-shell-canvas-area">
+            <ConfirmDialog Visible="@Session.ConfirmVisible"
+                           Message="@Session.ConfirmMessage"
+                           ConfirmLabel="@Session.ConfirmLabel"
+                           OnConfirm="Session.OnConfirmDialogYesAsync"
+                           OnCancel="Session.OnConfirmDialogNoAsync" />
+
             @if (Session.Selected != null && Session.TryDeserializePlan(out var canvasPlan))
             {
                 @if (Session.BoardInfo != null)
@@ -32,12 +38,6 @@
                         }
                     </div>
                 }
-
-                <ConfirmDialog Visible="Session.ConfirmVisible"
-                               Message="Session.ConfirmMessage"
-                               ConfirmLabel="Session.ConfirmLabel"
-                               OnConfirm="Session.OnConfirmDialogYesAsync"
-                               OnCancel="Session.OnConfirmDialogNoAsync" />
 
                 <FactoryCanvas @key="Session.Selected"
                                Plan="canvasPlan"

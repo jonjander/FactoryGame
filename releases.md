@@ -2,6 +2,12 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.26
+
+- **Pool:** production seaport arrow (↑) — predict deposit DNA variant from upstream machine chain when buffers are empty.
+- **Boards:** delete next to rename (not on tiles); confirm dialog binding fix.
+- **UI:** confirm dialog always available in game shell (delete/replace prompts).
+
 ## 0.3.25
 
 - **PWA:** after deploy, recover from stuck loading — boot watchdog clears cache; service worker uses network-first for WASM and activates updates immediately.
