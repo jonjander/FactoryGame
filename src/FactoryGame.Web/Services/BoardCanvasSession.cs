@@ -68,6 +68,7 @@ public sealed class BoardCanvasSession : IAsyncDisposable
     
     public bool ConfirmVisible { get; private set; }
     public string ConfirmMessage { get; private set; } = "";
+    public string ConfirmLabel { get; private set; } = "Yes";
     
 
     public string PipeFromId { get; set; } = "";
@@ -475,6 +476,77 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         finally
         {
             Busy = false;
+        }
+    }
+
+    public async Task DeleteBoardAsync(Guid boardId)
+    {
+        var board = Boards.FirstOrDefault(b => b.Id == boardId);
+        if (board == null)
+        {
+            Error = "Board not found.";
+            return;
+        }
+
+        if (board.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase))
+        {
+            Error = "Stop the factory before deleting.";
+            return;
+        }
+
+        var machineCount = board.PlanMachineCount;
+        var message = machineCount > 0
+            ? $"Delete factory \"{board.Name}\"? {machineCount} machine(s) will return to your machine inventory. Settings on placed machines are lost. This cannot be undone."
+            : $"Delete factory \"{board.Name}\"? This cannot be undone.";
+
+        if (!await AskConfirmAsync(message, "Yes, delete factory"))
+            return;
+
+        Busy = true;
+        Error = null;
+        try
+        {
+            var res = await _http.DeleteAsync($"/v1/boards/{boardId}");
+            if (!res.IsSuccessStatusCode)
+            {
+                Error = await res.Content.ReadAsStringAsync();
+                return;
+            }
+
+            var result = await res.Content.ReadFromJsonAsync<DeleteBoardResponse>(JsonRelaxed);
+            RenamingBoard = false;
+            RenameDraft = "";
+
+            if (Selected == boardId)
+            {
+                Selected = null;
+                PlanJson = """{"machines":[],"connections":[]}""";
+                BoardInfo = null;
+                LatestKeyframe = null;
+                Snapshot = "";
+                SaveHint = null;
+                _issuesByBoardId.Remove(boardId);
+            }
+
+            await LoadBoardsAsync();
+            await LoadInventoryAsync();
+
+            if (Selected == null && Boards.Count > 0)
+                await SelectBoardAsync(Boards[0].Id);
+
+            var returned = result?.MachinesReturned ?? machineCount;
+            _snackbar.Show(returned > 0
+                ? $"Factory deleted. {returned} machine(s) returned to inventory."
+                : "Factory deleted.");
+        }
+        catch (Exception ex)
+        {
+            Error = ApiConnectionErrors.Format(ex);
+        }
+        finally
+        {
+            Busy = false;
+            NotifyChanged();
         }
     }
 
@@ -954,13 +1026,19 @@ public sealed class BoardCanvasSession : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    public async Task<bool> AskReplaceConnectionAsync(string message)
+    public async Task<bool> AskConfirmAsync(string message, string confirmLabel = "Yes")
     {
         ConfirmMessage = message;
+        ConfirmLabel = confirmLabel;
         ConfirmVisible = true;
         _confirmTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         NotifyChanged();
         return await _confirmTcs.Task;
+    }
+
+    public async Task<bool> AskReplaceConnectionAsync(string message)
+    {
+        return await AskConfirmAsync(message, "Yes, replace connection");
     }
 
     private static string FormatConnection(ConnectionDto c) =>

@@ -12,6 +12,8 @@ public sealed record CreateBoardRequest(string Name);
 
 public sealed record RenameBoardRequest(string Name);
 
+public sealed record DeleteBoardResponse(int MachinesReturned);
+
 public sealed record SavePlanRequest(BoardPlanDto Plan);
 
 public sealed record BoardSummaryDto(

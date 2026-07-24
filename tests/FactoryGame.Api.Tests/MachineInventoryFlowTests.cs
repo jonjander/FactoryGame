@@ -219,4 +219,83 @@ public sealed class MachineInventoryFlowTests : IClassFixture<ApiWebApplicationF
         var purchase = await client.PostAsJsonAsync("/v1/me/machine-inventory/purchase", new PurchaseMachineRequest("NotAMachine"));
         Assert.Equal(HttpStatusCode.BadRequest, purchase.StatusCode);
     }
+
+    [Fact]
+    public async Task Delete_board_returns_machines_to_inventory_and_removes_board()
+    {
+        var client = _fixture.Factory.CreateClient();
+        var auth = await client.PostAsJsonAsync("/v1/auth/guest", new GuestAuthRequest("integration-delete-board"));
+        auth.EnsureSuccessStatusCode();
+        var body = await auth.Content.ReadFromJsonAsync<GuestAuthResponse>();
+        Assert.NotNull(body);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
+
+        await client.PostAsJsonAsync("/v1/me/machine-inventory/purchase", new PurchaseMachineRequest("Boiler"));
+        await client.PostAsJsonAsync("/v1/me/machine-inventory/purchase", new PurchaseMachineRequest("Mixer"));
+
+        var inv = await client.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory");
+        Assert.NotNull(inv);
+        Assert.Equal(2, inv.Count);
+
+        var boardRes = await client.PostAsJsonAsync("/v1/boards", new CreateBoardRequest("Delete me"));
+        boardRes.EnsureSuccessStatusCode();
+        var board = await boardRes.Content.ReadFromJsonAsync<BoardSummaryDto>();
+        Assert.NotNull(board);
+
+        var place1 = await client.PostAsJsonAsync($"/v1/boards/{board.Id}/place-from-stock",
+            new PlaceMachineFromStockRequest(inv[0].Id, "boiler1"));
+        place1.EnsureSuccessStatusCode();
+        var invMid = await client.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory");
+        Assert.NotNull(invMid);
+        var place2 = await client.PostAsJsonAsync($"/v1/boards/{board.Id}/place-from-stock",
+            new PlaceMachineFromStockRequest(invMid[0].Id, "mix1"));
+        place2.EnsureSuccessStatusCode();
+
+        var invEmpty = await client.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory");
+        Assert.NotNull(invEmpty);
+        Assert.Empty(invEmpty);
+
+        var deleteRes = await client.DeleteAsync($"/v1/boards/{board.Id}");
+        deleteRes.EnsureSuccessStatusCode();
+        var deleted = await deleteRes.Content.ReadFromJsonAsync<DeleteBoardResponse>();
+        Assert.NotNull(deleted);
+        Assert.Equal(2, deleted.MachinesReturned);
+
+        var list = await client.GetFromJsonAsync<List<BoardSummaryDto>>("/v1/boards");
+        Assert.NotNull(list);
+        Assert.DoesNotContain(list, b => b.Id == board.Id);
+
+        var invAfter = await client.GetFromJsonAsync<List<PlayerMachineStockDto>>("/v1/me/machine-inventory");
+        Assert.NotNull(invAfter);
+        Assert.Equal(2, invAfter.Count);
+        Assert.Contains(invAfter, i => i.MachineType == "Boiler");
+        Assert.Contains(invAfter, i => i.MachineType == "Mixer");
+    }
+
+    [Fact]
+    public async Task Delete_running_board_is_rejected()
+    {
+        var client = _fixture.Factory.CreateClient();
+        var auth = await client.PostAsJsonAsync("/v1/auth/guest", new GuestAuthRequest("integration-delete-running"));
+        auth.EnsureSuccessStatusCode();
+        var body = await auth.Content.ReadFromJsonAsync<GuestAuthResponse>();
+        Assert.NotNull(body);
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {body.SessionToken}");
+
+        var boardRes = await client.PostAsJsonAsync("/v1/boards", new CreateBoardRequest("Running"));
+        boardRes.EnsureSuccessStatusCode();
+        var board = await boardRes.Content.ReadFromJsonAsync<BoardSummaryDto>();
+        Assert.NotNull(board);
+
+        await client.PutAsJsonAsync($"/v1/boards/{board.Id}/plan",
+            new SavePlanRequest(new BoardPlanDto(
+                [new MachineDto("sea1", "SeaportConnector")],
+                [])));
+
+        await client.PostAsync($"/v1/boards/{board.Id}/start", null);
+        var deleteRes = await client.DeleteAsync($"/v1/boards/{board.Id}");
+        Assert.Equal(HttpStatusCode.BadRequest, deleteRes.StatusCode);
+
+        await client.PostAsync($"/v1/boards/{board.Id}/stop", null);
+    }
 }

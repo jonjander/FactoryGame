@@ -226,6 +226,47 @@ public sealed class BoardService(AppDbContext db, IOptions<GameEconomyOptions> e
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<int> DeleteBoardAsync(Guid playerId, Guid boardId, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var board = await db.Boards.FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct)
+                ?? throw new InvalidOperationException("Board not found.");
+            if (board.Mode != BoardMode.Edit)
+                throw new InvalidOperationException("Stop the factory before deleting.");
+
+            var plan = await GetLatestPlanAsync(playerId, boardId, ct)
+                       ?? new BoardPlanDto(Array.Empty<MachineDto>(), Array.Empty<ConnectionDto>());
+
+            var returned = 0;
+            foreach (var machine in plan.Machines)
+            {
+                if (!MachinePortCatalog.IsKnownMachineType(machine.Type))
+                    continue;
+
+                db.PlayerMachineStocks.Add(new PlayerMachineStockEntity
+                {
+                    Id = Guid.NewGuid(),
+                    PlayerId = playerId,
+                    MachineType = machine.Type,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+                returned++;
+            }
+
+            db.Boards.Remove(board);
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return returned;
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
     public async Task SavePlanAsync(Guid playerId, Guid boardId, BoardPlanDto plan, CancellationToken ct)
     {
         var board = await db.Boards.FirstOrDefaultAsync(b => b.Id == boardId && b.PlayerId == playerId, ct)

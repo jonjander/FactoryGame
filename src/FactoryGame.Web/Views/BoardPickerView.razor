@@ -30,6 +30,12 @@
                         · @b.PlanConnectionCount pipes
                     </span>
                 </button>
+                <button type="button"
+                        class="fg-board-tile-delete danger-outline"
+                        title="Delete factory"
+                        disabled="@(Session.Busy || b.Mode.Equals("Running", StringComparison.OrdinalIgnoreCase))"
+                        @onclick="async () => await Session.DeleteBoardAsync(b.Id)"
+                        @onclick:stopPropagation="true">Delete</button>
             </li>
         }
     </ul>

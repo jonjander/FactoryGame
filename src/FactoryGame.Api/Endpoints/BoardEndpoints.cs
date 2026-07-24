@@ -155,6 +155,27 @@ public static class BoardEndpoints
             .WithName("RenameBoard")
             .WithOpenApi();
 
+        group.MapDelete("/{boardId:guid}", async Task<IResult> (
+                HttpContext http,
+                Guid boardId,
+                BoardService boards,
+                CancellationToken ct) =>
+            {
+                if (http.Items["PlayerId"] is not Guid playerId)
+                    return Results.Unauthorized();
+                try
+                {
+                    var returned = await boards.DeleteBoardAsync(playerId, boardId, ct);
+                    return Results.Ok(new DeleteBoardResponse(returned));
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.BadRequest(new { error = ex.Message });
+                }
+            })
+            .WithName("DeleteBoard")
+            .WithOpenApi();
+
         group.MapPut("/{boardId:guid}/plan", async Task<IResult> (
                 HttpContext http,
                 Guid boardId,

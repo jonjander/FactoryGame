@@ -298,6 +298,15 @@ input, textarea, select {
 
 .fg-board-tile {
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.fg-board-tile-delete {
+    align-self: flex-end;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
 }
 
 .fg-board-tile-main {

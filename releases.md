@@ -2,6 +2,11 @@
 
 Concise list of what each delivered version includes. Git commit for a release has **only** semver as message (same value as `Version` in `Directory.Build.props`); git tag is `v{Version}`.
 
+## 0.3.24
+
+- **Boards:** delete factory with confirm — all planned machines return to machine inventory; running boards rejected.
+- **Pool:** seaport flow arrows use planned seaport capacity from layout (stable ↑↓), not tick deltas.
+
 ## 0.3.23
 
 - **Pool:** seaport flow arrows per DNA variant (not whole element) — withdraw/deposit tracked at seaport boundary only; no false ↑↓ on unrelated variants or internal factory paths.

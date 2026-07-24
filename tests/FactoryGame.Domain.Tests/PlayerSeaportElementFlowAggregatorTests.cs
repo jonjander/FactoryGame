@@ -10,7 +10,7 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     private const long DnaGas = 2L << DnaLayout.PhaseShift;
 
     [Fact]
-    public void Aggregate_sums_withdraw_and_deposit_across_boards()
+    public void Aggregate_sums_planned_ports_across_boards()
     {
         var snapshots = new[]
         {
@@ -18,16 +18,32 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
                 IsRunning: true,
                 TickIntervalSeconds: 10,
                 LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 2m)),
-                IntoFactory: [],
+                IntoFactory:
+                [
+                    new SeaportFlowLine("sea1", "SeaportConnector", "out", "b1", "in", 0.2, "Pool → factory", null)
+                ],
                 OutOfFactory: [],
-                SeaportPorts: []),
+                SeaportPorts:
+                [
+                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "out", "out", true, "b1", "in", 3, DnaSolid, "E03", "From pool", false)
+                ]),
             new PlayerBoardSeaportFlowSnapshot(
                 IsRunning: true,
                 TickIntervalSeconds: 10,
                 LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 5m), deposit: (7, DnaGas, 2m)),
-                IntoFactory: [],
-                OutOfFactory: [],
-                SeaportPorts: [])
+                IntoFactory:
+                [
+                    new SeaportFlowLine("sea2", "SeaportConnector", "out", "b2", "in", 0.5, "Pool → factory", null)
+                ],
+                OutOfFactory:
+                [
+                    new SeaportFlowLine("sea2", "SeaportConnector", "in", "b2", "out", 0.1, "Factory → pool", null)
+                ],
+                SeaportPorts:
+                [
+                    new SeaportPortFlowDetail("sea2", "SeaportConnector", "out", "out", true, "b2", "in", 3, DnaSolid, "E03", "From pool", false),
+                    new SeaportPortFlowDetail("sea2", "SeaportConnector", "in", "in", true, "b2", "out", 7, DnaGas, "E07", "To pool", false)
+                ])
         };
 
         var flows = PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
@@ -39,7 +55,7 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
         Assert.False(flows[withdrawKey].ProducedByFactory);
         Assert.False(flows[withdrawKey].FlowIsEstimate);
         Assert.True(flows[depositKey].ProducedByFactory);
-        Assert.Equal(0.2, flows[depositKey].ProduceUnitsPerSecond!.Value, 3);
+        Assert.Equal(0.1, flows[depositKey].ProduceUnitsPerSecond!.Value, 3);
         Assert.False(flows[depositKey].ConsumedByFactory);
     }
 
@@ -49,12 +65,22 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
         var snapshots = new[]
         {
             new PlayerBoardSeaportFlowSnapshot(
-                IsRunning: true,
+                IsRunning: false,
                 TickIntervalSeconds: 10,
-                LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 1m), deposit: (3, DnaGas, 1m)),
-                IntoFactory: [],
-                OutOfFactory: [],
-                SeaportPorts: [])
+                LastSeaportDelta: null,
+                IntoFactory:
+                [
+                    new SeaportFlowLine("sea1", "SeaportConnector", "out", "b1", "in", 0.5, "Pool → factory", null)
+                ],
+                OutOfFactory:
+                [
+                    new SeaportFlowLine("sea1", "SeaportConnector", "in", "b1", "out", 0.4, "Factory → pool", null)
+                ],
+                SeaportPorts:
+                [
+                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "out", "out", true, "b1", "in", 3, DnaSolid, "E03", "From pool", true),
+                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "in", "in", true, "b1", "out", 3, DnaGas, "E03", "To pool", true)
+                ])
         };
 
         var flows = PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
@@ -96,7 +122,7 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
     }
 
     [Fact]
-    public void Aggregate_uses_measured_delta_only_when_running()
+    public void Aggregate_ignores_tick_delta_and_uses_planned_ports_when_running()
     {
         var snapshots = new[]
         {
@@ -104,18 +130,22 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
                 IsRunning: true,
                 TickIntervalSeconds: 10,
                 LastSeaportDelta: CreateDelta(withdraw: (3, DnaSolid, 2m)),
-                IntoFactory: [],
+                IntoFactory:
+                [
+                    new SeaportFlowLine("sea1", "SeaportConnector", "out", "b1", "in", 0.5, "Pool → factory", null)
+                ],
                 OutOfFactory: [],
                 SeaportPorts:
                 [
-                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "out", "out", true, "b1", "in", 99, DnaGas, "E99", "From pool", true)
+                    new SeaportPortFlowDetail("sea1", "SeaportConnector", "out", "out", true, "b1", "in", 99, DnaGas, "E99", "From pool", false)
                 ])
         };
 
         var flows = PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
 
-        Assert.True(flows.ContainsKey(new PoolStackKey(3, DnaSolid)));
-        Assert.False(flows.ContainsKey(new PoolStackKey(99, DnaGas)));
+        Assert.False(flows.ContainsKey(new PoolStackKey(3, DnaSolid)));
+        Assert.True(flows.ContainsKey(new PoolStackKey(99, DnaGas)));
+        Assert.Equal(0.5, flows[new PoolStackKey(99, DnaGas)].ConsumeUnitsPerSecond);
     }
 
     [Fact]
@@ -142,7 +172,7 @@ public sealed class PlayerSeaportElementFlowAggregatorTests
         var flows = PlayerSeaportElementFlowAggregator.Aggregate(snapshots);
 
         Assert.True(flows.ContainsKey(new PoolStackKey(5, DnaSolid)));
-        Assert.Equal(1, flows.Count);
+        Assert.Single(flows);
     }
 
     private static SeaportTickDelta CreateDelta(

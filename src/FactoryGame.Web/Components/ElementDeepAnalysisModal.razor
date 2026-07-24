@@ -45,7 +45,11 @@
                 </ul>
                 @if (flow.FlowIsEstimate)
                 {
-                    <p class="muted pool-factory-flow-hint">Rates are estimates from board layout (factory stopped or idle).</p>
+                    <p class="muted pool-factory-flow-hint">Planned capacity from factory layout (factory stopped or material not yet determined).</p>
+                }
+                else
+                {
+                    <p class="muted pool-factory-flow-hint">Planned seaport capacity from running factory layout.</p>
                 }
             }
 
